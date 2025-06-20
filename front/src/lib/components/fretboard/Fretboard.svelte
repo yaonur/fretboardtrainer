@@ -34,32 +34,32 @@
 		major: [0, 2, 4, 5, 7, 9, 11] // Major scale intervals
 	};
 
-	let lastNote = $state<string>('');
+	let lastNote = '';
 	function generateNewQuestion() {
 		feedback = '';
-		const newString = Math.floor(Math.random() * (stringRangeEnd - stringRangeStart + 1)) + stringRangeStart;
-		const newFret = Math.floor(Math.random() * (fretRangeEnd - fretRangeStart + 1)) + fretRangeStart;
+		const newString =
+			Math.floor(Math.random() * (stringRangeEnd - stringRangeStart + 1)) + stringRangeStart;
+		const newFret =
+			Math.floor(Math.random() * (fretRangeEnd - fretRangeStart + 1)) + fretRangeStart;
 
 		const note = fretboard[newString][newFret];
-		if (lastNote === note) {
-			console.log('same note', note);
-			// generateNewQuestion();
-		} else {
-			lastNote = note;
-			console.log(note);
-		}
+		// console.log("note:",note)
 
 		const rootNoteIndex = notes.indexOf(selectedKey);
 		const scaleIntervals = scales[selectedScale as keyof typeof scales];
-		const scaleNotes = scaleIntervals.map((interval) => notes[(rootNoteIndex + interval) % notes.length]);
+		const scaleNotes = scaleIntervals.map(
+			(interval) => notes[(rootNoteIndex + interval) % notes.length]
+		);
 
 		const degree = scaleNotes.indexOf(note);
 
-		if (degree === -1) {
+		if (degree === -1 || lastNote === note) {
 			// If the note is not in the scale, try again
-			console.log('not in scale', note);
-			generateNewQuestion();
+			if (lastNote === note)
+				// console.log('same note', note);
+				generateNewQuestion();
 		} else {
+			lastNote = note;
 			activeString = newString;
 			activeFret = newFret;
 			correctAnswer = degree + 1; // 1-indexed degree
@@ -77,42 +77,36 @@
 
 	// Initial question
 	// $effect(generateNewQuestion);
-	$effect(() => {
-		
-	});
+	$effect(() => {});
 </script>
 
 <div class="flex flex-col items-center">
 	<!-- Game Info -->
-	<div class="text-center my-4">
+	<div class="my-4 text-center">
 		<h2 class="text-2xl font-semibold">Find the note's degree in {selectedKey} Major</h2>
 		<button
 			onclick={generateNewQuestion}
-			class="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+			class="mt-2 rounded bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600"
 		>
 			New Question
 		</button>
 	</div>
 
 	<!-- Practice Range Controls -->
-	<div class="w-10/12 md:w-5/6 mb-6 p-4 bg-gray-100 dark:bg-gray-800 dark:text-slate-500 rounded-lg">
-		<h3 class="text-lg font-semibold mb-3">Practice Range</h3>
-		<div class="flex flex-wrap gap-4 justify-center">
+	<div
+		class="mb-6 w-10/12 rounded-lg bg-gray-100 p-4 md:w-5/6 dark:bg-gray-800 dark:text-slate-500"
+	>
+		<h3 class="mb-3 text-lg font-semibold">Practice Range</h3>
+		<div class="flex flex-wrap justify-center gap-4">
 			<div class="flex items-center gap-2">
 				<label class="text-sm font-medium">Strings:</label>
-				<select
-					bind:value={stringRangeStart}
-					class="px-2 py-1 border rounded text-sm"
-				>
+				<select bind:value={stringRangeStart} class="rounded border px-2 py-1 text-sm">
 					{#each { length: 6 } as _, i}
 						<option value={i}>{i + 1}</option>
 					{/each}
 				</select>
 				<span>to</span>
-				<select
-					bind:value={stringRangeEnd}
-					class="px-2 py-1 border rounded text-sm"
-				>
+				<select bind:value={stringRangeEnd} class="rounded border px-2 py-1 text-sm">
 					{#each { length: 6 } as _, i}
 						<option value={i}>{i + 1}</option>
 					{/each}
@@ -120,64 +114,60 @@
 			</div>
 			<div class="flex items-center gap-2">
 				<label class="text-sm font-medium">Frets:</label>
-				<select
-					bind:value={fretRangeStart}
-					class="px-2 py-1 border rounded text-sm"
-				>
+				<select bind:value={fretRangeStart} class="rounded border px-2 py-1 text-sm">
 					{#each { length: 12 } as _, i}
 						<option value={i + 1}>{i + 1}</option>
 					{/each}
 				</select>
 				<span>to</span>
-				<select
-					bind:value={fretRangeEnd}
-					class="px-2 py-1 border rounded text-sm"
-				>
+				<select bind:value={fretRangeEnd} class="rounded border px-2 py-1 text-sm">
 					{#each { length: 12 } as _, i}
 						<option value={i + 1}>{i + 1}</option>
 					{/each}
 				</select>
 			</div>
 		</div>
-		<div class="text-center mt-2 text-sm text-gray-600 dark:text-gray-400">
+		<div class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
 			Currently practicing: Strings {stringRangeStart + 1}-{stringRangeEnd + 1}, Frets {fretRangeStart}-{fretRangeEnd}
 		</div>
 	</div>
 
 	<div class="w-10/12 md:w-5/6">
 		<!-- fretboard main -->
-		<div class="relative border-l-[5px] border-r-[5px] border-gray-400 mt-12">
+		<div class="relative mt-12 border-l-[5px] border-r-[5px] border-gray-400">
 			<!-- Note Dot -->
 			{#if correctAnswer !== null}
-			<div class="absolute top-0 left-0 w-full h-[150px] pointer-events-none">
-				<div
-					class="absolute bg-white rounded-full h-[25px] w-[25px] border-2 border-black"
-					style:top="calc({activeString} * 30px - 12.5px)"
-					style:left="calc(({activeFret} - 0.5) * (100% / {numFrets}) - 12.5px)"
-					style:transition="all 0.3s"
-				></div>
-			</div>
+				<div class="pointer-events-none absolute left-0 top-0 h-[150px] w-full">
+					<div
+						class="absolute h-[25px] w-[25px] rounded-full border-2 border-black bg-white"
+						style:top="calc({activeString} * 30px - 12.5px)"
+						style:left="calc(({activeFret} - 0.5) * (100% / {numFrets}) - 12.5px)"
+						style:transition="all 0.3s"
+					></div>
+				</div>
 			{/if}
 			<!-- strings wrap -->
 			<div>
 				{#each { length: 5 } as _, i}
-					<div class="border-b border-gray-400 h-[30px]" class:border-t={i === 0}></div>
+					<div class="h-[30px] border-b border-gray-400" class:border-t={i === 0}></div>
 				{/each}
 
 				<!-- notes wrap -->
-				<div class="absolute top-[-10px] left-[-35px] h-[170px] w-[30px] flex flex-col justify-between">
+				<div
+					class="absolute left-[-35px] top-[-10px] flex h-[170px] w-[30px] flex-col justify-between"
+				>
 					{#each tuning as note}
-						<div class="text-2xl leading-none h-[30px]">{note}</div>
+						<div class="h-[30px] text-2xl leading-none">{note}</div>
 					{/each}
 				</div>
 			</div>
 			<!-- frets wrap -->
-			<div class="absolute top-0 left-0 flex w-full h-[150px] justify-between">
+			<div class="absolute left-0 top-0 flex h-[150px] w-full justify-between">
 				{#each { length: numFrets } as _, i}
 					<div
-						class="flex-1 h-[150px] border-r-2 border-gray-500 flex items-end justify-center last:border-r-0"
+						class="flex h-[150px] flex-1 items-end justify-center border-r-2 border-gray-500 last:border-r-0"
 					>
-						<div class="text-xl translate-y-[150%]">{i + 1}</div>
+						<div class="translate-y-[150%] text-xl">{i + 1}</div>
 					</div>
 				{/each}
 			</div>
@@ -189,7 +179,7 @@
 		{#each degreeButtons as degree, i}
 			<button
 				onclick={() => handleAnswer(i + 1)}
-				class="px-6 py-3 bg-gray-200 dark:bg-gray-700 rounded-lg text-2xl font-bold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+				class="rounded-lg bg-gray-200 px-6 py-3 text-2xl font-bold transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
 			>
 				{degree}
 			</button>
@@ -197,5 +187,5 @@
 	</div>
 
 	<!-- Feedback -->
-	<div class="mt-4 text-2xl font-semibold h-8">{feedback}</div>
+	<div class="mt-4 h-8 text-2xl font-semibold">{feedback}</div>
 </div>
