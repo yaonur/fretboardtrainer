@@ -54,8 +54,7 @@
 		const degree = scaleNotes.indexOf(note);
 
 		if (degree === -1 || lastNote === note) {
-			// If the note is not in the scale, try again
-			if (lastNote === note)
+			// if (lastNote === note)
 				// console.log('same note', note);
 				generateNewQuestion();
 		} else {
