@@ -22,7 +22,6 @@
 	let activeString = $state<number>(0);
 	let activeFret = $state<number>(1);
 	let selectedKey = $state('C');
-	let selectedScale = $state('major');
 	let correctAnswer = $state<number | null>(null);
 	let feedback = $state('');
 
@@ -42,7 +41,7 @@
 
 	function checkValidNotesInRange(): number {
 		const rootNoteIndex = notes.indexOf(selectedKey);
-		const scaleIntervals = scales[selectedScale as keyof typeof scales];
+		const scaleIntervals = scales.major;
 		const scaleNotes = scaleIntervals.map(
 			(interval) => notes[(rootNoteIndex + interval) % notes.length]
 		);
@@ -74,7 +73,7 @@
 		// console.log("note:",note)
 
 		const rootNoteIndex = notes.indexOf(selectedKey);
-		const scaleIntervals = scales[selectedScale as keyof typeof scales];
+		const scaleIntervals = scales.major;
 		const scaleNotes = scaleIntervals.map(
 			(interval) => notes[(rootNoteIndex + interval) % notes.length]
 		);
@@ -111,6 +110,19 @@
 	<!-- Game Info -->
 	<div class="my-4 text-center">
 		<h2 class="text-2xl font-semibold">Find the note's degree in {selectedKey} Major</h2>
+		<div class="mt-4 flex justify-center gap-4">
+			<div class="flex items-center gap-2">
+				<label class="text-sm font-medium">Key:</label>
+				<select
+					bind:value={selectedKey}
+					class="ease w-full cursor-pointer dark:text-slate-100 appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none"
+				>
+					{#each notes as note}
+						<option class="px-2 dark:bg-slate-700" value={note}>{note}</option>
+					{/each}
+				</select>
+			</div>
+		</div>
 		<button
 			onclick={generateNewQuestion}
 			disabled={!canGenerateQuestion}
@@ -147,6 +159,10 @@
 		</div>
 		<div class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
 			Currently practicing: Strings {stringRangeStart}-{stringRangeEnd}, Frets {fretRangeStart}-{fretRangeEnd}
+			<br />
+			<span class:text-green-600={validNotesCount >= 2} class:text-red-600={validNotesCount < 2}>
+				Found {validNotesCount} valid note{validNotesCount !== 1 ? 's' : ''} in {selectedKey} Major
+			</span>
 		</div>
 	</div>
 
