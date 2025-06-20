@@ -69,6 +69,9 @@
 			<a href="/" class="font-medium transition-colors duration-200 hover:text-blue-400"
 				>{m.home()}</a
 			>
+			<a href="/degrees" class="font-medium transition-colors duration-200 hover:text-blue-400"
+				>{m.degrees()}</a
+			>
 			<!-- <a href="/setlist" class="font-medium transition-colors duration-200 hover:text-blue-400"
 				>{m.setlist()}</a
 			> -->
