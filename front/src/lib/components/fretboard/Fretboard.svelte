@@ -1,10 +1,31 @@
 <script lang="ts">
 	import UiSelect from '../UiSelect.svelte';
+	import * as Tone from 'tone';
 
 	const notes = ['E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C', 'C#', 'D', 'D#'];
 	const tuning = ['E', 'B', 'G', 'D', 'A', 'E']; // Standard tuning from high E to low E
 	const numFrets = 15;
 	const degreeButtons = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+
+	// Audio setup
+	let synth: Tone.Synth;
+	let isAudioInitialized = $state(false);
+
+	// Initialize audio on user interaction
+	async function initAudio() {
+		if (!isAudioInitialized) {
+			await Tone.start();
+			synth = new Tone.Synth().toDestination();
+			isAudioInitialized = true;
+		}
+	}
+
+	// Play a note
+	function playNote(note: string) {
+		if (isAudioInitialized && synth) {
+			synth.triggerAttackRelease(note + '4', '8n');
+		}
+	}
 
 	const fretboard = $derived(
 		tuning.map((openNote) => {
@@ -94,10 +115,30 @@
 
 	function handleAnswer(selectedDegree: number) {
 		if (selectedDegree === correctAnswer) {
+			// Play the correct note when answer is right
+			if (correctAnswer !== null) {
+				const currentNote = fretboard[activeString][activeFret];
+				playNote(currentNote);
+			}
 			feedback = 'Correct!';
 			setTimeout(() => generateNewQuestion(), 1000);
 		} else {
+			// Play the note corresponding to the wrong degree selected
+			const rootNoteIndex = notes.indexOf(selectedKey);
+			const scaleIntervals = scales.major;
+			const wrongDegreeIndex = selectedDegree - 1; // Convert to 0-based index
+			const wrongNote = notes[(rootNoteIndex + scaleIntervals[wrongDegreeIndex]) % notes.length];
+			playNote(wrongNote);
+			
 			feedback = `Incorrect. It's ${degreeButtons[correctAnswer! - 1]}.`;
+		}
+	}
+
+	// Play current note
+	function playCurrentNote() {
+		if (correctAnswer !== null) {
+			const currentNote = fretboard[activeString][activeFret];
+			playNote(currentNote);
 		}
 	}
 
@@ -117,19 +158,33 @@
 					bind:value={selectedKey}
 					class="ease w-full cursor-pointer dark:text-slate-100 appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none"
 				>
-					{#each notes as note}
+				{#each notes as note}
 						<option class="px-2 dark:bg-slate-700" value={note}>{note}</option>
-					{/each}
+				{/each}
 				</select>
 			</div>
 		</div>
 		<button
-			onclick={generateNewQuestion}
+			onclick={async () => {
+				await initAudio();
+				generateNewQuestion();
+			}}
 			disabled={!canGenerateQuestion}
 			class="mt-2 rounded bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-400"
 		>
 			New Question
 		</button>
+		{#if correctAnswer !== null}
+			<button
+				onclick={async () => {
+					await initAudio();
+					playCurrentNote();
+				}}
+				class="mt-2 ml-2 rounded bg-green-500 px-4 py-2 text-white transition-colors hover:bg-green-600"
+			>
+				🔊 Play Note
+			</button>
+		{/if}
 		{#if !canGenerateQuestion}
 			<div class="mt-2 text-sm text-red-600 dark:text-red-400">
 				⚠️ Not enough valid notes in selected range. Found {validNotesCount} note{validNotesCount !==
@@ -201,7 +256,9 @@
 					<div
 						class="flex h-[150px] flex-1 items-end justify-center border-r-2 border-gray-500 last:border-r-0"
 					>
-						<div class="translate-y-[150%] text-xl">{i + 1}</div>
+						{#if [3, 5, 7, 9, 12, 15].includes(i + 1)}
+							<div class="translate-y-[150%] text-xl">{i + 1}</div>
+						{/if}
 					</div>
 				{/each}
 			</div>

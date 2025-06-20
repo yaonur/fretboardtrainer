@@ -31,7 +31,8 @@
 		"vite-plugin-devtools-json": "^0.2.0"
 	},
 	"dependencies": {
-		"@inlang/paraglide-js": "^2.0.0"
+		"@inlang/paraglide-js": "^2.0.0",
+		"tone": "^15.1.22"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
