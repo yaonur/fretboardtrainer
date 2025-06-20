@@ -1,4 +1,6 @@
 <script lang="ts">
+	import UiSelect from '../UiSelect.svelte';
+
 	const notes = ['E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C', 'C#', 'D', 'D#'];
 	const tuning = ['E', 'B', 'G', 'D', 'A', 'E']; // Standard tuning from high E to low E
 	const numFrets = 15;
@@ -129,48 +131,18 @@
 		<h3 class="mb-3 text-lg font-semibold">Practice Range</h3>
 		<div class="flex flex-wrap justify-center gap-4">
 			<div class="flex items-center gap-2">
-				<label class="text-sm font-medium">Strings:</label>
-				<select
-					bind:value={stringRangeStart}
-					class="ease w-full cursor-pointer appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none"
-				>
-					{#each { length: 6 } as _, i}
-						<option class="px-2" value={i}>{i + 1}</option>
-					{/each}
-				</select>
+				<UiSelect bind:value={stringRangeStart} length={6} start={1} label="Strings:" />
 				<span>to</span>
-				<select
-					bind:value={stringRangeEnd}
-					class="ease w-full cursor-pointer appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none"
-				>
-					{#each { length: 6 } as _, i}
-						<option class="px-2" value={i}>{i + 1}</option>
-					{/each}
-				</select>
+				<UiSelect bind:value={stringRangeEnd} length={6} start={1} />
 			</div>
 			<div class="flex items-center gap-2">
-				<label class="text-sm font-medium">Frets:</label>
-				<select
-					bind:value={fretRangeStart}
-					class="ease w-full cursor-pointer appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none"
-				>
-					{#each { length: numFrets } as _, i}
-						<option class="px-2" value={i + 1}>{i + 1}</option>
-					{/each}
-				</select>
+				<UiSelect bind:value={fretRangeStart} length={numFrets} start={1} label="Frets:" />
 				<span>to</span>
-				<select
-					bind:value={fretRangeEnd}
-					class="ease w-full cursor-pointer appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none"
-				>
-					{#each { length: numFrets } as _, i}
-						<option class="px-2" value={i + 1}>{i + 1}</option>
-					{/each}
-				</select>
+				<UiSelect bind:value={fretRangeEnd} length={numFrets} start={1} />
 			</div>
 		</div>
 		<div class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-			Currently practicing: Strings {stringRangeStart + 1}-{stringRangeEnd + 1}, Frets {fretRangeStart}-{fretRangeEnd}
+			Currently practicing: Strings {stringRangeStart}-{stringRangeEnd}, Frets {fretRangeStart}-{fretRangeEnd}
 		</div>
 	</div>
 
