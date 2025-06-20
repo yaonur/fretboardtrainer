@@ -1,7 +1,7 @@
 <script lang="ts">
 	const notes = ['E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C', 'C#', 'D', 'D#'];
 	const tuning = ['E', 'B', 'G', 'D', 'A', 'E']; // Standard tuning from high E to low E
-	const numFrets = 12;
+	const numFrets = 15;
 	const degreeButtons = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
 	const fretboard = $derived(
