@@ -77,8 +77,8 @@
 
 		if (degree === -1 || lastNote === note) {
 			// if (lastNote === note)
-				// console.log('same note', note);
-				generateNewQuestion();
+			// console.log('same note', note);
+			generateNewQuestion();
 		} else {
 			lastNote = note;
 			activeString = newString;
@@ -108,14 +108,16 @@
 		<button
 			onclick={generateNewQuestion}
 			disabled={!canGenerateQuestion}
-			class="mt-2 rounded bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+			class="mt-2 rounded bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-400"
 		>
 			New Question
 		</button>
 		{#if !canGenerateQuestion}
 			<div class="mt-2 text-sm text-red-600 dark:text-red-400">
-				⚠️ Not enough valid notes in selected range. Found {validNotesCount} note{validNotesCount !== 1 ? 's' : ''}.
-				Change the range.
+				⚠️ Not enough valid notes in selected range. Found {validNotesCount} note{validNotesCount !==
+				1
+					? 's'
+					: ''}. Change the range.
 			</div>
 		{/if}
 	</div>
@@ -128,29 +130,41 @@
 		<div class="flex flex-wrap justify-center gap-4">
 			<div class="flex items-center gap-2">
 				<label class="text-sm font-medium">Strings:</label>
-				<select bind:value={stringRangeStart} class="rounded border px-2 py-1 text-sm">
+				<select
+					bind:value={stringRangeStart}
+					class="ease w-full cursor-pointer appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none"
+				>
 					{#each { length: 6 } as _, i}
-						<option value={i}>{i + 1}</option>
+						<option class="px-2" value={i}>{i + 1}</option>
 					{/each}
 				</select>
 				<span>to</span>
-				<select bind:value={stringRangeEnd} class="rounded border px-2 py-1 text-sm">
+				<select
+					bind:value={stringRangeEnd}
+					class="ease w-full cursor-pointer appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none"
+				>
 					{#each { length: 6 } as _, i}
-						<option value={i}>{i + 1}</option>
+						<option class="px-2" value={i}>{i + 1}</option>
 					{/each}
 				</select>
 			</div>
 			<div class="flex items-center gap-2">
 				<label class="text-sm font-medium">Frets:</label>
-				<select bind:value={fretRangeStart} class="rounded border px-2 py-1 text-sm">
-					{#each { length: 12 } as _, i}
-						<option value={i + 1}>{i + 1}</option>
+				<select
+					bind:value={fretRangeStart}
+					class="ease w-full cursor-pointer appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none"
+				>
+					{#each { length: numFrets } as _, i}
+						<option class="px-2" value={i + 1}>{i + 1}</option>
 					{/each}
 				</select>
 				<span>to</span>
-				<select bind:value={fretRangeEnd} class="rounded border px-2 py-1 text-sm">
-					{#each { length: 12 } as _, i}
-						<option value={i + 1}>{i + 1}</option>
+				<select
+					bind:value={fretRangeEnd}
+					class="ease w-full cursor-pointer appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none"
+				>
+					{#each { length: numFrets } as _, i}
+						<option class="px-2" value={i + 1}>{i + 1}</option>
 					{/each}
 				</select>
 			</div>
