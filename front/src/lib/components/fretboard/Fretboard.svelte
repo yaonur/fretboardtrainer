@@ -34,6 +34,28 @@
 		major: [0, 2, 4, 5, 7, 9, 11] // Major scale intervals
 	};
 
+	function checkValidNotesInRange(): number {
+		const rootNoteIndex = notes.indexOf(selectedKey);
+		const scaleIntervals = scales[selectedScale as keyof typeof scales];
+		const scaleNotes = scaleIntervals.map(
+			(interval) => notes[(rootNoteIndex + interval) % notes.length]
+		);
+
+		let validNotes = 0;
+		for (let string = stringRangeStart; string <= stringRangeEnd; string++) {
+			for (let fret = fretRangeStart; fret <= fretRangeEnd; fret++) {
+				const note = fretboard[string][fret];
+				if (scaleNotes.includes(note)) {
+					validNotes++;
+				}
+			}
+		}
+		return validNotes;
+	}
+
+	const validNotesCount = $derived(checkValidNotesInRange());
+	const canGenerateQuestion = $derived(validNotesCount >= 2);
+
 	let lastNote = '';
 	function generateNewQuestion() {
 		feedback = '';
@@ -85,10 +107,17 @@
 		<h2 class="text-2xl font-semibold">Find the note's degree in {selectedKey} Major</h2>
 		<button
 			onclick={generateNewQuestion}
-			class="mt-2 rounded bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600"
+			disabled={!canGenerateQuestion}
+			class="mt-2 rounded bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
 		>
 			New Question
 		</button>
+		{#if !canGenerateQuestion}
+			<div class="mt-2 text-sm text-red-600 dark:text-red-400">
+				⚠️ Not enough valid notes in selected range. Found {validNotesCount} note{validNotesCount !== 1 ? 's' : ''}.
+				Change the range.
+			</div>
+		{/if}
 	</div>
 
 	<!-- Practice Range Controls -->
