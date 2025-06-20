@@ -24,17 +24,31 @@
 	let correctAnswer = $state<number | null>(null);
 	let feedback = $state('');
 
+	// --- Practice Range Settings ---
+	let stringRangeStart = $state<number>(0);
+	let stringRangeEnd = $state<number>(5);
+	let fretRangeStart = $state<number>(1);
+	let fretRangeEnd = $state<number>(12);
+
 	const scales = {
 		major: [0, 2, 4, 5, 7, 9, 11] // Major scale intervals
 	};
 
+	let lastNote = $state<string>('');
 	function generateNewQuestion() {
 		feedback = '';
-		const newString = Math.floor(Math.random() * tuning.length);
-		const newFret = Math.floor(Math.random() * numFrets) + 1; // Frets 1-12
+		const newString = Math.floor(Math.random() * (stringRangeEnd - stringRangeStart + 1)) + stringRangeStart;
+		const newFret = Math.floor(Math.random() * (fretRangeEnd - fretRangeStart + 1)) + fretRangeStart;
 
 		const note = fretboard[newString][newFret];
-		console.log(note); 
+		if (lastNote === note) {
+			console.log('same note', note);
+			// generateNewQuestion();
+		} else {
+			lastNote = note;
+			console.log(note);
+		}
+
 		const rootNoteIndex = notes.indexOf(selectedKey);
 		const scaleIntervals = scales[selectedScale as keyof typeof scales];
 		const scaleNotes = scaleIntervals.map((interval) => notes[(rootNoteIndex + interval) % notes.length]);
@@ -43,6 +57,7 @@
 
 		if (degree === -1) {
 			// If the note is not in the scale, try again
+			console.log('not in scale', note);
 			generateNewQuestion();
 		} else {
 			activeString = newString;
@@ -61,7 +76,10 @@
 	}
 
 	// Initial question
-	$effect(generateNewQuestion);
+	// $effect(generateNewQuestion);
+	$effect(() => {
+		
+	});
 </script>
 
 <div class="flex flex-col items-center">
@@ -76,10 +94,61 @@
 		</button>
 	</div>
 
+	<!-- Practice Range Controls -->
+	<div class="w-10/12 md:w-5/6 mb-6 p-4 bg-gray-100 dark:bg-gray-800 dark:text-slate-500 rounded-lg">
+		<h3 class="text-lg font-semibold mb-3">Practice Range</h3>
+		<div class="flex flex-wrap gap-4 justify-center">
+			<div class="flex items-center gap-2">
+				<label class="text-sm font-medium">Strings:</label>
+				<select
+					bind:value={stringRangeStart}
+					class="px-2 py-1 border rounded text-sm"
+				>
+					{#each { length: 6 } as _, i}
+						<option value={i}>{i + 1}</option>
+					{/each}
+				</select>
+				<span>to</span>
+				<select
+					bind:value={stringRangeEnd}
+					class="px-2 py-1 border rounded text-sm"
+				>
+					{#each { length: 6 } as _, i}
+						<option value={i}>{i + 1}</option>
+					{/each}
+				</select>
+			</div>
+			<div class="flex items-center gap-2">
+				<label class="text-sm font-medium">Frets:</label>
+				<select
+					bind:value={fretRangeStart}
+					class="px-2 py-1 border rounded text-sm"
+				>
+					{#each { length: 12 } as _, i}
+						<option value={i + 1}>{i + 1}</option>
+					{/each}
+				</select>
+				<span>to</span>
+				<select
+					bind:value={fretRangeEnd}
+					class="px-2 py-1 border rounded text-sm"
+				>
+					{#each { length: 12 } as _, i}
+						<option value={i + 1}>{i + 1}</option>
+					{/each}
+				</select>
+			</div>
+		</div>
+		<div class="text-center mt-2 text-sm text-gray-600 dark:text-gray-400">
+			Currently practicing: Strings {stringRangeStart + 1}-{stringRangeEnd + 1}, Frets {fretRangeStart}-{fretRangeEnd}
+		</div>
+	</div>
+
 	<div class="w-10/12 md:w-5/6">
 		<!-- fretboard main -->
 		<div class="relative border-l-[5px] border-r-[5px] border-gray-400 mt-12">
 			<!-- Note Dot -->
+			{#if correctAnswer !== null}
 			<div class="absolute top-0 left-0 w-full h-[150px] pointer-events-none">
 				<div
 					class="absolute bg-white rounded-full h-[25px] w-[25px] border-2 border-black"
@@ -88,7 +157,7 @@
 					style:transition="all 0.3s"
 				></div>
 			</div>
-
+			{/if}
 			<!-- strings wrap -->
 			<div>
 				{#each { length: 5 } as _, i}
