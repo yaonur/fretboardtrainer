@@ -27,10 +27,14 @@
 	let feedback = $state('');
 
 	// --- Practice Range Settings ---
-	let stringRangeStart = $state<number>(0);
-	let stringRangeEnd = $state<number>(5);
+	let stringRangeStart = $state<number>(1);
+	let stringRangeEnd = $state<number>(6);
 	let fretRangeStart = $state<number>(1);
 	let fretRangeEnd = $state<number>(12);
+
+	// Convert 1-based string indexing to 0-based for fretboard logic
+	const stringRangeStartIndex = $derived(stringRangeStart - 1);
+	const stringRangeEndIndex = $derived(stringRangeEnd - 1);
 
 	const scales = {
 		major: [0, 2, 4, 5, 7, 9, 11] // Major scale intervals
@@ -44,7 +48,7 @@
 		);
 
 		let validNotes = 0;
-		for (let string = stringRangeStart; string <= stringRangeEnd; string++) {
+		for (let string = stringRangeStartIndex; string <= stringRangeEndIndex; string++) {
 			for (let fret = fretRangeStart; fret <= fretRangeEnd; fret++) {
 				const note = fretboard[string][fret];
 				if (scaleNotes.includes(note)) {
@@ -62,7 +66,7 @@
 	function generateNewQuestion() {
 		feedback = '';
 		const newString =
-			Math.floor(Math.random() * (stringRangeEnd - stringRangeStart + 1)) + stringRangeStart;
+			Math.floor(Math.random() * (stringRangeEndIndex - stringRangeStartIndex + 1)) + stringRangeStartIndex;
 		const newFret =
 			Math.floor(Math.random() * (fretRangeEnd - fretRangeStart + 1)) + fretRangeStart;
 
