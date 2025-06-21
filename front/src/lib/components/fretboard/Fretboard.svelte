@@ -267,6 +267,15 @@
 		const degree = scaleNotes.indexOf(note) + 1;
 		return highlightedDegrees.includes(degree) && !(stringIdx === activeString && fretIdx === activeFret);
 	}
+
+	function getRedDotDegreeLabel(stringIdx: number, fretIdx: number): string {
+		const rootNoteIndex = getRootIndex();
+		const scaleIntervals = scales.major;
+		const scaleNotes = scaleIntervals.map((interval) => notes[(rootNoteIndex + interval) % notes.length]);
+		const note = fretboard[stringIdx][fretIdx];
+		const degree = scaleNotes.indexOf(note) + 1;
+		return degree > 0 ? degreeButtons[degree - 1] : '';
+	}
 </script>
 
 <div class="flex flex-col items-center">
@@ -388,6 +397,26 @@
 			<span class="text-sm">Show degree name in red dots</span>
 		</label>
 	</div>
+	<div class="mb-2 flex justify-center gap-2">
+		{#each degreeButtons as degree, i}
+			<button
+				onclick={() => {
+					highlightedDegrees = highlightedDegrees.includes(i + 1)
+						? highlightedDegrees.filter((d) => d !== i + 1)
+						: [...highlightedDegrees, i + 1];
+				}}
+				class="rounded px-2 py-0 text-lg font-bold border-2 transition-colors"
+				class:bg-red-600={highlightedDegrees.includes(i + 1)}
+				class:text-white={highlightedDegrees.includes(i + 1)}
+				class:border-red-600={highlightedDegrees.includes(i + 1)}
+				class:bg-gray-200={!highlightedDegrees.includes(i + 1)}
+				class:text-red-600={!highlightedDegrees.includes(i + 1)}
+				class:border-gray-300={!highlightedDegrees.includes(i + 1)}
+			>
+				{degree}
+			</button>
+		{/each}
+	</div>
 
 	<div class="w-10/12 md:w-5/6">
 		<!-- fretboard main -->
@@ -420,7 +449,7 @@
 								style:top="calc({stringIdx} * 30px - 9px)"
 								style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
 							>
-								{showDegreeOnRedDots ? degreeButtons[highlightedDegrees.indexOf(stringIdx * 10 + fretIdx - 10) + 1 - 1] : ''}
+								{showDegreeOnRedDots ? getRedDotDegreeLabel(stringIdx, fretIdx) : ''}
 							</div>
 						{/if}
 					{/each}
@@ -482,26 +511,7 @@
 	</div>
 
 	<!-- Degree highlight toggles -->
-	<div class="mb-2 flex justify-center gap-2">
-		{#each degreeButtons as degree, i}
-			<button
-				onclick={() => {
-					highlightedDegrees = highlightedDegrees.includes(i + 1)
-						? highlightedDegrees.filter((d) => d !== i + 1)
-						: [...highlightedDegrees, i + 1];
-				}}
-				class="rounded px-2 py-0 text-lg font-bold border-2 transition-colors"
-				class:bg-red-600={highlightedDegrees.includes(i + 1)}
-				class:text-white={highlightedDegrees.includes(i + 1)}
-				class:border-red-600={highlightedDegrees.includes(i + 1)}
-				class:bg-gray-200={!highlightedDegrees.includes(i + 1)}
-				class:text-red-600={!highlightedDegrees.includes(i + 1)}
-				class:border-gray-300={!highlightedDegrees.includes(i + 1)}
-			>
-				{degree}
-			</button>
-		{/each}
-	</div>
+	
 
 	<!-- Feedback -->
 	<div class="mt-4 h-8 text-2xl font-semibold">{feedback}</div>
