@@ -475,13 +475,13 @@
 				{/each}
 
 				<!-- notes wrap -->
-				<div
+				<!-- <div
 									class="absolute sm:left-[-26px] md:left-[-32px] lg:left-[-40px] xl:left-[-43px] 2xl:left-[-60px] left-[-20px] top-[-14px] flex h-[180px] w-[30px] flex-col justify-between"
 				>
 					{#each tuning as note}
 						<div class="h-[30px] text-2xl leading-none">{note}</div>
 					{/each}
-				</div>
+				</div> -->
 			</div>
 			<!-- frets wrap -->
 			<div class="absolute left-0 top-0 flex h-[150px] w-full justify-between">
