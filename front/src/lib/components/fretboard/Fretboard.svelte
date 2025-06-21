@@ -3,6 +3,7 @@
 	import * as Tone from 'tone';
 
 	const notes = ['E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C', 'C#', 'D', 'D#'];
+	const circleOfFifths = ['C', 'G', 'D', 'A', 'E', 'B', 'F#/Gb', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
 	const tuning = ['E', 'B', 'G', 'D', 'A', 'E']; // Standard tuning from high E to low E
 	const numFrets = 15;
 	const degreeButtons = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
@@ -158,9 +159,9 @@
 					bind:value={selectedKey}
 					class="ease w-full cursor-pointer dark:text-slate-100 appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none"
 				>
-				{#each notes as note}
+					{#each circleOfFifths as note}
 						<option class="px-2 dark:bg-slate-700" value={note}>{note}</option>
-				{/each}
+					{/each}
 				</select>
 			</div>
 		</div>
