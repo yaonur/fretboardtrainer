@@ -9,22 +9,33 @@
 	const degreeButtons = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
 	// Audio setup
-	let synth: Tone.Synth;
+	let sampler: Tone.Sampler;
 	let isAudioInitialized = $state(false);
 
 	// Initialize audio on user interaction
 	async function initAudio() {
 		if (!isAudioInitialized) {
 			await Tone.start();
-			synth = new Tone.Synth().toDestination();
+			
+			// Create a sampler with guitar-like samples
+			sampler = new Tone.Sampler({
+				urls: {
+					"C4": "C4.mp3",
+					"D#4": "Ds4.mp3", 
+					"F#4": "Fs4.mp3",
+				},
+				release: 1,
+				baseUrl: "https://tonejs.github.io/audio/salamander/",
+			}).toDestination();
+			
 			isAudioInitialized = true;
 		}
 	}
 
 	// Play a note
 	function playNote(note: string) {
-		if (isAudioInitialized && synth) {
-			synth.triggerAttackRelease(note + '4', '8n');
+		if (isAudioInitialized && sampler) {
+			sampler.triggerAttackRelease(note + '4', '8n');
 		}
 	}
 
