@@ -184,6 +184,39 @@
 	// Initial question
 	// $effect(generateNewQuestion);
 	$effect(() => {});
+
+	// Get the proper note name with correct accidental for the current key
+	function getNoteNameWithAccidental(noteName: string): string {
+		// Define which keys use sharps vs flats
+		const sharpKeys = ['G', 'D', 'A', 'E', 'B', 'F#'];
+		const flatKeys = ['F', 'Bb', 'Eb', 'Ab', 'Db'];
+		
+		// Check if current key uses sharps or flats
+		const usesSharps = sharpKeys.includes(selectedKey);
+		const usesFlats = flatKeys.includes(selectedKey);
+		
+		// Map enharmonic equivalents
+		const sharpToFlat: Record<string, string> = {
+			'C#': 'Db', 'D#': 'Eb', 'F#': 'Gb', 'G#': 'Ab', 'A#': 'Bb'
+		};
+		const flatToSharp: Record<string, string> = {
+			'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#'
+		};
+		
+		// If key uses flats and note has a sharp, convert to flat
+		if (usesFlats && sharpToFlat[noteName]) {
+			return sharpToFlat[noteName];
+		}
+		
+		// If key uses sharps and note has a flat, convert to sharp
+		if (usesSharps && flatToSharp[noteName]) {
+			return flatToSharp[noteName];
+		}
+		
+		// Otherwise return the original note name
+		console.log("note name:",noteName)
+		return noteName;
+	}
 </script>
 
 <div class="flex flex-col items-center">
@@ -305,16 +338,18 @@
 			</div>
 
 			<!-- Note Dot -->
-			{#if correctAnswer !== null}
-				<div class="pointer-events-none absolute left-0 top-0 h-[150px] w-full">
-					<div
-						class="absolute h-[25px] w-[25px] rounded-full border-2 border-black bg-white"
-						style:top="calc({activeString} * 30px - 12.5px)"
-						style:left="calc(({activeFret} - 0.5) * (100% / {numFrets}) - 12.5px)"
-						style:transition="all 0.3s"
-					></div>
+			<div class="pointer-events-none absolute left-0 top-[-4px] h-[150px] w-full">
+				<div
+					class="absolute h-[35px] w-[35px] rounded-full border-2 border-black bg-white text-black flex items-center justify-center text-xs font-bold"
+					style:top="calc({activeString} * 30px - 12.5px)"
+					style:left="calc(({activeFret} - 0.5) * (100% / {numFrets}) - 12.5px)"
+					style:transition="all 0.3s"
+				>
+				<span class="text-2xl">
+					{getNoteNameWithAccidental(fretboard[activeString][activeFret])}
+				</span>
 				</div>
-			{/if}
+			</div>
 			<!-- strings wrap -->
 			<div>
 				{#each { length: 5 } as _, i}
