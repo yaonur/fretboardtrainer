@@ -255,6 +255,18 @@
 	}
 
 	let showNoteNameOnDot = $state(true);
+	let highlightedDegrees = $state<number[]>([]);
+	let showDegreeOnRedDots = $state(false);
+
+	function shouldShowRedDot(stringIdx: number, fretIdx: number): boolean {
+		if (highlightedDegrees.length === 0) return false;
+		const rootNoteIndex = getRootIndex();
+		const scaleIntervals = scales.major;
+		const scaleNotes = scaleIntervals.map((interval) => notes[(rootNoteIndex + interval) % notes.length]);
+		const note = fretboard[stringIdx][fretIdx];
+		const degree = scaleNotes.indexOf(note) + 1;
+		return highlightedDegrees.includes(degree) && !(stringIdx === activeString && fretIdx === activeFret);
+	}
 </script>
 
 <div class="flex flex-col items-center">
@@ -369,6 +381,14 @@
 		</label>
 	</div>
 
+	<!-- Toggle for degree name on red dots -->
+	<div class="mb-2 flex justify-center">
+		<label class="flex cursor-pointer select-none items-center gap-2">
+			<input type="checkbox" bind:checked={showDegreeOnRedDots} class="accent-red-500" />
+			<span class="text-sm">Show degree name in red dots</span>
+		</label>
+	</div>
+
 	<div class="w-10/12 md:w-5/6">
 		<!-- fretboard main -->
 		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (because of reasons) -->
@@ -391,9 +411,24 @@
 			<div
 				class="pointer-events-none absolute left-[2px] top-[3px] h-[150px] w-full sm:left-[-2px] sm:top-[1px] md:left-[-3px] md:top-[-3px] lg:left-[-5px] lg:top-[-4px]"
 			>
+				<!-- Red dots for highlighted degrees -->
+				{#each Array(tuning.length) as _, stringIdx}
+					{#each Array(numFrets + 1) as _, fretIdx}
+						{#if shouldShowRedDot(stringIdx, fretIdx)}
+							<div
+								class="absolute flex h-[16px] w-[16px] items-center justify-center rounded-full border-2 border-red-600 bg-red-500 opacity-80 text-xs font-bold text-white sm:h-[20px] sm:w-[20px] md:h-[24px] md:w-[24px] lg:h-[28px] lg:w-[28px]"
+								style:top="calc({stringIdx} * 30px - 9px)"
+								style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
+							>
+								{showDegreeOnRedDots ? degreeButtons[highlightedDegrees.indexOf(stringIdx * 10 + fretIdx - 10) + 1 - 1] : ''}
+							</div>
+						{/if}
+					{/each}
+				{/each}
+				<!-- Main question dot -->
 				<div
 					class="absolute flex h-[20px] w-[20px] items-center justify-center rounded-full border-2 border-black bg-white text-xs font-bold text-black sm:h-[25px] sm:w-[25px] md:h-[30px] md:w-[30px] lg:h-[35px] lg:w-[35px]"
-					style:top="calc({activeString} * 30px - 12.5px)"
+					style:top="calc({activeString} * 30px - 10.5px)"
 					style:left="calc(({activeFret} - 0.5) * (100% / {numFrets}) - 12.5px)"
 					style:transition="all 0.3s"
 				>
@@ -412,7 +447,7 @@
 
 				<!-- notes wrap -->
 				<div
-					class="absolute left-[-35px] top-[-10px] flex h-[170px] w-[30px] flex-col justify-between"
+					class="absolute left-[-29px] top-[-8px] flex h-[170px] w-[30px] flex-col justify-between"
 				>
 					{#each tuning as note}
 						<div class="h-[30px] text-2xl leading-none">{note}</div>
@@ -440,6 +475,28 @@
 			<button
 				onclick={() => handleAnswer(i + 1)}
 				class="rounded-lg bg-gray-200 px-2 text-lg font-bold transition-colors hover:bg-gray-300 sm:px-6 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600"
+			>
+				{degree}
+			</button>
+		{/each}
+	</div>
+
+	<!-- Degree highlight toggles -->
+	<div class="mb-2 flex justify-center gap-2">
+		{#each degreeButtons as degree, i}
+			<button
+				onclick={() => {
+					highlightedDegrees = highlightedDegrees.includes(i + 1)
+						? highlightedDegrees.filter((d) => d !== i + 1)
+						: [...highlightedDegrees, i + 1];
+				}}
+				class="rounded px-2 py-0 text-lg font-bold border-2 transition-colors"
+				class:bg-red-600={highlightedDegrees.includes(i + 1)}
+				class:text-white={highlightedDegrees.includes(i + 1)}
+				class:border-red-600={highlightedDegrees.includes(i + 1)}
+				class:bg-gray-200={!highlightedDegrees.includes(i + 1)}
+				class:text-red-600={!highlightedDegrees.includes(i + 1)}
+				class:border-gray-300={!highlightedDegrees.includes(i + 1)}
 			>
 				{degree}
 			</button>
