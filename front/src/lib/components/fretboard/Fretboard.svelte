@@ -476,7 +476,7 @@
 
 				<!-- notes wrap -->
 				<div
-					class="absolute sm:left-[-26px] md:left-[-32px] lg:left-[-49px] left-[-17px] top-[-14px] flex h-[180px] w-[30px] flex-col justify-between"
+									class="absolute sm:left-[-26px] md:left-[-32px] lg:left-[-40px] xl:left-[-43px] 2xl:left-[-60px] left-[-20px] top-[-14px] flex h-[180px] w-[30px] flex-col justify-between"
 				>
 					{#each tuning as note}
 						<div class="h-[30px] text-2xl leading-none">{note}</div>
