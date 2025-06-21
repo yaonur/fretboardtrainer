@@ -16,18 +16,18 @@
 	async function initAudio() {
 		if (!isAudioInitialized) {
 			await Tone.start();
-			
+
 			// Create a sampler with guitar-like samples
 			sampler = new Tone.Sampler({
 				urls: {
-					"C4": "C4.mp3",
-					"D#4": "Ds4.mp3", 
-					"F#4": "Fs4.mp3",
+					C4: 'C4.mp3',
+					'D#4': 'Ds4.mp3',
+					'F#4': 'Fs4.mp3'
 				},
 				release: 1,
-				baseUrl: "https://tonejs.github.io/audio/salamander/",
+				baseUrl: 'https://tonejs.github.io/audio/salamander/'
 			}).toDestination();
-			
+
 			isAudioInitialized = true;
 		}
 	}
@@ -35,24 +35,24 @@
 	// Calculate the best octave for a note based on user's lowest note
 	function getBestOctave(noteName: string): number {
 		const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-		
+
 		// Parse the lowest note (e.g., "G3" -> note: "G", octave: 3)
 		const lowestNoteName = lowestNote.slice(0, -1);
 		const lowestOctave = parseInt(lowestNote.slice(-1));
-		
+
 		// Get note indices
 		const targetNoteIndex = noteNames.indexOf(noteName);
 		const lowestNoteIndex = noteNames.indexOf(lowestNoteName);
-		
+
 		if (targetNoteIndex === -1 || lowestNoteIndex === -1) {
 			return 4; // Fallback to middle octave
 		}
-		
+
 		// If target note is lower than lowest note, go up one octave
 		if (targetNoteIndex < lowestNoteIndex) {
 			return lowestOctave + 1;
 		}
-		
+
 		// Otherwise, stay in the same octave as lowest note
 		return lowestOctave;
 	}
@@ -125,7 +125,8 @@
 	function generateNewQuestion() {
 		feedback = '';
 		const newString =
-			Math.floor(Math.random() * (stringRangeEndIndex - stringRangeStartIndex + 1)) + stringRangeStartIndex;
+			Math.floor(Math.random() * (stringRangeEndIndex - stringRangeStartIndex + 1)) +
+			stringRangeStartIndex;
 		const newFret =
 			Math.floor(Math.random() * (fretRangeEnd - fretRangeStart + 1)) + fretRangeStart;
 
@@ -168,7 +169,7 @@
 			const wrongDegreeIndex = selectedDegree - 1; // Convert to 0-based index
 			const wrongNote = notes[(rootNoteIndex + scaleIntervals[wrongDegreeIndex]) % notes.length];
 			playNote(wrongNote);
-			
+
 			feedback = `Incorrect. It's ${degreeButtons[correctAnswer! - 1]}.`;
 		}
 	}
@@ -190,31 +191,39 @@
 		// Define which keys use sharps vs flats
 		const sharpKeys = ['G', 'D', 'A', 'E', 'B', 'F#'];
 		const flatKeys = ['F', 'Bb', 'Eb', 'Ab', 'Db'];
-		
+
 		// Check if current key uses sharps or flats
 		const usesSharps = sharpKeys.includes(selectedKey);
 		const usesFlats = flatKeys.includes(selectedKey);
-		
+
 		// Map enharmonic equivalents
 		const sharpToFlat: Record<string, string> = {
-			'C#': 'Db', 'D#': 'Eb', 'F#': 'Gb', 'G#': 'Ab', 'A#': 'Bb'
+			'C#': 'Db',
+			'D#': 'Eb',
+			'F#': 'Gb',
+			'G#': 'Ab',
+			'A#': 'Bb'
 		};
 		const flatToSharp: Record<string, string> = {
-			'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#'
+			Db: 'C#',
+			Eb: 'D#',
+			Gb: 'F#',
+			Ab: 'G#',
+			Bb: 'A#'
 		};
-		
+
 		// If key uses flats and note has a sharp, convert to flat
 		if (usesFlats && sharpToFlat[noteName]) {
 			return sharpToFlat[noteName];
 		}
-		
+
 		// If key uses sharps and note has a flat, convert to sharp
 		if (usesSharps && flatToSharp[noteName]) {
 			return flatToSharp[noteName];
 		}
-		
+
 		// Otherwise return the original note name
-		console.log("note name:",noteName)
+		console.log('note name:', noteName);
 		return noteName;
 	}
 </script>
@@ -228,7 +237,7 @@
 				<label class="text-sm font-medium">Key:</label>
 				<select
 					bind:value={selectedKey}
-					class="ease w-full cursor-pointer dark:text-slate-100 appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none"
+					class="ease w-full cursor-pointer appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none dark:text-slate-100"
 				>
 					{#each circleOfFifths as note}
 						<option class="px-2 dark:bg-slate-700" value={note}>{note}</option>
@@ -239,7 +248,7 @@
 				<label class="text-sm font-medium">Lowest Note:</label>
 				<select
 					bind:value={lowestNote}
-					class="ease w-full cursor-pointer dark:text-slate-100 appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none"
+					class="ease w-full cursor-pointer appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none dark:text-slate-100"
 				>
 					<option class="px-2 dark:bg-slate-700" value="C2">C2 (Low Bass)</option>
 					<option class="px-2 dark:bg-slate-700" value="D2">D2 (Bass)</option>
@@ -282,7 +291,7 @@
 					await initAudio();
 					playCurrentNote();
 				}}
-				class="mt-2 ml-2 rounded bg-green-500 px-4 py-2 text-white transition-colors hover:bg-green-600"
+				class="ml-2 mt-2 rounded bg-green-500 px-4 py-2 text-white transition-colors hover:bg-green-600"
 			>
 				🔊 Play Note
 			</button>
@@ -338,16 +347,18 @@
 			</div>
 
 			<!-- Note Dot -->
-			<div class="pointer-events-none absolute left-0 top-[-4px] h-[150px] w-full">
+			<div
+				class="pointer-events-none absolute left-[2px] top-[3px] h-[150px] w-full sm:left-[-2px] sm:top-[1px] md:left-[-5px] md:top-[-4px]"
+			>
 				<div
-					class="absolute h-[35px] w-[35px] rounded-full border-2 border-black bg-white text-black flex items-center justify-center text-xs font-bold"
+					class="absolute flex h-[20px] w-[20px] items-center justify-center rounded-full border-2 border-black bg-white text-xs font-bold text-black sm:h-[25px] sm:w-[25px] md:h-[35px] md:w-[35px]"
 					style:top="calc({activeString} * 30px - 12.5px)"
 					style:left="calc(({activeFret} - 0.5) * (100% / {numFrets}) - 12.5px)"
 					style:transition="all 0.3s"
 				>
-				<span class="text-2xl">
-					{getNoteNameWithAccidental(fretboard[activeString][activeFret])}
-				</span>
+					<span class="text-sm sm:text-lg md:text-2xl">
+						{getNoteNameWithAccidental(fretboard[activeString][activeFret])}
+					</span>
 				</div>
 			</div>
 			<!-- strings wrap -->
@@ -381,11 +392,11 @@
 	</div>
 
 	<!-- Answer buttons -->
-	<div class="mt-24 flex justify-center gap-4">
+	<div class="mt-12 flex justify-center gap-4">
 		{#each degreeButtons as degree, i}
 			<button
 				onclick={() => handleAnswer(i + 1)}
-				class="rounded-lg bg-gray-200 px-6 py-3 text-2xl font-bold transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
+				class="rounded-lg  bg-gray-200 sm:px-6 px-2  sm:text-2xl text-lg font-bold transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
 			>
 				{degree}
 			</button>
