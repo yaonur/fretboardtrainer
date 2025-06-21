@@ -164,7 +164,7 @@
 				playNote(currentNote);
 			}
 			feedback = 'Correct!';
-			setTimeout(() => generateNewQuestion(), 1000);
+			setTimeout(() => generateNewQuestion(), 400);
 		} else {
 			// Play the note corresponding to the wrong degree selected
 			const rootNoteIndex = notes.indexOf(selectedKey);
