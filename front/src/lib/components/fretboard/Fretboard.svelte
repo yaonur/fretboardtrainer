@@ -32,10 +32,37 @@
 		}
 	}
 
+	// Calculate the best octave for a note based on user's lowest note
+	function getBestOctave(noteName: string): number {
+		const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+		
+		// Parse the lowest note (e.g., "G3" -> note: "G", octave: 3)
+		const lowestNoteName = lowestNote.slice(0, -1);
+		const lowestOctave = parseInt(lowestNote.slice(-1));
+		
+		// Get note indices
+		const targetNoteIndex = noteNames.indexOf(noteName);
+		const lowestNoteIndex = noteNames.indexOf(lowestNoteName);
+		
+		if (targetNoteIndex === -1 || lowestNoteIndex === -1) {
+			return 4; // Fallback to middle octave
+		}
+		
+		// If target note is lower than lowest note, go up one octave
+		if (targetNoteIndex < lowestNoteIndex) {
+			return lowestOctave + 1;
+		}
+		
+		// Otherwise, stay in the same octave as lowest note
+		return lowestOctave;
+	}
+
 	// Play a note
 	function playNote(note: string) {
 		if (isAudioInitialized && sampler) {
-			sampler.triggerAttackRelease(note + '4', '8n');
+			const bestOctave = getBestOctave(note);
+			console.log("best octave:",bestOctave)
+			sampler.triggerAttackRelease(note + bestOctave, '8n');
 		}
 	}
 
@@ -57,6 +84,7 @@
 	let selectedKey = $state('C');
 	let correctAnswer = $state<number | null>(null);
 	let feedback = $state('');
+	let lowestNote = $state<string>('G3'); // User's lowest note as reference
 
 	// --- Practice Range Settings ---
 	let stringRangeStart = $state<number>(1);
@@ -173,6 +201,36 @@
 					{#each circleOfFifths as note}
 						<option class="px-2 dark:bg-slate-700" value={note}>{note}</option>
 					{/each}
+				</select>
+			</div>
+			<div class="flex items-center gap-2">
+				<label class="text-sm font-medium">Lowest Note:</label>
+				<select
+					bind:value={lowestNote}
+					class="ease w-full cursor-pointer dark:text-slate-100 appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none"
+				>
+					<option class="px-2 dark:bg-slate-700" value="C2">C2 (Low Bass)</option>
+					<option class="px-2 dark:bg-slate-700" value="D2">D2 (Bass)</option>
+					<option class="px-2 dark:bg-slate-700" value="E2">E2 (Bass)</option>
+					<option class="px-2 dark:bg-slate-700" value="F2">F2 (Bass)</option>
+					<option class="px-2 dark:bg-slate-700" value="G2">G2 (Bass)</option>
+					<option class="px-2 dark:bg-slate-700" value="A2">A2 (Bass)</option>
+					<option class="px-2 dark:bg-slate-700" value="B2">B2 (Bass)</option>
+					<option class="px-2 dark:bg-slate-700" value="C3">C3 (Baritone)</option>
+					<option class="px-2 dark:bg-slate-700" value="D3">D3 (Baritone)</option>
+					<option class="px-2 dark:bg-slate-700" value="E3">E3 (Baritone)</option>
+					<option class="px-2 dark:bg-slate-700" value="F3">F3 (Baritone)</option>
+					<option class="px-2 dark:bg-slate-700" value="G3">G3 (Baritone/Tenor)</option>
+					<option class="px-2 dark:bg-slate-700" value="A3">A3 (Tenor)</option>
+					<option class="px-2 dark:bg-slate-700" value="B3">B3 (Tenor)</option>
+					<option class="px-2 dark:bg-slate-700" value="C4">C4 (Tenor/Alto)</option>
+					<option class="px-2 dark:bg-slate-700" value="D4">D4 (Alto)</option>
+					<option class="px-2 dark:bg-slate-700" value="E4">E4 (Alto)</option>
+					<option class="px-2 dark:bg-slate-700" value="F4">F4 (Alto/Soprano)</option>
+					<option class="px-2 dark:bg-slate-700" value="G4">G4 (Soprano)</option>
+					<option class="px-2 dark:bg-slate-700" value="A4">A4 (Soprano)</option>
+					<option class="px-2 dark:bg-slate-700" value="B4">B4 (Soprano)</option>
+					<option class="px-2 dark:bg-slate-700" value="C5">C5 (High Soprano)</option>
 				</select>
 			</div>
 		</div>
