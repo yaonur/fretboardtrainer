@@ -164,10 +164,10 @@
 				playNote(currentNote);
 			}
 			feedback = 'Correct!';
-			setTimeout(() => generateNewQuestion(), 400);
+			setTimeout(() => generateNewQuestion(), 100);
 		} else {
 			// Play the note corresponding to the wrong degree selected
-			const rootNoteIndex = notes.indexOf(selectedKey);
+			const rootNoteIndex = getRootIndex();
 			const scaleIntervals = scales.major;
 			const wrongDegreeIndex = selectedDegree - 1; // Convert to 0-based index
 			const wrongNote = notes[(rootNoteIndex + scaleIntervals[wrongDegreeIndex]) % notes.length];
