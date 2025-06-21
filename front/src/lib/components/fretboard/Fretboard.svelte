@@ -122,6 +122,12 @@
 	const canGenerateQuestion = $derived(validNotesCount >= 2);
 
 	let lastNote = '';
+	function getRootIndex() {
+		if (isFlatOrSharp()==='isFlat')
+			return notes.indexOf(convertToSharp(selectedKey))
+		return notes.indexOf(selectedKey);
+
+	}
 	function generateNewQuestion() {
 		feedback = '';
 		const newString =
@@ -131,9 +137,8 @@
 			Math.floor(Math.random() * (fretRangeEnd - fretRangeStart + 1)) + fretRangeStart;
 
 		const note = fretboard[newString][newFret];
-		console.log("note:",note)
-
-		const rootNoteIndex = notes.indexOf(selectedKey);
+		
+		const rootNoteIndex = getRootIndex()
 		const scaleIntervals = scales.major;
 		const scaleNotes = scaleIntervals.map(
 			(interval) => notes[(rootNoteIndex + interval) % notes.length]
@@ -142,8 +147,6 @@
 		const degree = scaleNotes.indexOf(note);
 
 		if (degree === -1 || lastNote === note) {
-			// if (lastNote === note)
-			// console.log('same note', note);
 			generateNewQuestion();
 		} else {
 			lastNote = note;
@@ -186,17 +189,25 @@
 	// $effect(generateNewQuestion);
 	$effect(() => {});
 
-	// Get the proper note name with correct accidental for the current key
-	function getNoteNameWithAccidental(noteName: string): string {
-		// Define which keys use sharps vs flats
+	function isFlatOrSharp() {
 		const sharpKeys = ['G', 'D', 'A', 'E', 'B', 'F#'];
 		const flatKeys = ['F', 'Bb', 'Eb', 'Ab', 'Db'];
 
 		// Check if current key uses sharps or flats
 		const usesSharps = sharpKeys.includes(selectedKey);
 		const usesFlats = flatKeys.includes(selectedKey);
+		if (usesFlats) {
+			return 'isFlat';
+		}
 
-		// Map enharmonic equivalents
+		// If key uses sharps and note has a flat, convert to sharp
+		if (usesSharps) {
+			return 'isSharp';
+		}
+		return 'Natural';
+	}
+	// Get the proper note name with correct accidental for the current key
+	function convertToFlat(note:string): string{
 		const sharpToFlat: Record<string, string> = {
 			'C#': 'Db',
 			'D#': 'Eb',
@@ -204,6 +215,12 @@
 			'G#': 'Ab',
 			'A#': 'Bb'
 		};
+		if (sharpToFlat[note]) {
+			return sharpToFlat[note];
+		}
+		return note
+	} 
+	function convertToSharp(note:string):string{
 		const flatToSharp: Record<string, string> = {
 			Db: 'C#',
 			Eb: 'D#',
@@ -211,19 +228,29 @@
 			Ab: 'G#',
 			Bb: 'A#'
 		};
+		if ( flatToSharp[note]) {
+			return flatToSharp[note];
+		}
+		return note
+	}
+	function getNoteNameWithAccidental(noteName: string): string {
+		// Define which keys use sharps vs flats
+		const accidentalType = isFlatOrSharp()
+		
+
+		// Map enharmonic equivalents
 
 		// If key uses flats and note has a sharp, convert to flat
-		if (usesFlats && sharpToFlat[noteName]) {
-			return sharpToFlat[noteName];
+		if (accidentalType==='isFlat' ) {
+			return convertToFlat(noteName)
 		}
 
 		// If key uses sharps and note has a flat, convert to sharp
-		if (usesSharps && flatToSharp[noteName]) {
-			return flatToSharp[noteName];
+		if (accidentalType==="isSharp" ) {
+			return convertToSharp(noteName)
 		}
 
 		// Otherwise return the original note name
-		console.log('note name:', noteName);
 		return noteName;
 	}
 
@@ -344,7 +371,7 @@
 
 	<div class="w-10/12 md:w-5/6">
 		<!-- fretboard main -->
-		 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (because of reasons) -->
+		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (because of reasons) -->
 		<div
 			class="relative mt-12 border-l-[5px] border-r-[5px] border-gray-400"
 			onclick={playCurrentNote}
