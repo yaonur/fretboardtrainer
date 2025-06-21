@@ -348,15 +348,15 @@
 
 			<!-- Note Dot -->
 			<div
-				class="pointer-events-none absolute left-[2px] top-[3px] h-[150px] w-full sm:left-[-2px] sm:top-[1px] md:left-[-5px] md:top-[-4px]"
+				class="pointer-events-none absolute left-[2px] top-[3px] h-[150px] w-full sm:left-[-2px] sm:top-[1px] md:left-[-3px] md:top-[-3px] lg:left-[-5px] lg:top-[-4px]"
 			>
 				<div
-					class="absolute flex h-[20px] w-[20px] items-center justify-center rounded-full border-2 border-black bg-white text-xs font-bold text-black sm:h-[25px] sm:w-[25px] md:h-[35px] md:w-[35px]"
+					class="absolute flex h-[20px] w-[20px] items-center justify-center rounded-full border-2 border-black bg-white text-xs font-bold text-black sm:h-[25px] sm:w-[25px] md:h-[30px] md:w-[30px] lg:h-[35px] lg:w-[35px]"
 					style:top="calc({activeString} * 30px - 12.5px)"
 					style:left="calc(({activeFret} - 0.5) * (100% / {numFrets}) - 12.5px)"
 					style:transition="all 0.3s"
 				>
-					<span class="text-sm sm:text-lg md:text-2xl">
+					<span class="text-sm sm:text-lg md:text-xl lg:text-2xl">
 						{getNoteNameWithAccidental(fretboard[activeString][activeFret])}
 					</span>
 				</div>
