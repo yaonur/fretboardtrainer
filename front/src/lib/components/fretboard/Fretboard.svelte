@@ -61,7 +61,6 @@
 	function playNote(note: string) {
 		if (isAudioInitialized && sampler) {
 			const bestOctave = getBestOctave(note);
-			console.log("best octave:",bestOctave)
 			sampler.triggerAttackRelease(note + bestOctave, '8n');
 		}
 	}
