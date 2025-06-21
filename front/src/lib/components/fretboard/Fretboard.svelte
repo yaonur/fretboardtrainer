@@ -224,6 +224,17 @@
 	<div class="w-10/12 md:w-5/6">
 		<!-- fretboard main -->
 		<div class="relative mt-12 border-l-[5px] border-r-[5px] border-gray-400">
+			<!-- Fret Markers -->
+			<div class="pointer-events-none absolute left-0 top-0 h-[150px] w-full">
+				{#each [3, 5, 7, 9, 12, 15] as fret}
+					<div
+						class="absolute h-[8px] w-[8px] rounded-full bg-gray-400"
+						style:left="calc(({fret} - 0.5) * (100% / {numFrets}) - 4px)"
+						style:top="calc(50% - 4px)"
+					></div>
+				{/each}
+			</div>
+
 			<!-- Note Dot -->
 			{#if correctAnswer !== null}
 				<div class="pointer-events-none absolute left-0 top-0 h-[150px] w-full">
