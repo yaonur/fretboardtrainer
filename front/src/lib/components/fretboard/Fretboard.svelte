@@ -131,7 +131,7 @@
 			Math.floor(Math.random() * (fretRangeEnd - fretRangeStart + 1)) + fretRangeStart;
 
 		const note = fretboard[newString][newFret];
-		// console.log("note:",note)
+		console.log("note:",note)
 
 		const rootNoteIndex = notes.indexOf(selectedKey);
 		const scaleIntervals = scales.major;
@@ -226,6 +226,8 @@
 		console.log('note name:', noteName);
 		return noteName;
 	}
+
+	let showNoteNameOnDot = $state(true);
 </script>
 
 <div class="flex flex-col items-center">
@@ -234,7 +236,7 @@
 		<h2 class="text-2xl font-semibold">Find the note's degree in {selectedKey} Major</h2>
 		<div class="mt-4 flex justify-center gap-4">
 			<div class="flex items-center gap-2">
-				<label class="text-sm font-medium">Key:</label>
+				<p class="text-sm font-medium">Key:</p>
 				<select
 					bind:value={selectedKey}
 					class="ease w-full cursor-pointer appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none dark:text-slate-100"
@@ -245,7 +247,7 @@
 				</select>
 			</div>
 			<div class="flex items-center gap-2">
-				<label class="text-sm font-medium">Lowest Note:</label>
+				<p class="text-sm font-medium">Lowest Note:</p>
 				<select
 					bind:value={lowestNote}
 					class="ease w-full cursor-pointer appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none dark:text-slate-100"
@@ -332,9 +334,21 @@
 		</div>
 	</div>
 
+	<!-- Toggle for note name on dot -->
+	<div class="mb-2 flex justify-center">
+		<label class="flex cursor-pointer select-none items-center gap-2">
+			<input type="checkbox" bind:checked={showNoteNameOnDot} class="accent-blue-500" />
+			<span class="text-sm">Show note name on dot</span>
+		</label>
+	</div>
+
 	<div class="w-10/12 md:w-5/6">
 		<!-- fretboard main -->
-		<div class="relative mt-12 border-l-[5px] border-r-[5px] border-gray-400">
+		 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (because of reasons) -->
+		<div
+			class="relative mt-12 border-l-[5px] border-r-[5px] border-gray-400"
+			onclick={playCurrentNote}
+		>
 			<!-- Fret Markers -->
 			<div class="pointer-events-none absolute left-0 top-0 h-[150px] w-full">
 				{#each [3, 5, 7, 9, 12, 15] as fret}
@@ -356,9 +370,11 @@
 					style:left="calc(({activeFret} - 0.5) * (100% / {numFrets}) - 12.5px)"
 					style:transition="all 0.3s"
 				>
-					<span class="text-sm sm:text-lg md:text-xl lg:text-2xl">
-						{getNoteNameWithAccidental(fretboard[activeString][activeFret])}
-					</span>
+					{#if showNoteNameOnDot}
+						<span class="text-sm sm:text-lg md:text-xl lg:text-2xl">
+							{getNoteNameWithAccidental(fretboard[activeString][activeFret])}
+						</span>
+					{/if}
 				</div>
 			</div>
 			<!-- strings wrap -->
@@ -396,7 +412,7 @@
 		{#each degreeButtons as degree, i}
 			<button
 				onclick={() => handleAnswer(i + 1)}
-				class="rounded-lg  bg-gray-200 sm:px-6 px-2  sm:text-2xl text-lg font-bold transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
+				class="rounded-lg bg-gray-200 px-2 text-lg font-bold transition-colors hover:bg-gray-300 sm:px-6 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600"
 			>
 				{degree}
 			</button>
