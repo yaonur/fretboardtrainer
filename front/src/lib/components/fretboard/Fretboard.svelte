@@ -255,7 +255,7 @@
 	}
 
 	let showNoteNameOnDot = $state(true);
-	let highlightedDegrees = $state<number[]>([]);
+	let highlightedDegrees = $state<number[]>([1,2,3,4,5,6,7]);
 	let showDegreeOnRedDots = $state(false);
 
 	function shouldShowRedDot(stringIdx: number, fretIdx: number): boolean {
@@ -446,7 +446,7 @@
 						{#if shouldShowRedDot(stringIdx, fretIdx)}
 							<div
 								class="absolute flex h-[16px] w-[16px] items-center justify-center rounded-full border-2 border-red-600 bg-red-500 opacity-80 text-xs font-bold text-white sm:h-[20px] sm:w-[20px] md:h-[24px] md:w-[24px] lg:h-[28px] lg:w-[28px]"
-								style:top="calc({stringIdx} * 30px - 9px)"
+								style:top="calc({stringIdx} * 30px - 10px)"
 								style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
 							>
 								{showDegreeOnRedDots ? getRedDotDegreeLabel(stringIdx, fretIdx) : ''}
@@ -457,7 +457,7 @@
 				<!-- Main question dot -->
 				<div
 					class="absolute flex h-[20px] w-[20px] items-center justify-center rounded-full border-2 border-black bg-white text-xs font-bold text-black sm:h-[25px] sm:w-[25px] md:h-[30px] md:w-[30px] lg:h-[35px] lg:w-[35px]"
-					style:top="calc({activeString} * 30px - 10.5px)"
+					style:top="calc({activeString} * 30px - 12.5px)"
 					style:left="calc(({activeFret} - 0.5) * (100% / {numFrets}) - 12.5px)"
 					style:transition="all 0.3s"
 				>
@@ -476,7 +476,7 @@
 
 				<!-- notes wrap -->
 				<div
-					class="absolute left-[-29px] top-[-8px] flex h-[170px] w-[30px] flex-col justify-between"
+					class="absolute sm:left-[-26px] md:left-[-32px] lg:left-[-49px] left-[-17px] top-[-14px] flex h-[180px] w-[30px] flex-col justify-between"
 				>
 					{#each tuning as note}
 						<div class="h-[30px] text-2xl leading-none">{note}</div>
@@ -510,7 +510,6 @@
 		{/each}
 	</div>
 
-	<!-- Degree highlight toggles -->
 	
 
 	<!-- Feedback -->
