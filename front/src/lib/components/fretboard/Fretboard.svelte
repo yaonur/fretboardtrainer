@@ -462,7 +462,7 @@
 					style:transition="all 0.3s"
 				>
 					{#if showNoteNameOnDot}
-						<span class="text-sm sm:text-lg md:text-xl lg:text-2xl">
+						<span class="text-sm mb-[1px] sm:text-lg md:text-xl lg:text-2xl">
 							{getNoteNameWithAccidental(fretboard[activeString][activeFret])}
 						</span>
 					{/if}
