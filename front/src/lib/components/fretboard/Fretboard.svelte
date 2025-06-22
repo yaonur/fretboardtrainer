@@ -756,8 +756,8 @@
 			</button>
 		{/each}
 	</div>
-
-	<div class="w-10/12 md:w-5/6">
+	
+	<div class="w-11/12   lg:w-10/12">
 		<!-- fretboard main -->
 		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (because of reasons) -->
 		<div
@@ -847,9 +847,9 @@
 	</div>
 
 	<!-- Answer buttons -->
-	<div class="mt-10 flex flex-col gap-2">
+	<div class="mt-10 md:ml-0 ml-2 flex flex-col gap-2  md:place-self-center place-self-start">
 		<!-- First row: I to VII -->
-		<div class="flex justify-center gap-2">
+		<div class="flex justify-center  gap-2">
 			{#each degreeButtons as degree, i}
 				<button
 					onclick={() => handleAnswer(i + 1)}
