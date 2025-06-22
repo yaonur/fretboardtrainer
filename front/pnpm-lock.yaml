@@ -11,6 +11,9 @@ importers:
       '@inlang/paraglide-js':
         specifier: ^2.1.0
         version: 2.1.0
+      idb:
+        specifier: ^8.0.3
+        version: 8.0.3
       tone:
         specifier: ^15.1.22
         version: 15.1.22
@@ -756,6 +759,9 @@ packages:
   human-id@4.1.1:
     resolution: {integrity: sha512-3gKm/gCSUipeLsRYZbbdA1BD83lBoWUkZ7G9VFrhWPAU76KwYo5KR8V28bpoPm/ygy0x5/GCbpRQdY7VLYCoIg==}
     hasBin: true
+
+  idb@8.0.3:
+    resolution: {integrity: sha512-LtwtVyVYO5BqRvcsKuB2iUMnHwPVByPCXFXOpuU96IZPPoPN6xjOGxZQ74pgSVVLQWtUOYgyeL4GE98BY5D3wg==}
 
   is-fullwidth-code-point@3.0.0:
     resolution: {integrity: sha512-zymm5+u+sCsSWyD9qNaejV3DFvhCKclKdizYaJUuHA83RLjb7nSuGnddCHGv0hk+KY7BMAlsWeK4Ueg6EV6XQg==}
@@ -1826,6 +1832,8 @@ snapshots:
       - supports-color
 
   human-id@4.1.1: {}
+
+  idb@8.0.3: {}
 
   is-fullwidth-code-point@3.0.0: {}
 

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import UiSelect from '../UiSelect.svelte';
 	import * as Tone from 'tone';
+	import { fretboardPresetsStore, type FretboardPreset } from '$lib/stores/fretboardStore.svelte';
 
 	const notes = ['E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C', 'C#', 'D', 'D#'];
 	const circleOfFifths = ['C', 'G', 'D', 'A', 'E', 'B', 'F#/Gb', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
@@ -459,9 +460,75 @@
 		const degree = scaleNotes.indexOf(note) + 1;
 		return degree > 0 ? degreeButtons[degree - 1] : '';
 	}
+
+	let presets = $state<FretboardPreset[]>([]);
+	let newPresetName = $state('');
+
+	$effect(() => {
+		presets = fretboardPresetsStore.presets;
+	});
+
+	async function saveCurrentPreset() {
+		if (!newPresetName.trim()) return;
+		const preset: FretboardPreset = {
+			name: newPresetName.trim(),
+			selectedInstrument,
+			selectedKey,
+			lowestNote,
+			stringRangeStart,
+			stringRangeEnd,
+			fretRangeStart,
+			fretRangeEnd,
+			anchorModeEnabled,
+			anchorDegree,
+			anchorFrequency
+		};
+		await fretboardPresetsStore.savePreset(preset);
+		newPresetName = '';
+	}
+
+	async function applyPreset(preset: FretboardPreset) {
+		selectedInstrument = preset.selectedInstrument;
+		selectedKey = preset.selectedKey;
+		lowestNote = preset.lowestNote;
+		stringRangeStart = preset.stringRangeStart;
+		stringRangeEnd = preset.stringRangeEnd;
+		fretRangeStart = preset.fretRangeStart;
+		fretRangeEnd = preset.fretRangeEnd;
+		anchorModeEnabled = preset.anchorModeEnabled;
+		anchorDegree = preset.anchorDegree;
+		anchorFrequency = preset.anchorFrequency;
+	}
+
+	async function deletePreset(name: string) {
+		await fretboardPresetsStore.deletePreset(name);
+	}
 </script>
 
 <div class="flex flex-col items-center">
+	<!-- Preset Management UI -->
+	<div class="mb-4 w-full max-w-xl rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40">
+		<h3 class="mb-2 text-lg font-semibold">Presets</h3>
+		<div class="flex flex-wrap gap-2 mb-2">
+			{#each presets as preset}
+				<div class="flex items-center gap-1 bg-gray-200 dark:bg-gray-700 rounded px-2 py-1">
+					<span class="font-medium">{preset.name}</span>
+					<button class="ml-1 text-xs text-blue-600 hover:underline" onclick={() => applyPreset(preset)}>Apply</button>
+					<button class="ml-1 text-xs text-red-600 hover:underline" onclick={() => deletePreset(preset.name)}>Delete</button>
+				</div>
+			{/each}
+		</div>
+		<div class="flex gap-2 mt-2">
+			<input
+				type="text"
+				placeholder="Preset name"
+				bind:value={newPresetName}
+				class="flex-1 rounded border border-gray-300 px-2 py-1 text-sm dark:bg-gray-800 dark:text-white"
+			/>
+			<button class="rounded bg-blue-500 px-3 py-1 text-white text-sm hover:bg-blue-600" onclick={saveCurrentPreset}>Save Preset</button>
+		</div>
+	</div>
+
 	<!-- Game Info -->
 	<div class="my-4 text-center">
 		<h2 class="text-2xl font-semibold">Find the note's degree in {selectedKey} Major</h2>

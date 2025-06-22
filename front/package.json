@@ -33,6 +33,7 @@
 	},
 	"dependencies": {
 		"@inlang/paraglide-js": "^2.1.0",
+		"idb": "^8.0.3",
 		"tone": "^15.1.22"
 	},
 	"pnpm": {
