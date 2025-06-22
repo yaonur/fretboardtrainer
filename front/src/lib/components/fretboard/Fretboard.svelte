@@ -214,13 +214,18 @@
 	}
 
 	function handleAnswer(selectedDegree: number) {
+		if (correctAnswer === null) {
+			feedback = "Start the game"
+			return 
+		}
+		
 		if (selectedDegree === correctAnswer) {
 			// Play the correct note when answer is right
 			if (correctAnswer !== null) {
 				const currentNote = fretboard[activeString][activeFret];
 				playNote(currentNote);
 			}
-
+			
 			// Check if this was an anchor question
 			const isAnchorQuestion = anchorModeEnabled && questionCount % 2 === 0;
 			feedback = isAnchorQuestion ? 'Correct! (Anchor question)' : 'Correct!';
