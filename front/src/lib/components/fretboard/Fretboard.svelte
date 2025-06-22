@@ -115,6 +115,7 @@
 	// --- Anchor Mode Settings ---
 	let anchorModeEnabled = $state(false);
 	let anchorDegree = $state<number>(1); // Default to I degree
+	let anchorFrequency = $state<number>(2); // How many questions to skip before anchor (default: every 2nd question)
 	let questionCount = $state<number>(0); // Track question count for anchor logic
 
 	// --- Practice Range Settings ---
@@ -189,12 +190,17 @@
 
 		// If anchor mode is enabled, alternate between anchor degree and random degree
 		let targetDegree: number;
-		if (anchorModeEnabled && questionCount % 2 === 0) {
+		if (anchorModeEnabled && questionCount % anchorFrequency === 0) {
 			// This should be an anchor question
 			targetDegree = anchorDegree;
 		} else {
-			// This should be a random question
-			targetDegree = Math.floor(Math.random() * 7) + 1; // Random degree 1-7
+			// This should be a random question (excluding anchor degree if anchor mode is enabled)
+			let availableDegrees = [1, 2, 3, 4, 5, 6, 7];
+			if (anchorModeEnabled) {
+				// Remove the anchor degree from available options for random questions
+				availableDegrees = availableDegrees.filter(degree => degree !== anchorDegree);
+			}
+			targetDegree = availableDegrees[Math.floor(Math.random() * availableDegrees.length)];
 		}
 
 		// Find a note that corresponds to the target degree
@@ -223,7 +229,7 @@
 
 		// If no valid positions found, try to generate a random question instead
 		if (validPositions.length === 0) {
-			if (anchorModeEnabled && questionCount % 2 === 0) {
+			if (anchorModeEnabled && questionCount % anchorFrequency === 0) {
 				// If this was supposed to be an anchor question but failed, try random
 				questionCount--; // Decrement to retry
 				generateNewQuestion();
@@ -239,15 +245,18 @@
 				// Add bounds checking
 				if (fretboard[newString] && fretboard[newString][newFret]) {
 					const note = fretboard[newString][newFret];
-					const degree = scaleNotes.indexOf(note);
+					const degree = scaleNotes.indexOf(note) + 1; // Convert to 1-indexed
 
-					if (degree === -1 || lastNote === note) {
+					// Check if this degree is valid (not anchor degree when anchor mode is enabled)
+					const isValidDegree = !anchorModeEnabled || degree !== anchorDegree;
+
+					if (degree === 0 || lastNote === note || !isValidDegree) {
 						generateNewQuestion();
 					} else {
 						lastNote = note;
 						activeString = newString;
 						activeFret = newFret;
-						correctAnswer = degree + 1; // 1-indexed degree
+						correctAnswer = degree;
 					}
 				} else {
 					// If bounds check fails, try again
@@ -296,7 +305,7 @@
 			}
 			
 			// Check if this was an anchor question
-			const isAnchorQuestion = anchorModeEnabled && questionCount % 2 === 0;
+			const isAnchorQuestion = anchorModeEnabled && questionCount % anchorFrequency === 0;
 			feedback = isAnchorQuestion ? 'Correct! (Anchor question)' : 'Correct!';
 
 			setTimeout(() => generateNewQuestion(), 100);
@@ -309,7 +318,7 @@
 			playNote(wrongNote);
 
 			// Check if this was an anchor question
-			const isAnchorQuestion = anchorModeEnabled && questionCount % 2 === 0;
+			const isAnchorQuestion = anchorModeEnabled && questionCount % anchorFrequency === 0;
 			const anchorIndicator = isAnchorQuestion ? ' (Anchor question)' : '';
 			feedback = `Incorrect. It's ${degreeButtons[correctAnswer! - 1]}.${anchorIndicator}`;
 		}
@@ -445,10 +454,10 @@
 			<div class="mt-2 text-sm">
 				<span
 					class="rounded px-2 py-1 text-white"
-					class:bg-blue-500={questionCount % 2 === 0}
-					class:bg-gray-500={questionCount % 2 !== 0}
+					class:bg-blue-500={questionCount % anchorFrequency === 0}
+					class:bg-gray-500={questionCount % anchorFrequency !== 0}
 				>
-					{questionCount % 2 === 0 ? `Anchor: ${degreeButtons[anchorDegree - 1]}` : 'Random'}
+					{questionCount % anchorFrequency === 0 ? `Anchor: ${degreeButtons[anchorDegree - 1]}` : 'Random'}
 				</span>
 			</div>
 		{/if}
@@ -597,8 +606,19 @@
 					{/each}
 				</select>
 			</div>
+			<div class="flex items-center gap-2">
+				<span class="text-sm">Every</span>
+				<input
+					type="number"
+					bind:value={anchorFrequency}
+					min="1"
+					max="10"
+					class="w-16 rounded border border-slate-200 bg-transparent py-1 px-2 text-center text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none dark:text-slate-100"
+				/>
+				<span class="text-sm">questions</span>
+			</div>
 			<div class="text-xs text-gray-600 dark:text-gray-400">
-				Every other question will be {degreeButtons[anchorDegree - 1]} degree
+				Every {anchorFrequency} question{anchorFrequency !== 1 ? 's' : ''} will be {degreeButtons[anchorDegree - 1]} degree
 			</div>
 		{/if}
 	</div>
@@ -666,10 +686,10 @@
 				{#if correctAnswer !== null}
 					<div
 						class="absolute flex h-[20px] w-[20px] items-center justify-center rounded-full border-2 text-xs font-bold text-black sm:h-[25px] sm:w-[25px] md:h-[30px] md:w-[30px] lg:h-[35px] lg:w-[35px]"
-						class:border-blue-500={anchorModeEnabled && questionCount % 2 === 0}
-						class:bg-blue-100={anchorModeEnabled && questionCount % 2 === 0}
-						class:border-black={!(anchorModeEnabled && questionCount % 2 === 0)}
-						class:bg-white={!(anchorModeEnabled && questionCount % 2 === 0)}
+						class:border-blue-500={anchorModeEnabled && questionCount % anchorFrequency === 0}
+						class:bg-blue-100={anchorModeEnabled && questionCount % anchorFrequency === 0}
+						class:border-black={!(anchorModeEnabled && questionCount % anchorFrequency === 0)}
+						class:bg-white={!(anchorModeEnabled && questionCount % anchorFrequency === 0)}
 						style:top="calc({activeString} * 30px - 12.5px)"
 						style:left="calc(({activeFret} - 0.5) * (100% / {numFrets}) - 12.5px)"
 						style:transition="all 0.3s"
