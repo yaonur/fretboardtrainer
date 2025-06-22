@@ -85,6 +85,11 @@
 	let feedback = $state('');
 	let lowestNote = $state<string>('G3'); // User's lowest note as reference
 
+	// --- Anchor Mode Settings ---
+	let anchorModeEnabled = $state(false);
+	let anchorDegree = $state<number>(1); // Default to I degree
+	let questionCount = $state<number>(0); // Track question count for anchor logic
+
 	// --- Practice Range Settings ---
 	let stringRangeStart = $state<number>(1);
 	let stringRangeEnd = $state<number>(6);
@@ -130,30 +135,84 @@
 	}
 	function generateNewQuestion() {
 		feedback = '';
-		const newString =
-			Math.floor(Math.random() * (stringRangeEndIndex - stringRangeStartIndex + 1)) +
-			stringRangeStartIndex;
-		const newFret =
-			Math.floor(Math.random() * (fretRangeEnd - fretRangeStart + 1)) + fretRangeStart;
-
-		const note = fretboard[newString][newFret];
+		questionCount++;
 		
-		const rootNoteIndex = getRootIndex()
+		// If anchor mode is enabled, alternate between anchor degree and random degree
+		let targetDegree: number;
+		if (anchorModeEnabled && questionCount % 2 === 0) {
+			// This should be an anchor question
+			targetDegree = anchorDegree;
+		} else {
+			// This should be a random question
+			targetDegree = Math.floor(Math.random() * 7) + 1; // Random degree 1-7
+		}
+
+		// Find a note that corresponds to the target degree
+		const rootNoteIndex = getRootIndex();
 		const scaleIntervals = scales.major;
 		const scaleNotes = scaleIntervals.map(
 			(interval) => notes[(rootNoteIndex + interval) % notes.length]
 		);
-
-		const degree = scaleNotes.indexOf(note);
-
-		if (degree === -1 || lastNote === note) {
-			generateNewQuestion();
-		} else {
-			lastNote = note;
-			activeString = newString;
-			activeFret = newFret;
-			correctAnswer = degree + 1; // 1-indexed degree
+		
+		// Get the target note for the degree (convert to 0-based index)
+		const targetNote = scaleNotes[targetDegree - 1];
+		
+		// Find all positions where this note appears in the practice range
+		const validPositions: Array<{string: number, fret: number}> = [];
+		for (let string = stringRangeStartIndex; string <= stringRangeEndIndex; string++) {
+			for (let fret = fretRangeStart; fret <= fretRangeEnd; fret++) {
+				const note = fretboard[string][fret];
+				if (note === targetNote) {
+					validPositions.push({string, fret});
+				}
+			}
 		}
+		
+		// If no valid positions found, try to generate a random question instead
+		if (validPositions.length === 0) {
+			if (anchorModeEnabled && questionCount % 2 === 0) {
+				// If this was supposed to be an anchor question but failed, try random
+				questionCount--; // Decrement to retry
+				generateNewQuestion();
+				return;
+			} else {
+				// Fallback to original random logic
+				const newString =
+					Math.floor(Math.random() * (stringRangeEndIndex - stringRangeStartIndex + 1)) +
+					stringRangeStartIndex;
+				const newFret =
+					Math.floor(Math.random() * (fretRangeEnd - fretRangeStart + 1)) + fretRangeStart;
+
+				const note = fretboard[newString][newFret];
+				const degree = scaleNotes.indexOf(note);
+
+				if (degree === -1 || lastNote === note) {
+					generateNewQuestion();
+				} else {
+					lastNote = note;
+					activeString = newString;
+					activeFret = newFret;
+					correctAnswer = degree + 1; // 1-indexed degree
+				}
+				return;
+			}
+		}
+		
+		// Select a random position from valid positions
+		const randomPosition = validPositions[Math.floor(Math.random() * validPositions.length)];
+		
+		// Check if this position has the same note as last time
+		const note = fretboard[randomPosition.string][randomPosition.fret];
+		if (lastNote === note && validPositions.length > 1) {
+			// Try again with a different position
+			generateNewQuestion();
+			return;
+		}
+		
+		lastNote = note;
+		activeString = randomPosition.string;
+		activeFret = randomPosition.fret;
+		correctAnswer = targetDegree;
 	}
 
 	function handleAnswer(selectedDegree: number) {
@@ -163,7 +222,11 @@
 				const currentNote = fretboard[activeString][activeFret];
 				playNote(currentNote);
 			}
-			feedback = 'Correct!';
+			
+			// Check if this was an anchor question
+			const isAnchorQuestion = anchorModeEnabled && questionCount % 2 === 0;
+			feedback = isAnchorQuestion ? 'Correct! (Anchor question)' : 'Correct!';
+			
 			setTimeout(() => generateNewQuestion(), 100);
 		} else {
 			// Play the note corresponding to the wrong degree selected
@@ -173,7 +236,10 @@
 			const wrongNote = notes[(rootNoteIndex + scaleIntervals[wrongDegreeIndex]) % notes.length];
 			playNote(wrongNote);
 
-			feedback = `Incorrect. It's ${degreeButtons[correctAnswer! - 1]}.`;
+			// Check if this was an anchor question
+			const isAnchorQuestion = anchorModeEnabled && questionCount % 2 === 0;
+			const anchorIndicator = isAnchorQuestion ? ' (Anchor question)' : '';
+			feedback = `Incorrect. It's ${degreeButtons[correctAnswer! - 1]}.${anchorIndicator}`;
 		}
 	}
 
@@ -282,6 +348,16 @@
 	<!-- Game Info -->
 	<div class="my-4 text-center">
 		<h2 class="text-2xl font-semibold">Find the note's degree in {selectedKey} Major</h2>
+		{#if anchorModeEnabled && correctAnswer !== null}
+			<div class="mt-2 text-sm">
+				<span class="rounded px-2 py-1 text-white"
+					class:bg-blue-500={questionCount % 2 === 0}
+					class:bg-gray-500={questionCount % 2 !== 0}
+				>
+					{questionCount % 2 === 0 ? `Anchor: ${degreeButtons[anchorDegree - 1]}` : 'Random'}
+				</span>
+			</div>
+		{/if}
 		<div class="mt-4 flex justify-center gap-4">
 			<div class="flex items-center gap-2">
 				<p class="text-sm font-medium">Key:</p>
@@ -328,6 +404,7 @@
 		<button
 			onclick={async () => {
 				await initAudio();
+				questionCount = 0; // Reset question count for new session
 				generateNewQuestion();
 			}}
 			disabled={!canGenerateQuestion}
@@ -397,6 +474,33 @@
 			<span class="text-sm">Show degree name in red dots</span>
 		</label>
 	</div>
+
+	<!-- Anchor Mode Controls -->
+	<div class="mb-4 flex flex-col items-center gap-2 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
+		<div class="flex items-center gap-2">
+			<label class="flex cursor-pointer select-none items-center gap-2">
+				<input type="checkbox" bind:checked={anchorModeEnabled} class="accent-blue-500" />
+				<span class="text-sm font-medium">Enable Anchor Mode</span>
+			</label>
+		</div>
+		{#if anchorModeEnabled}
+			<div class="flex items-center gap-2">
+				<span class="text-sm">Anchor Degree:</span>
+				<select
+					bind:value={anchorDegree}
+					class="ease w-full cursor-pointer appearance-none rounded border border-slate-200 bg-transparent py-1 pl-2 pr-6 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none dark:text-slate-100"
+				>
+					{#each degreeButtons as degree, i}
+						<option class="px-2 dark:bg-slate-700" value={i + 1}>{degree}</option>
+					{/each}
+				</select>
+			</div>
+			<div class="text-xs text-gray-600 dark:text-gray-400">
+				Every other question will be {degreeButtons[anchorDegree - 1]} degree
+			</div>
+		{/if}
+	</div>
+
 	<div class="mb-2 flex justify-center gap-2">
 		{#each degreeButtons as degree, i}
 			<button
@@ -456,7 +560,11 @@
 				{/each}
 				<!-- Main question dot -->
 				<div
-					class="absolute flex h-[20px] w-[20px] items-center justify-center rounded-full border-2 border-black bg-white text-xs font-bold text-black sm:h-[25px] sm:w-[25px] md:h-[30px] md:w-[30px] lg:h-[35px] lg:w-[35px]"
+					class="absolute flex h-[20px] w-[20px] items-center justify-center rounded-full border-2 text-xs font-bold text-black sm:h-[25px] sm:w-[25px] md:h-[30px] md:w-[30px] lg:h-[35px] lg:w-[35px]"
+					class:border-blue-500={anchorModeEnabled && questionCount % 2 === 0}
+					class:bg-blue-100={anchorModeEnabled && questionCount % 2 === 0}
+					class:border-black={!(anchorModeEnabled && questionCount % 2 === 0)}
+					class:bg-white={!(anchorModeEnabled && questionCount % 2 === 0)}
 					style:top="calc({activeString} * 30px - 12.5px)"
 					style:left="calc(({activeFret} - 0.5) * (100% / {numFrets}) - 12.5px)"
 					style:transition="all 0.3s"
