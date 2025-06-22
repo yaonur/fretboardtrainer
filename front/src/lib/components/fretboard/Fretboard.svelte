@@ -833,7 +833,8 @@
 	<div>
 		<div class="mt-2 flex justify-center gap-2">
 			<button
-				onclick={() => {
+				onclick={async () => {
+					await initAudio();
 					gameMode = 'find-degree';
 					generateNewQuestion();
 				}}
@@ -846,7 +847,8 @@
 				Note → Degree
 			</button>
 			<button
-				onclick={() => {
+				onclick={async () => {
+					await initAudio();
 					gameMode = 'find-note';
 					generateNewQuestion();
 				}}
