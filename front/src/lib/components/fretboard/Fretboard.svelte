@@ -463,6 +463,7 @@
 
 	let presets = $state<FretboardPreset[]>([]);
 	let newPresetName = $state('');
+	let loadedPresetName = $state<string | null>(null);
 
 	$effect(() => {
 		presets = fretboardPresetsStore.presets;
@@ -481,7 +482,8 @@
 			fretRangeEnd,
 			anchorModeEnabled,
 			anchorDegree,
-			anchorFrequency
+			anchorFrequency,
+			highlightedDegrees: [...highlightedDegrees]
 		};
 		await fretboardPresetsStore.savePreset(preset);
 		newPresetName = '';
@@ -498,10 +500,30 @@
 		anchorModeEnabled = preset.anchorModeEnabled;
 		anchorDegree = preset.anchorDegree;
 		anchorFrequency = preset.anchorFrequency;
+		highlightedDegrees = preset.highlightedDegrees || [1, 2, 3, 4, 5, 6, 7];
+		loadedPresetName = preset.name;
 	}
 
 	async function deletePreset(name: string) {
 		await fretboardPresetsStore.deletePreset(name);
+	}
+
+	async function updatePreset(name: string) {
+		const preset: FretboardPreset = {
+			name,
+			selectedInstrument,
+			selectedKey,
+			lowestNote,
+			stringRangeStart,
+			stringRangeEnd,
+			fretRangeStart,
+			fretRangeEnd,
+			anchorModeEnabled,
+			anchorDegree,
+			anchorFrequency,
+			highlightedDegrees: [...highlightedDegrees]
+		};
+		await fretboardPresetsStore.savePreset(preset);
 	}
 </script>
 
@@ -514,6 +536,9 @@
 				<div class="flex items-center gap-1 bg-gray-200 dark:bg-gray-700 rounded px-2 py-1">
 					<span class="font-medium">{preset.name}</span>
 					<button class="ml-1 text-xs text-blue-600 hover:underline" onclick={() => applyPreset(preset)}>Apply</button>
+					{#if loadedPresetName === preset.name}
+						<button class="ml-1 text-xs text-green-600 hover:underline" onclick={() => updatePreset(preset.name)}>Update</button>
+					{/if}
 					<button class="ml-1 text-xs text-red-600 hover:underline" onclick={() => deletePreset(preset.name)}>Delete</button>
 				</div>
 			{/each}

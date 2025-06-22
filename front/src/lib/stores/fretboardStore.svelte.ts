@@ -13,6 +13,7 @@ export type FretboardPreset = {
   anchorModeEnabled: boolean;
   anchorDegree: number;
   anchorFrequency: number;
+  highlightedDegrees: number[];
 };
 
 const DB_NAME = 'fretboardtrainer';
