@@ -607,18 +607,31 @@
 	</div>
 
 	<!-- Answer buttons -->
-	<div class="mt-12 flex justify-center gap-4">
-		{#each degreeButtons as degree, i}
-			<button
-				onclick={() => handleAnswer(i + 1)}
-				class="rounded-lg bg-gray-200 px-2 text-lg font-bold transition-colors hover:bg-gray-300 sm:px-6 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600"
-			>
-				{degree}
-			</button>
-		{/each}
+	<div class="mt-10 flex flex-col gap-2">
+		<!-- First row: I to VII -->
+		<div class="flex justify-center gap-2">
+			{#each degreeButtons as degree, i}
+				<button
+					onclick={() => handleAnswer(i + 1)}
+					class="rounded-lg bg-gray-200 px-1 w-10 text-lg font-bold transition-colors hover:bg-gray-300  sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600"
+				>
+					{degree}
+				</button>
+			{/each}
+		</div>
+		
+		<!-- Second row: VII to I (reverse order) -->
+		<div class="flex justify-center gap-2">
+			{#each degreeButtons.slice().reverse() as degree, i}
+				<button
+					onclick={() => handleAnswer(degreeButtons.length - i)}
+					class="rounded-lg bg-gray-200 px-1 w-10 text-lg font-bold transition-colors hover:bg-gray-300 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600"
+				>
+					{degree}
+				</button>
+			{/each}
+		</div>
 	</div>
-
-	
 
 	<!-- Feedback -->
 	<div class="mt-4 h-8 text-2xl font-semibold">{feedback}</div>
