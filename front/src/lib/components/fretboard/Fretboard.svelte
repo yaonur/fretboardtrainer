@@ -847,9 +847,9 @@
 	</div>
 
 	<!-- Answer buttons -->
-	<div class="mt-10 md:ml-0 ml-2 flex flex-col gap-2  md:place-self-center place-self-start">
+	<div class="mt-10 w-11/12 lg:w-10/12 ml-6 lg:ml-0 flex flex-col gap-2  md:place-self-center place-self-start">
 		<!-- First row: I to VII -->
-		<div class="flex justify-center  gap-2">
+		<div class="flex justify-start md:justify-center  gap-2">
 			{#each degreeButtons as degree, i}
 				<button
 					onclick={() => handleAnswer(i + 1)}
@@ -861,7 +861,7 @@
 		</div>
 
 		<!-- Second row: VII to I (reverse order) -->
-		<div class="flex justify-center gap-2">
+		<div class="flex justify-start md:justify-center gap-2">
 			{#each degreeButtons.slice().reverse() as degree, i}
 				<button
 					onclick={() => handleAnswer(degreeButtons.length - i)}
