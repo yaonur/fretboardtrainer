@@ -515,6 +515,7 @@
 			highlightedDegrees: [...highlightedDegrees]
 		};
 		await fretboardPresetsStore.savePreset(preset);
+		loadedPresetName = newPresetName.trim();
 		newPresetName = '';
 	}
 
@@ -534,7 +535,13 @@
 	}
 
 	async function deletePreset(name: string) {
-		await fretboardPresetsStore.deletePreset(name);
+		if (confirm(`Are you sure you want to delete the preset "${name}"?`)) {
+			await fretboardPresetsStore.deletePreset(name);
+			// If the deleted preset was the loaded one, clear the loadedPresetName
+			if (loadedPresetName === name) {
+				loadedPresetName = null;
+			}
+		}
 	}
 
 	async function updatePreset(name: string) {
@@ -1019,7 +1026,6 @@
 				{/each}
 			</div>
 		</div>
-	{:else}
-		<div class="h-12 w-full"></div>
-	{/if}
+		{/if}
+		<div class="h-36 w-full"></div>
 </div>
