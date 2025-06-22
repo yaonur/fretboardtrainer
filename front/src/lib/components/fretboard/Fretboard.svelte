@@ -4,7 +4,34 @@
 
 	const notes = ['E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C', 'C#', 'D', 'D#'];
 	const circleOfFifths = ['C', 'G', 'D', 'A', 'E', 'B', 'F#/Gb', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
-	const tuning = ['E', 'B', 'G', 'D', 'A', 'E']; // Standard tuning from high E to low E
+	
+	// Instrument configurations
+	const instruments = {
+		guitar: {
+			name: 'Guitar',
+			tuning: ['E', 'B', 'G', 'D', 'A', 'E'], // Standard tuning from high E to low E
+			numStrings: 6
+		},
+		bass4: {
+			name: '4-String Bass',
+			tuning: ['G', 'D', 'A', 'E'], // Standard bass tuning from high G to low E
+			numStrings: 4
+		},
+		bass5: {
+			name: '5-String Bass',
+			tuning: ['G', 'D', 'A', 'E', 'B'], // 5-string bass tuning with low B
+			numStrings: 5
+		},
+		bass6: {
+			name: '6-String Bass',
+			tuning: ['C', 'G', 'D', 'A', 'E', 'B'], // 6-string bass tuning with high C and low B
+			numStrings: 6
+		}
+	};
+	
+	let selectedInstrument = $state('guitar');
+	const tuning = $derived(instruments[selectedInstrument as keyof typeof instruments].tuning);
+	const numStrings = $derived(instruments[selectedInstrument as keyof typeof instruments].numStrings);
 	const numFrets = 15;
 	const degreeButtons = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
@@ -100,6 +127,28 @@
 	const stringRangeStartIndex = $derived(stringRangeStart - 1);
 	const stringRangeEndIndex = $derived(stringRangeEnd - 1);
 
+	// Update string range when instrument changes
+	$effect(() => {
+		if (stringRangeEnd > numStrings) {
+			stringRangeEnd = numStrings;
+		}
+		if (stringRangeStart > numStrings) {
+			stringRangeStart = 1;
+		}
+	});
+
+	// Update lowest note when instrument changes
+	$effect(() => {
+		
+		// Reset active position when instrument changes
+		activeString = 0;
+		activeFret = 1;
+		correctAnswer = null;
+		feedback = '';
+		lastNote = '';
+		questionCount = 0;
+	});
+
 	const scales = {
 		major: [0, 2, 4, 5, 7, 9, 11] // Major scale intervals
 	};
@@ -114,9 +163,12 @@
 		let validNotes = 0;
 		for (let string = stringRangeStartIndex; string <= stringRangeEndIndex; string++) {
 			for (let fret = fretRangeStart; fret <= fretRangeEnd; fret++) {
-				const note = fretboard[string][fret];
-				if (scaleNotes.includes(note)) {
-					validNotes++;
+				// Add bounds checking
+				if (fretboard[string] && fretboard[string][fret]) {
+					const note = fretboard[string][fret];
+					if (scaleNotes.includes(note)) {
+						validNotes++;
+					}
 				}
 			}
 		}
@@ -159,9 +211,12 @@
 		const validPositions: Array<{ string: number; fret: number }> = [];
 		for (let string = stringRangeStartIndex; string <= stringRangeEndIndex; string++) {
 			for (let fret = fretRangeStart; fret <= fretRangeEnd; fret++) {
-				const note = fretboard[string][fret];
-				if (note === targetNote) {
-					validPositions.push({ string, fret });
+				// Add bounds checking
+				if (fretboard[string] && fretboard[string][fret]) {
+					const note = fretboard[string][fret];
+					if (note === targetNote) {
+						validPositions.push({ string, fret });
+					}
 				}
 			}
 		}
@@ -181,16 +236,22 @@
 				const newFret =
 					Math.floor(Math.random() * (fretRangeEnd - fretRangeStart + 1)) + fretRangeStart;
 
-				const note = fretboard[newString][newFret];
-				const degree = scaleNotes.indexOf(note);
+				// Add bounds checking
+				if (fretboard[newString] && fretboard[newString][newFret]) {
+					const note = fretboard[newString][newFret];
+					const degree = scaleNotes.indexOf(note);
 
-				if (degree === -1 || lastNote === note) {
-					generateNewQuestion();
+					if (degree === -1 || lastNote === note) {
+						generateNewQuestion();
+					} else {
+						lastNote = note;
+						activeString = newString;
+						activeFret = newFret;
+						correctAnswer = degree + 1; // 1-indexed degree
+					}
 				} else {
-					lastNote = note;
-					activeString = newString;
-					activeFret = newFret;
-					correctAnswer = degree + 1; // 1-indexed degree
+					// If bounds check fails, try again
+					generateNewQuestion();
 				}
 				return;
 			}
@@ -200,17 +261,22 @@
 		const randomPosition = validPositions[Math.floor(Math.random() * validPositions.length)];
 
 		// Check if this position has the same note as last time
-		const note = fretboard[randomPosition.string][randomPosition.fret];
-		if (lastNote === note && validPositions.length > 1) {
-			// Try again with a different position
-			generateNewQuestion();
-			return;
-		}
+		if (fretboard[randomPosition.string] && fretboard[randomPosition.string][randomPosition.fret]) {
+			const note = fretboard[randomPosition.string][randomPosition.fret];
+			if (lastNote === note && validPositions.length > 1) {
+				// Try again with a different position
+				generateNewQuestion();
+				return;
+			}
 
-		lastNote = note;
-		activeString = randomPosition.string;
-		activeFret = randomPosition.fret;
-		correctAnswer = targetDegree;
+			lastNote = note;
+			activeString = randomPosition.string;
+			activeFret = randomPosition.fret;
+			correctAnswer = targetDegree;
+		} else {
+			// If bounds check fails, try again
+			generateNewQuestion();
+		}
 	}
 
 	function handleAnswer(selectedDegree: number) {
@@ -222,8 +288,11 @@
 		if (selectedDegree === correctAnswer) {
 			// Play the correct note when answer is right
 			if (correctAnswer !== null) {
-				const currentNote = fretboard[activeString][activeFret];
-				playNote(currentNote);
+				// Add bounds checking
+				if (fretboard[activeString] && fretboard[activeString][activeFret]) {
+					const currentNote = fretboard[activeString][activeFret];
+					playNote(currentNote);
+				}
 			}
 			
 			// Check if this was an anchor question
@@ -249,8 +318,11 @@
 	// Play current note
 	function playCurrentNote() {
 		if (correctAnswer !== null) {
-			const currentNote = fretboard[activeString][activeFret];
-			playNote(currentNote);
+			// Add bounds checking
+			if (fretboard[activeString] && fretboard[activeString][activeFret]) {
+				const currentNote = fretboard[activeString][activeFret];
+				playNote(currentNote);
+			}
 		}
 	}
 
@@ -369,6 +441,17 @@
 		{/if}
 		<div class="mt-4 flex justify-center gap-4">
 			<div class="flex items-center gap-2">
+				<p class="text-sm font-medium">Instrument:</p>
+				<select
+					bind:value={selectedInstrument}
+					class="ease w-full cursor-pointer appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none dark:text-slate-100"
+				>
+					{#each Object.entries(instruments) as [key, instrument]}
+						<option class="px-2 dark:bg-slate-700" value={key}>{instrument.name}</option>
+					{/each}
+				</select>
+			</div>
+			<div class="flex items-center gap-2">
 				<p class="text-sm font-medium">Key:</p>
 				<select
 					bind:value={selectedKey}
@@ -385,6 +468,7 @@
 					bind:value={lowestNote}
 					class="ease w-full cursor-pointer appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none dark:text-slate-100"
 				>
+					<option class="px-2 dark:bg-slate-700" value="B1">B1 (Bass)</option>
 					<option class="px-2 dark:bg-slate-700" value="C2">C2 (Low Bass)</option>
 					<option class="px-2 dark:bg-slate-700" value="D2">D2 (Bass)</option>
 					<option class="px-2 dark:bg-slate-700" value="E2">E2 (Bass)</option>
@@ -400,15 +484,11 @@
 					<option class="px-2 dark:bg-slate-700" value="A3">A3 (Tenor)</option>
 					<option class="px-2 dark:bg-slate-700" value="B3">B3 (Tenor)</option>
 					<option class="px-2 dark:bg-slate-700" value="C4">C4 (Tenor/Alto)</option>
-					<option class="px-2 dark:bg-slate-700" value="D4">D4 (Alto)</option>
-					<option class="px-2 dark:bg-slate-700" value="E4">E4 (Alto)</option>
-					<option class="px-2 dark:bg-slate-700" value="F4">F4 (Alto/Soprano)</option>
-					<option class="px-2 dark:bg-slate-700" value="G4">G4 (Soprano)</option>
-					<option class="px-2 dark:bg-slate-700" value="A4">A4 (Soprano)</option>
-					<option class="px-2 dark:bg-slate-700" value="B4">B4 (Soprano)</option>
-					<option class="px-2 dark:bg-slate-700" value="C5">C5 (High Soprano)</option>
 				</select>
 			</div>
+		</div>
+		<div class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
+			Tuning: {tuning.join(' - ')} (from highest to lowest string)
 		</div>
 		<button
 			onclick={async () => {
@@ -449,9 +529,9 @@
 		<h3 class="mb-3 text-lg font-semibold">Practice Range</h3>
 		<div class="flex flex-wrap justify-center gap-4">
 			<div class="flex items-center gap-2">
-				<UiSelect bind:value={stringRangeStart} length={6} start={1} label="Strings:" />
+				<UiSelect bind:value={stringRangeStart} length={numStrings} start={1} label="Strings:" />
 				<span>to</span>
-				<UiSelect bind:value={stringRangeEnd} length={6} start={1} />
+				<UiSelect bind:value={stringRangeEnd} length={numStrings} start={1} />
 			</div>
 			<div class="flex items-center gap-2">
 				<UiSelect bind:value={fretRangeStart} length={numFrets} start={1} label="Frets:" />
@@ -536,10 +616,11 @@
 		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (because of reasons) -->
 		<div
 			class="relative mt-12 border-l-[5px] border-r-[5px] border-gray-400"
+			style:height="{(numStrings - 1) * 30}px"
 			onclick={playCurrentNote}
 		>
 			<!-- Fret Markers -->
-			<div class="pointer-events-none absolute left-0 top-0 h-[150px] w-full">
+			<div class="pointer-events-none absolute left-0 top-0 w-full" style:height="{(numStrings - 1) * 30}px">
 				{#each [3, 5, 7, 9, 12, 15] as fret}
 					<div
 						class="absolute h-[8px] w-[8px] rounded-full bg-gray-400"
@@ -551,7 +632,8 @@
 
 			<!-- Note Dot -->
 			<div
-				class="pointer-events-none absolute left-[2px] top-[3px] h-[150px] w-full sm:left-[-2px] sm:top-[1px] md:left-[-3px] md:top-[-3px] lg:left-[-5px] lg:top-[-4px]"
+				class="pointer-events-none absolute left-[2px] top-[3px] w-full sm:left-[-2px] sm:top-[1px] md:left-[-3px] md:top-[-3px] lg:left-[-5px] lg:top-[-4px]"
+				style:height="{(numStrings - 1) * 30}px"
 			>
 				<!-- Red dots for highlighted degrees -->
 				{#each Array(tuning.length) as _, stringIdx}
@@ -589,7 +671,7 @@
 			</div>
 			<!-- strings wrap -->
 			<div>
-				{#each { length: 5 } as _, i}
+				{#each { length: numStrings - 1 } as _, i}
 					<div class="h-[30px] border-b border-gray-400" class:border-t={i === 0}></div>
 				{/each}
 
@@ -603,10 +685,11 @@
 				</div> -->
 			</div>
 			<!-- frets wrap -->
-			<div class="absolute left-0 top-0 flex h-[150px] w-full justify-between">
+			<div class="absolute left-0 top-0 flex w-full justify-between" style:height="{(numStrings - 1) * 30}px">
 				{#each { length: numFrets } as _, i}
 					<div
-						class="flex h-[150px] flex-1 items-end justify-center border-r-2 border-gray-500 last:border-r-0"
+						class="flex flex-1 items-end justify-center border-r-2 border-gray-500 last:border-r-0"
+						style:height="{(numStrings - 1) * 30}px"
 					>
 						{#if [3, 5, 7, 9, 12, 15].includes(i + 1)}
 							<div class="translate-y-[150%] text-xl">{i + 1}</div>
