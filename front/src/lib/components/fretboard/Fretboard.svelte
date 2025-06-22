@@ -326,6 +326,19 @@
 		}
 	}
 
+	// Play current note and go to next question
+	function playAndNext() {
+		if (correctAnswer !== null) {
+			// Add bounds checking
+			if (fretboard[activeString] && fretboard[activeString][activeFret]) {
+				const currentNote = fretboard[activeString][activeFret];
+				playNote(currentNote);
+			}
+			// Go to next question after a short delay
+			setTimeout(() => generateNewQuestion(), 100);
+		}
+	}
+
 	// Initial question
 	// $effect(generateNewQuestion);
 	$effect(() => {});
@@ -505,7 +518,7 @@
 			<button
 				onclick={async () => {
 					await initAudio();
-					playCurrentNote();
+					playAndNext();
 				}}
 				class="ml-2 mt-2 rounded bg-green-500 px-4 py-2 text-white transition-colors hover:bg-green-600"
 			>
@@ -617,7 +630,7 @@
 		<div
 			class="relative mt-12 border-l-[5px] border-r-[5px] border-gray-400"
 			style:height="{(numStrings - 1) * 30}px"
-			onclick={playCurrentNote}
+			onclick={playAndNext}
 		>
 			<!-- Fret Markers -->
 			<div class="pointer-events-none absolute left-0 top-0 w-full" style:height="{(numStrings - 1) * 30}px">
