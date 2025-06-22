@@ -128,15 +128,13 @@
 
 	let lastNote = '';
 	function getRootIndex() {
-		if (isFlatOrSharp()==='isFlat')
-			return notes.indexOf(convertToSharp(selectedKey))
+		if (isFlatOrSharp() === 'isFlat') return notes.indexOf(convertToSharp(selectedKey));
 		return notes.indexOf(selectedKey);
-
 	}
 	function generateNewQuestion() {
 		feedback = '';
 		questionCount++;
-		
+
 		// If anchor mode is enabled, alternate between anchor degree and random degree
 		let targetDegree: number;
 		if (anchorModeEnabled && questionCount % 2 === 0) {
@@ -153,21 +151,21 @@
 		const scaleNotes = scaleIntervals.map(
 			(interval) => notes[(rootNoteIndex + interval) % notes.length]
 		);
-		
+
 		// Get the target note for the degree (convert to 0-based index)
 		const targetNote = scaleNotes[targetDegree - 1];
-		
+
 		// Find all positions where this note appears in the practice range
-		const validPositions: Array<{string: number, fret: number}> = [];
+		const validPositions: Array<{ string: number; fret: number }> = [];
 		for (let string = stringRangeStartIndex; string <= stringRangeEndIndex; string++) {
 			for (let fret = fretRangeStart; fret <= fretRangeEnd; fret++) {
 				const note = fretboard[string][fret];
 				if (note === targetNote) {
-					validPositions.push({string, fret});
+					validPositions.push({ string, fret });
 				}
 			}
 		}
-		
+
 		// If no valid positions found, try to generate a random question instead
 		if (validPositions.length === 0) {
 			if (anchorModeEnabled && questionCount % 2 === 0) {
@@ -197,10 +195,10 @@
 				return;
 			}
 		}
-		
+
 		// Select a random position from valid positions
 		const randomPosition = validPositions[Math.floor(Math.random() * validPositions.length)];
-		
+
 		// Check if this position has the same note as last time
 		const note = fretboard[randomPosition.string][randomPosition.fret];
 		if (lastNote === note && validPositions.length > 1) {
@@ -208,7 +206,7 @@
 			generateNewQuestion();
 			return;
 		}
-		
+
 		lastNote = note;
 		activeString = randomPosition.string;
 		activeFret = randomPosition.fret;
@@ -222,11 +220,11 @@
 				const currentNote = fretboard[activeString][activeFret];
 				playNote(currentNote);
 			}
-			
+
 			// Check if this was an anchor question
 			const isAnchorQuestion = anchorModeEnabled && questionCount % 2 === 0;
 			feedback = isAnchorQuestion ? 'Correct! (Anchor question)' : 'Correct!';
-			
+
 			setTimeout(() => generateNewQuestion(), 100);
 		} else {
 			// Play the note corresponding to the wrong degree selected
@@ -273,7 +271,7 @@
 		return 'Natural';
 	}
 	// Get the proper note name with correct accidental for the current key
-	function convertToFlat(note:string): string{
+	function convertToFlat(note: string): string {
 		const sharpToFlat: Record<string, string> = {
 			'C#': 'Db',
 			'D#': 'Eb',
@@ -284,9 +282,9 @@
 		if (sharpToFlat[note]) {
 			return sharpToFlat[note];
 		}
-		return note
-	} 
-	function convertToSharp(note:string):string{
+		return note;
+	}
+	function convertToSharp(note: string): string {
 		const flatToSharp: Record<string, string> = {
 			Db: 'C#',
 			Eb: 'D#',
@@ -294,26 +292,25 @@
 			Ab: 'G#',
 			Bb: 'A#'
 		};
-		if ( flatToSharp[note]) {
+		if (flatToSharp[note]) {
 			return flatToSharp[note];
 		}
-		return note
+		return note;
 	}
 	function getNoteNameWithAccidental(noteName: string): string {
 		// Define which keys use sharps vs flats
-		const accidentalType = isFlatOrSharp()
-		
+		const accidentalType = isFlatOrSharp();
 
 		// Map enharmonic equivalents
 
 		// If key uses flats and note has a sharp, convert to flat
-		if (accidentalType==='isFlat' ) {
-			return convertToFlat(noteName)
+		if (accidentalType === 'isFlat') {
+			return convertToFlat(noteName);
 		}
 
 		// If key uses sharps and note has a flat, convert to sharp
-		if (accidentalType==="isSharp" ) {
-			return convertToSharp(noteName)
+		if (accidentalType === 'isSharp') {
+			return convertToSharp(noteName);
 		}
 
 		// Otherwise return the original note name
@@ -321,23 +318,29 @@
 	}
 
 	let showNoteNameOnDot = $state(true);
-	let highlightedDegrees = $state<number[]>([1,2,3,4,5,6,7]);
+	let highlightedDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7]);
 	let showDegreeOnRedDots = $state(false);
 
 	function shouldShowRedDot(stringIdx: number, fretIdx: number): boolean {
 		if (highlightedDegrees.length === 0) return false;
 		const rootNoteIndex = getRootIndex();
 		const scaleIntervals = scales.major;
-		const scaleNotes = scaleIntervals.map((interval) => notes[(rootNoteIndex + interval) % notes.length]);
+		const scaleNotes = scaleIntervals.map(
+			(interval) => notes[(rootNoteIndex + interval) % notes.length]
+		);
 		const note = fretboard[stringIdx][fretIdx];
 		const degree = scaleNotes.indexOf(note) + 1;
-		return highlightedDegrees.includes(degree) && !(stringIdx === activeString && fretIdx === activeFret);
+		return (
+			highlightedDegrees.includes(degree) && !(stringIdx === activeString && fretIdx === activeFret && correctAnswer !== null)
+		);
 	}
 
 	function getRedDotDegreeLabel(stringIdx: number, fretIdx: number): string {
 		const rootNoteIndex = getRootIndex();
 		const scaleIntervals = scales.major;
-		const scaleNotes = scaleIntervals.map((interval) => notes[(rootNoteIndex + interval) % notes.length]);
+		const scaleNotes = scaleIntervals.map(
+			(interval) => notes[(rootNoteIndex + interval) % notes.length]
+		);
 		const note = fretboard[stringIdx][fretIdx];
 		const degree = scaleNotes.indexOf(note) + 1;
 		return degree > 0 ? degreeButtons[degree - 1] : '';
@@ -350,7 +353,8 @@
 		<h2 class="text-2xl font-semibold">Find the note's degree in {selectedKey} Major</h2>
 		{#if anchorModeEnabled && correctAnswer !== null}
 			<div class="mt-2 text-sm">
-				<span class="rounded px-2 py-1 text-white"
+				<span
+					class="rounded px-2 py-1 text-white"
 					class:bg-blue-500={questionCount % 2 === 0}
 					class:bg-gray-500={questionCount % 2 !== 0}
 				>
@@ -509,7 +513,7 @@
 						? highlightedDegrees.filter((d) => d !== i + 1)
 						: [...highlightedDegrees, i + 1];
 				}}
-				class="rounded px-2 py-0 text-lg font-bold border-2 transition-colors"
+				class="rounded border-2 px-2 py-0 text-lg font-bold transition-colors"
 				class:bg-red-600={highlightedDegrees.includes(i + 1)}
 				class:text-white={highlightedDegrees.includes(i + 1)}
 				class:border-red-600={highlightedDegrees.includes(i + 1)}
@@ -549,7 +553,7 @@
 					{#each Array(numFrets + 1) as _, fretIdx}
 						{#if shouldShowRedDot(stringIdx, fretIdx)}
 							<div
-								class="absolute flex h-[16px] w-[16px] items-center justify-center rounded-full border-2 border-red-600 bg-red-500 opacity-80 text-xs font-bold text-white sm:h-[20px] sm:w-[20px] md:h-[24px] md:w-[24px] lg:h-[28px] lg:w-[28px]"
+								class="absolute flex h-[16px] w-[16px] items-center justify-center rounded-full border-2 border-red-600 bg-red-500 text-xs font-bold text-white opacity-80 sm:h-[20px] sm:w-[20px] md:h-[24px] md:w-[24px] lg:h-[28px] lg:w-[28px]"
 								style:top="calc({stringIdx} * 30px - 10px)"
 								style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
 							>
@@ -559,22 +563,24 @@
 					{/each}
 				{/each}
 				<!-- Main question dot -->
-				<div
-					class="absolute flex h-[20px] w-[20px] items-center justify-center rounded-full border-2 text-xs font-bold text-black sm:h-[25px] sm:w-[25px] md:h-[30px] md:w-[30px] lg:h-[35px] lg:w-[35px]"
-					class:border-blue-500={anchorModeEnabled && questionCount % 2 === 0}
-					class:bg-blue-100={anchorModeEnabled && questionCount % 2 === 0}
-					class:border-black={!(anchorModeEnabled && questionCount % 2 === 0)}
-					class:bg-white={!(anchorModeEnabled && questionCount % 2 === 0)}
-					style:top="calc({activeString} * 30px - 12.5px)"
-					style:left="calc(({activeFret} - 0.5) * (100% / {numFrets}) - 12.5px)"
-					style:transition="all 0.3s"
-				>
-					{#if showNoteNameOnDot}
-						<span class="text-sm mb-[1px] sm:text-lg md:text-xl lg:text-2xl">
-							{getNoteNameWithAccidental(fretboard[activeString][activeFret])}
-						</span>
-					{/if}
-				</div>
+				{#if correctAnswer !== null}
+					<div
+						class="absolute flex h-[20px] w-[20px] items-center justify-center rounded-full border-2 text-xs font-bold text-black sm:h-[25px] sm:w-[25px] md:h-[30px] md:w-[30px] lg:h-[35px] lg:w-[35px]"
+						class:border-blue-500={anchorModeEnabled && questionCount % 2 === 0}
+						class:bg-blue-100={anchorModeEnabled && questionCount % 2 === 0}
+						class:border-black={!(anchorModeEnabled && questionCount % 2 === 0)}
+						class:bg-white={!(anchorModeEnabled && questionCount % 2 === 0)}
+						style:top="calc({activeString} * 30px - 12.5px)"
+						style:left="calc(({activeFret} - 0.5) * (100% / {numFrets}) - 12.5px)"
+						style:transition="all 0.3s"
+					>
+						{#if showNoteNameOnDot}
+							<span class="mb-[1px] text-sm sm:text-lg md:text-xl lg:text-2xl">
+								{getNoteNameWithAccidental(fretboard[activeString][activeFret])}
+							</span>
+						{/if}
+					</div>
+				{/if}
 			</div>
 			<!-- strings wrap -->
 			<div>
@@ -613,19 +619,19 @@
 			{#each degreeButtons as degree, i}
 				<button
 					onclick={() => handleAnswer(i + 1)}
-					class="rounded-lg bg-gray-200 px-1 w-10 text-lg font-bold transition-colors hover:bg-gray-300  sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600"
+					class="w-10 rounded-lg bg-gray-200 px-1 text-lg font-bold transition-colors hover:bg-gray-300 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600"
 				>
 					{degree}
 				</button>
 			{/each}
 		</div>
-		
+
 		<!-- Second row: VII to I (reverse order) -->
 		<div class="flex justify-center gap-2">
 			{#each degreeButtons.slice().reverse() as degree, i}
 				<button
 					onclick={() => handleAnswer(degreeButtons.length - i)}
-					class="rounded-lg bg-gray-200 px-1 w-10 text-lg font-bold transition-colors hover:bg-gray-300 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600"
+					class="w-10 rounded-lg bg-gray-200 px-1 text-lg font-bold transition-colors hover:bg-gray-300 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600"
 				>
 					{degree}
 				</button>
