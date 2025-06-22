@@ -427,6 +427,14 @@
 	let highlightedDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7]);
 	let showDegreeOnRedDots = $state(false);
 
+	function toggleAllDegrees() {
+		if (highlightedDegrees.length === degreeButtons.length) {
+			highlightedDegrees = [];
+		} else {
+			highlightedDegrees = degreeButtons.map((_, i) => i + 1);
+		}
+	}
+
 	function shouldShowRedDot(stringIdx: number, fretIdx: number): boolean {
 		if (highlightedDegrees.length === 0) return false;
 		const rootNoteIndex = getRootIndex();
@@ -631,6 +639,12 @@
 	</div>
 
 	<div class="mb-2 flex justify-center gap-2">
+		<button
+			onclick={toggleAllDegrees}
+			class="rounded border-2 px-2  py-0 text-sm font-bold transition-colors bg-gray-100 hover:bg-gray-200 border-gray-400 text-gray-700 "
+		>
+			{highlightedDegrees.length === degreeButtons.length ? 'None' : 'All'}
+		</button>
 		{#each degreeButtons as degree, i}
 			<button
 				onclick={() => {
