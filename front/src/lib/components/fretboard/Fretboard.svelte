@@ -5,7 +5,7 @@
 
 	const notes = ['E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C', 'C#', 'D', 'D#'];
 	const circleOfFifths = ['C', 'G', 'D', 'A', 'E', 'B', 'F#/Gb', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
-	
+
 	// Instrument configurations
 	const instruments = {
 		guitar: {
@@ -29,10 +29,12 @@
 			numStrings: 6
 		}
 	};
-	
+
 	let selectedInstrument = $state('guitar');
 	const tuning = $derived(instruments[selectedInstrument as keyof typeof instruments].tuning);
-	const numStrings = $derived(instruments[selectedInstrument as keyof typeof instruments].numStrings);
+	const numStrings = $derived(
+		instruments[selectedInstrument as keyof typeof instruments].numStrings
+	);
 	const numFrets = 15;
 	const degreeButtons = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
@@ -42,9 +44,9 @@
 
 	// Initialize audio on user interaction
 	async function initAudio() {
-		console.log("audio init")
+		console.log('audio init');
 		if (!isAudioInitialized) {
-			console.log("initing---------")
+			console.log('initing---------');
 			await Tone.start();
 
 			// Create a sampler with guitar-like samples
@@ -114,6 +116,8 @@
 	let correctAnswer = $state<number | null>(null);
 	let feedback = $state('');
 	let lowestNote = $state<string>('G3'); // User's lowest note as reference
+	let gameMode = $state<'find-degree' | 'find-note'>('find-degree'); // find-degree: note -> degree, find-note: degree -> note
+	let targetDegree = $state<number | null>(null); // For find-note mode
 
 	// --- Anchor Mode Settings ---
 	let anchorModeEnabled = $state(false);
@@ -143,7 +147,6 @@
 
 	// Update lowest note when instrument changes
 	$effect(() => {
-		
 		// Reset active position when instrument changes
 		activeString = 0;
 		activeFret = 1;
@@ -155,7 +158,7 @@
 			if (sampler) {
 				sampler.dispose();
 			}
-		}
+		};
 	});
 
 	const scales = {
@@ -196,112 +199,137 @@
 		feedback = '';
 		questionCount++;
 
-		// If anchor mode is enabled, alternate between anchor degree and random degree
-		let targetDegree: number;
-		if (anchorModeEnabled && questionCount % anchorFrequency === 0) {
-			// This should be an anchor question
-			targetDegree = anchorDegree;
-		} else {
-			// This should be a random question (excluding anchor degree if anchor mode is enabled)
-			let availableDegrees = [1, 2, 3, 4, 5, 6, 7];
-			if (anchorModeEnabled) {
-				// Remove the anchor degree from available options for random questions
-				availableDegrees = availableDegrees.filter(degree => degree !== anchorDegree);
-			}
-			targetDegree = availableDegrees[Math.floor(Math.random() * availableDegrees.length)];
-		}
-
-		// Find a note that corresponds to the target degree
-		const rootNoteIndex = getRootIndex();
-		const scaleIntervals = scales.major;
-		const scaleNotes = scaleIntervals.map(
-			(interval) => notes[(rootNoteIndex + interval) % notes.length]
-		);
-
-		// Get the target note for the degree (convert to 0-based index)
-		const targetNote = scaleNotes[targetDegree - 1];
-
-		// Find all positions where this note appears in the practice range
-		const validPositions: Array<{ string: number; fret: number }> = [];
-		for (let string = stringRangeStartIndex; string <= stringRangeEndIndex; string++) {
-			for (let fret = fretRangeStart; fret <= fretRangeEnd; fret++) {
-				// Add bounds checking
-				if (fretboard[string] && fretboard[string][fret]) {
-					const note = fretboard[string][fret];
-					if (note === targetNote) {
-						validPositions.push({ string, fret });
-					}
-				}
-			}
-		}
-
-		// If no valid positions found, try to generate a random question instead
-		if (validPositions.length === 0) {
+		if (gameMode === 'find-degree') {
+			// Original mode: find the degree of a note
+			// If anchor mode is enabled, alternate between anchor degree and random degree
+			let targetDegree: number;
 			if (anchorModeEnabled && questionCount % anchorFrequency === 0) {
-				// If this was supposed to be an anchor question but failed, try random
-				questionCount--; // Decrement to retry
-				generateNewQuestion();
-				return;
+				// This should be an anchor question
+				targetDegree = anchorDegree;
 			} else {
-				// Fallback to original random logic
-				const newString =
-					Math.floor(Math.random() * (stringRangeEndIndex - stringRangeStartIndex + 1)) +
-					stringRangeStartIndex;
-				const newFret =
-					Math.floor(Math.random() * (fretRangeEnd - fretRangeStart + 1)) + fretRangeStart;
-
-				// Add bounds checking
-				if (fretboard[newString] && fretboard[newString][newFret]) {
-					const note = fretboard[newString][newFret];
-					const degree = scaleNotes.indexOf(note) + 1; // Convert to 1-indexed
-
-					// Check if this degree is valid (not anchor degree when anchor mode is enabled)
-					const isValidDegree = !anchorModeEnabled || degree !== anchorDegree;
-
-					if (degree === 0 || lastNote === note || !isValidDegree) {
-						generateNewQuestion();
-					} else {
-						lastNote = note;
-						activeString = newString;
-						activeFret = newFret;
-						correctAnswer = degree;
-					}
-				} else {
-					// If bounds check fails, try again
-					generateNewQuestion();
+				// This should be a random question (excluding anchor degree if anchor mode is enabled)
+				let availableDegrees = [1, 2, 3, 4, 5, 6, 7];
+				if (anchorModeEnabled) {
+					// Remove the anchor degree from available options for random questions
+					availableDegrees = availableDegrees.filter((degree) => degree !== anchorDegree);
 				}
-				return;
+				targetDegree = availableDegrees[Math.floor(Math.random() * availableDegrees.length)];
 			}
-		}
 
-		// Select a random position from valid positions
-		const randomPosition = validPositions[Math.floor(Math.random() * validPositions.length)];
+			// Find a note that corresponds to the target degree
+			const rootNoteIndex = getRootIndex();
+			const scaleIntervals = scales.major;
+			const scaleNotes = scaleIntervals.map(
+				(interval) => notes[(rootNoteIndex + interval) % notes.length]
+			);
 
-		// Check if this position has the same note as last time
-		if (fretboard[randomPosition.string] && fretboard[randomPosition.string][randomPosition.fret]) {
-			const note = fretboard[randomPosition.string][randomPosition.fret];
-			if (lastNote === note && validPositions.length > 1) {
-				// Try again with a different position
+			// Get the target note for the degree (convert to 0-based index)
+			const targetNote = scaleNotes[targetDegree - 1];
+
+			// Find all positions where this note appears in the practice range
+			const validPositions: Array<{ string: number; fret: number }> = [];
+			for (let string = stringRangeStartIndex; string <= stringRangeEndIndex; string++) {
+				for (let fret = fretRangeStart; fret <= fretRangeEnd; fret++) {
+					// Add bounds checking
+					if (fretboard[string] && fretboard[string][fret]) {
+						const note = fretboard[string][fret];
+						if (note === targetNote) {
+							validPositions.push({ string, fret });
+						}
+					}
+				}
+			}
+
+			// If no valid positions found, try to generate a random question instead
+			if (validPositions.length === 0) {
+				if (anchorModeEnabled && questionCount % anchorFrequency === 0) {
+					// If this was supposed to be an anchor question but failed, try random
+					questionCount--; // Decrement to retry
+					generateNewQuestion();
+					return;
+				} else {
+					// Fallback to original random logic
+					const newString =
+						Math.floor(Math.random() * (stringRangeEndIndex - stringRangeStartIndex + 1)) +
+						stringRangeStartIndex;
+					const newFret =
+						Math.floor(Math.random() * (fretRangeEnd - fretRangeStart + 1)) + fretRangeStart;
+
+					// Add bounds checking
+					if (fretboard[newString] && fretboard[newString][newFret]) {
+						const note = fretboard[newString][newFret];
+						const degree = scaleNotes.indexOf(note) + 1; // Convert to 1-indexed
+
+						// Check if this degree is valid (not anchor degree when anchor mode is enabled)
+						const isValidDegree = !anchorModeEnabled || degree !== anchorDegree;
+
+						if (degree === 0 || lastNote === note || !isValidDegree) {
+							generateNewQuestion();
+						} else {
+							lastNote = note;
+							activeString = newString;
+							activeFret = newFret;
+							correctAnswer = degree;
+						}
+					} else {
+						// If bounds check fails, try again
+						generateNewQuestion();
+					}
+					return;
+				}
+			}
+
+			// Select a random position from valid positions
+			const randomPosition = validPositions[Math.floor(Math.random() * validPositions.length)];
+
+			// Check if this position has the same note as last time
+			if (
+				fretboard[randomPosition.string] &&
+				fretboard[randomPosition.string][randomPosition.fret]
+			) {
+				const note = fretboard[randomPosition.string][randomPosition.fret];
+				if (lastNote === note && validPositions.length > 1) {
+					// Try again with a different position
+					generateNewQuestion();
+					return;
+				}
+
+				lastNote = note;
+				activeString = randomPosition.string;
+				activeFret = randomPosition.fret;
+				correctAnswer = targetDegree;
+			} else {
+				// If bounds check fails, try again
 				generateNewQuestion();
-				return;
+			}
+		} else {
+			// New mode: find the note for a given degree
+			// If anchor mode is enabled, alternate between anchor degree and random degree
+			let degreeToFind: number;
+			if (anchorModeEnabled && questionCount % anchorFrequency === 0) {
+				// This should be an anchor question
+				degreeToFind = anchorDegree;
+			} else {
+				// This should be a random question (excluding anchor degree if anchor mode is enabled)
+				let availableDegrees = [1, 2, 3, 4, 5, 6, 7];
+				if (anchorModeEnabled) {
+					// Remove the anchor degree from available options for random questions
+					availableDegrees = availableDegrees.filter((degree) => degree !== anchorDegree);
+				}
+				degreeToFind = availableDegrees[Math.floor(Math.random() * availableDegrees.length)];
 			}
 
-			lastNote = note;
-			activeString = randomPosition.string;
-			activeFret = randomPosition.fret;
-			correctAnswer = targetDegree;
-		} else {
-			// If bounds check fails, try again
-			generateNewQuestion();
+			targetDegree = degreeToFind;
+			correctAnswer = null; // Will be set when user clicks on fretboard
 		}
 	}
 
 	function handleAnswer(selectedDegree: number) {
 		if (correctAnswer === null) {
-			feedback = "Start the game"
-			return 
+			feedback = 'Start the game';
+			return;
 		}
-		
+
 		if (selectedDegree === correctAnswer) {
 			// Play the correct note when answer is right
 			if (correctAnswer !== null) {
@@ -311,7 +339,7 @@
 					playNote(currentNote);
 				}
 			}
-			
+
 			// Check if this was an anchor question
 			const isAnchorQuestion = anchorModeEnabled && questionCount % anchorFrequency === 0;
 			feedback = isAnchorQuestion ? 'Correct! (Anchor question)' : 'Correct!';
@@ -446,7 +474,8 @@
 		const note = fretboard[stringIdx][fretIdx];
 		const degree = scaleNotes.indexOf(note) + 1;
 		return (
-			highlightedDegrees.includes(degree) && !(stringIdx === activeString && fretIdx === activeFret && correctAnswer !== null)
+			highlightedDegrees.includes(degree) &&
+			!(stringIdx === activeString && fretIdx === activeFret && correctAnswer !== null)
 		);
 	}
 
@@ -525,38 +554,79 @@
 		};
 		await fretboardPresetsStore.savePreset(preset);
 	}
+
+	function handleFretboardClick(stringIdx: number, fretIdx: number) {
+		console.log('handlefret', stringIdx, ':', fretIdx);
+		if (gameMode === 'find-note' && targetDegree !== null) {
+			// Check if the clicked note matches the target degree
+			const rootNoteIndex = getRootIndex();
+			const scaleIntervals = scales.major;
+			const scaleNotes = scaleIntervals.map(
+				(interval) => notes[(rootNoteIndex + interval) % notes.length]
+			);
+
+			const clickedNote = fretboard[stringIdx][fretIdx];
+			const clickedDegree = scaleNotes.indexOf(clickedNote) + 1;
+
+			if (clickedDegree === targetDegree) {
+				// Correct! Play the note and provide feedback
+				playNote(clickedNote);
+				feedback = 'Correct!';
+				setTimeout(() => generateNewQuestion(), 1000);
+			} else {
+				// Incorrect! Play the wrong note and provide feedback
+				playNote(clickedNote);
+				const correctNote = scaleNotes[targetDegree - 1];
+				feedback = `Incorrect. You clicked ${getNoteNameWithAccidental(clickedNote)} ${degreeButtons[clickedDegree - 1]?"("+degreeButtons[clickedDegree-1]+")":""}`;
+			}
+		} else if (gameMode === 'find-degree') {
+			// Original mode: play and next
+			playAndNext();
+		}
+	}
 </script>
 
 <div class="flex flex-col items-center">
 	<!-- Preset Management UI -->
 	<div class="mb-4 w-full max-w-xl rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40">
 		<h3 class="mb-2 text-lg font-semibold">Presets</h3>
-		<div class="flex flex-wrap gap-2 mb-2">
+		<div class="mb-2 flex flex-wrap gap-2">
 			{#each presets as preset}
-				<div class="flex items-center gap-1 bg-gray-200 dark:bg-gray-700 rounded px-2 py-1">
+				<div class="flex items-center gap-1 rounded bg-gray-200 px-2 py-1 dark:bg-gray-700">
 					<span class="font-medium">{preset.name}</span>
-					<button class="ml-1 text-xs text-blue-600 hover:underline" onclick={() => applyPreset(preset)}>Apply</button>
+					<button
+						class="ml-1 text-xs text-blue-600 hover:underline"
+						onclick={() => applyPreset(preset)}>Apply</button
+					>
 					{#if loadedPresetName === preset.name}
-						<button class="ml-1 text-xs text-green-600 hover:underline" onclick={() => updatePreset(preset.name)}>Update</button>
+						<button
+							class="ml-1 text-xs text-green-600 hover:underline"
+							onclick={() => updatePreset(preset.name)}>Update</button
+						>
 					{/if}
-					<button class="ml-1 text-xs text-red-600 hover:underline" onclick={() => deletePreset(preset.name)}>Delete</button>
+					<button
+						class="ml-1 text-xs text-red-600 hover:underline"
+						onclick={() => deletePreset(preset.name)}>Delete</button
+					>
 				</div>
 			{/each}
 		</div>
-		<div class="flex gap-2 mt-2">
+		<div class="mt-2 flex gap-2">
 			<input
 				type="text"
 				placeholder="Preset name"
 				bind:value={newPresetName}
 				class="flex-1 rounded border border-gray-300 px-2 py-1 text-sm dark:bg-gray-800 dark:text-white"
 			/>
-			<button class="rounded bg-blue-500 px-3 py-1 text-white text-sm hover:bg-blue-600" onclick={saveCurrentPreset}>Save Preset</button>
+			<button
+				class="rounded bg-blue-500 px-3 py-1 text-sm text-white hover:bg-blue-600"
+				onclick={saveCurrentPreset}>Save Preset</button
+			>
 		</div>
 	</div>
 
 	<!-- Game Info -->
 	<div class="my-4 text-center">
-		<h2 class="text-2xl font-semibold">Find the note's degree in {selectedKey} Major</h2>
 		{#if anchorModeEnabled && correctAnswer !== null}
 			<div class="mt-2 text-sm">
 				<span
@@ -564,7 +634,9 @@
 					class:bg-blue-500={questionCount % anchorFrequency === 0}
 					class:bg-gray-500={questionCount % anchorFrequency !== 0}
 				>
-					{questionCount % anchorFrequency === 0 ? `Anchor: ${degreeButtons[anchorDegree - 1]}` : 'Random'}
+					{questionCount % anchorFrequency === 0
+						? `Anchor: ${degreeButtons[anchorDegree - 1]}`
+						: 'Random'}
 				</span>
 			</div>
 		{/if}
@@ -720,12 +792,14 @@
 					bind:value={anchorFrequency}
 					min="1"
 					max="10"
-					class="w-16 rounded border border-slate-200 bg-transparent py-1 px-2 text-center text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none dark:text-slate-100"
+					class="w-16 rounded border border-slate-200 bg-transparent px-2 py-1 text-center text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none dark:text-slate-100"
 				/>
 				<span class="text-sm">questions</span>
 			</div>
 			<div class="text-xs text-gray-600 dark:text-gray-400">
-				Every {anchorFrequency} question{anchorFrequency !== 1 ? 's' : ''} will be {degreeButtons[anchorDegree - 1]} degree
+				Every {anchorFrequency} question{anchorFrequency !== 1 ? 's' : ''} will be {degreeButtons[
+					anchorDegree - 1
+				]} degree
 			</div>
 		{/if}
 	</div>
@@ -733,7 +807,7 @@
 	<div class="mb-2 flex justify-center gap-2">
 		<button
 			onclick={toggleAllDegrees}
-			class="rounded border-2 px-2  py-0 text-sm font-bold transition-colors bg-gray-100 hover:bg-gray-200 border-gray-400 text-gray-700 "
+			class="rounded border-2 border-gray-400 bg-gray-100 px-2 py-0 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-200"
 		>
 			{highlightedDegrees.length === degreeButtons.length ? 'None' : 'All'}
 		</button>
@@ -756,17 +830,55 @@
 			</button>
 		{/each}
 	</div>
-	
-	<div class="w-11/12   lg:w-10/12">
+	<div>
+		<div class="mt-2 flex justify-center gap-2">
+			<button
+				onclick={() => {
+					gameMode = 'find-degree';
+					generateNewQuestion();
+				}}
+				class="rounded px-3 py-1 text-sm transition-colors"
+				class:bg-blue-500={gameMode === 'find-degree'}
+				class:text-white={gameMode === 'find-degree'}
+				class:bg-gray-200={gameMode !== 'find-degree'}
+				class:text-gray-700={gameMode !== 'find-degree'}
+			>
+				Note → Degree
+			</button>
+			<button
+				onclick={() => {
+					gameMode = 'find-note';
+					generateNewQuestion();
+				}}
+				class="rounded px-3 py-1 text-sm transition-colors"
+				class:bg-blue-500={gameMode === 'find-note'}
+				class:text-white={gameMode === 'find-note'}
+				class:bg-gray-200={gameMode !== 'find-note'}
+				class:text-gray-700={gameMode !== 'find-note'}
+			>
+				Degree → Note
+			</button>
+		</div>
+		<h2 class="text-2xl font-semibold">
+			{gameMode === 'find-degree'
+				? `Find the note's degree in ${selectedKey} Major`
+				: `Find the ${degreeButtons[targetDegree! - 1]} degree note in ${selectedKey} Major`}
+		</h2>
+	</div>
+
+	<div class="w-11/12 lg:w-10/12">
 		<!-- fretboard main -->
 		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (because of reasons) -->
 		<div
 			class="relative mt-12 border-l-[5px] border-r-[5px] border-gray-400"
 			style:height="{(numStrings - 1) * 30}px"
-			onclick={playAndNext}
+			onclick={gameMode === 'find-degree' ? playAndNext : undefined}
 		>
 			<!-- Fret Markers -->
-			<div class="pointer-events-none absolute left-0 top-0 w-full" style:height="{(numStrings - 1) * 30}px">
+			<div
+				class="pointer-events-none absolute left-0 top-0 w-full"
+				style:height="{(numStrings - 1) * 30}px"
+			>
 				{#each [3, 5, 7, 9, 12, 15] as fret}
 					<div
 						class="absolute h-[8px] w-[8px] rounded-full bg-gray-400"
@@ -830,8 +942,37 @@
 					{/each}
 				</div> -->
 			</div>
+
+			<!-- Clickable fret positions for find-note mode -->
+			{#if gameMode === 'find-note'}
+				<div
+					class="absolute left-0 top-[-15px] z-10 w-full opacity-15"
+					style:height="{(numStrings - 1) * 30}px"
+				>
+					{#each Array(numStrings) as _, stringIdx}
+						{#each Array(numFrets) as _, fretIdx}
+							<div
+								class="absolute cursor-pointer border border-transparent hover:border-blue-300 hover:bg-blue-100/20"
+								class:bg-red-100={true}
+								style:top="calc({stringIdx} * 30px)"
+								style:left="calc({fretIdx} * (100% / {numFrets}))"
+								style:width="calc(100% / {numFrets})"
+								style:height="30px"
+								onclick={() => {
+									console.log('Click detected at:', stringIdx, fretIdx);
+									handleFretboardClick(stringIdx, fretIdx + 1);
+								}}
+							></div>
+						{/each}
+					{/each}
+				</div>
+			{/if}
+
 			<!-- frets wrap -->
-			<div class="absolute left-0 top-0 flex w-full justify-between" style:height="{(numStrings - 1) * 30}px">
+			<div
+				class="absolute left-0 top-0 flex w-full justify-between"
+				style:height="{(numStrings - 1) * 30}px"
+			>
 				{#each { length: numFrets } as _, i}
 					<div
 						class="flex flex-1 items-end justify-center border-r-2 border-gray-500 last:border-r-0"
@@ -847,32 +988,36 @@
 	</div>
 
 	<!-- Answer buttons -->
-	<div class="mt-10 w-11/12 lg:w-10/12 ml-6 lg:ml-0 flex flex-col gap-2  md:place-self-center place-self-start">
-		<!-- First row: I to VII -->
-		<div class="flex justify-start md:justify-center  gap-2">
-			{#each degreeButtons as degree, i}
-				<button
-					onclick={() => handleAnswer(i + 1)}
-					class="w-10 rounded-lg bg-gray-200 px-1 text-lg font-bold transition-colors hover:bg-gray-300 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600"
-				>
-					{degree}
-				</button>
-			{/each}
-		</div>
+	{#if gameMode === 'find-degree'}
+		<div
+			class="ml-6 mt-10 flex w-11/12 flex-col gap-2 place-self-start md:place-self-center lg:ml-0 lg:w-10/12"
+		>
+			<!-- First row: I to VII -->
+			<div class="flex justify-start gap-2 md:justify-center">
+				{#each degreeButtons as degree, i}
+					<button
+						onclick={() => handleAnswer(i + 1)}
+						class="w-10 rounded-lg bg-gray-200 px-1 text-lg font-bold transition-colors hover:bg-gray-300 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600"
+					>
+						{degree}
+					</button>
+				{/each}
+			</div>
 
-		<!-- Second row: VII to I (reverse order) -->
-		<div class="flex justify-start md:justify-center gap-2">
-			{#each degreeButtons.slice().reverse() as degree, i}
-				<button
-					onclick={() => handleAnswer(degreeButtons.length - i)}
-					class="w-10 rounded-lg bg-gray-200 px-1 text-lg font-bold transition-colors hover:bg-gray-300 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600"
-				>
-					{degree}
-				</button>
-			{/each}
+			<!-- Second row: VII to I (reverse order) -->
+			<div class="flex justify-start gap-2 md:justify-center">
+				{#each degreeButtons.slice().reverse() as degree, i}
+					<button
+						onclick={() => handleAnswer(degreeButtons.length - i)}
+						class="w-10 rounded-lg bg-gray-200 px-1 text-lg font-bold transition-colors hover:bg-gray-300 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600"
+					>
+						{degree}
+					</button>
+				{/each}
+			</div>
 		</div>
-	</div>
+	{/if}
 
 	<!-- Feedback -->
-	<div class="mt-4 h-8 text-2xl font-semibold">{feedback}</div>
+	<div class="mt-8 h-8 text-2xl font-semibold">{feedback}</div>
 </div>
