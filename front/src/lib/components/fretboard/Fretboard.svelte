@@ -556,7 +556,6 @@
 	}
 
 	function handleFretboardClick(stringIdx: number, fretIdx: number) {
-		console.log('handlefret', stringIdx, ':', fretIdx);
 		if (gameMode === 'find-note' && targetDegree !== null) {
 			// Check if the clicked note matches the target degree
 			const rootNoteIndex = getRootIndex();
@@ -577,7 +576,8 @@
 				// Incorrect! Play the wrong note and provide feedback
 				playNote(clickedNote);
 				const correctNote = scaleNotes[targetDegree - 1];
-				feedback = `Incorrect. You clicked ${getNoteNameWithAccidental(clickedNote)} ${degreeButtons[clickedDegree - 1]?"("+degreeButtons[clickedDegree-1]+")":""}`;
+				const degreeLabel = clickedDegree > 0 ? `(${degreeButtons[clickedDegree - 1]})` : '';
+				feedback = `Incorrect. You clicked ${getNoteNameWithAccidental(clickedNote)} ${degreeLabel}`;
 			}
 		} else if (gameMode === 'find-degree') {
 			// Original mode: play and next
@@ -865,12 +865,14 @@
 				: `Find the ${degreeButtons[targetDegree! - 1]} degree note in ${selectedKey} Major`}
 		</h2>
 	</div>
+	<!-- Feedback -->
+	<div class=" h-8 text-2xl font-semibold">{feedback}</div>
 
 	<div class="w-11/12 lg:w-10/12">
 		<!-- fretboard main -->
 		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (because of reasons) -->
 		<div
-			class="relative mt-12 border-l-[5px] border-r-[5px] border-gray-400"
+			class="relative mt-6 border-l-[5px] border-r-[5px] border-gray-400"
 			style:height="{(numStrings - 1) * 30}px"
 			onclick={gameMode === 'find-degree' ? playAndNext : undefined}
 		>
@@ -946,7 +948,7 @@
 			<!-- Clickable fret positions for find-note mode -->
 			{#if gameMode === 'find-note'}
 				<div
-					class="absolute left-0 top-[-15px] z-10 w-full opacity-15"
+					class="absolute left-0 top-[-15px] z-10 w-full opacity-0"
 					style:height="{(numStrings - 1) * 30}px"
 				>
 					{#each Array(numStrings) as _, stringIdx}
@@ -959,7 +961,6 @@
 								style:width="calc(100% / {numFrets})"
 								style:height="30px"
 								onclick={() => {
-									console.log('Click detected at:', stringIdx, fretIdx);
 									handleFretboardClick(stringIdx, fretIdx + 1);
 								}}
 							></div>
@@ -1016,8 +1017,7 @@
 				{/each}
 			</div>
 		</div>
+	{:else}
+		<div class="h-12 w-full"></div>
 	{/if}
-
-	<!-- Feedback -->
-	<div class="mt-8 h-8 text-2xl font-semibold">{feedback}</div>
 </div>
