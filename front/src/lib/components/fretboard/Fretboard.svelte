@@ -41,7 +41,9 @@
 
 	// Initialize audio on user interaction
 	async function initAudio() {
+		console.log("audio init")
 		if (!isAudioInitialized) {
+			console.log("initing---------")
 			await Tone.start();
 
 			// Create a sampler with guitar-like samples
@@ -148,6 +150,11 @@
 		feedback = '';
 		lastNote = '';
 		questionCount = 0;
+		return () => {
+			if (sampler) {
+				sampler.dispose();
+			}
+		}
 	});
 
 	const scales = {

@@ -103,6 +103,9 @@
 					class="py-2 text-center font-medium transition-colors duration-200 hover:text-blue-400"
 					>{m.home()}</a
 				>
+				<a href="/degrees" class="font-medium transition-colors duration-200 hover:text-blue-400"
+				>{m.degrees()}</a
+			>
 			</div>
 		</div>
 	{/if}
