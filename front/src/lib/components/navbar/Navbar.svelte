@@ -40,8 +40,6 @@
 	}
 
 	$effect(() => {
-		console.log('onMount');
-		console.log(lang.current);
 		if (!lang.current) {
 			debugger;
 			lang.current = 'en';
