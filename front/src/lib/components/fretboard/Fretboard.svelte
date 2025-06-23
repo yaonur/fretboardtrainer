@@ -190,6 +190,7 @@
 	const validNotesCount = $derived(checkValidNotesInRange());
 
 	let lastNote = '';
+	let lastDegree: number | null = null;
 	function getRootIndex() {
 		if (isFlatOrSharp() === 'isFlat') return notes.indexOf(convertToSharp(selectedKey));
 		return notes.indexOf(selectedKey);
@@ -210,8 +211,8 @@
 				// Only ask anchor degree on the Nth question
 				targetDegree = anchorDegree;
 			} else {
-				// Only random degrees, excluding anchor degree
-				let availableDegrees = [1, 2, 3, 4, 5, 6, 7].filter(degree => degree !== anchorDegree);
+				// Only random degrees, excluding anchor degree and lastDegree
+				let availableDegrees = [1, 2, 3, 4, 5, 6, 7].filter(degree => degree !== anchorDegree && degree !== lastDegree);
 				// Filter out degrees that have no valid positions in the current range
 				availableDegrees = availableDegrees.filter(degree => {
 					const targetNote = scaleNotes[degree - 1];
@@ -262,6 +263,7 @@
 				}
 
 				lastNote = note;
+				lastDegree = targetDegree;
 				activeString = randomPosition.string;
 				activeFret = randomPosition.fret;
 				correctAnswer = targetDegree;
