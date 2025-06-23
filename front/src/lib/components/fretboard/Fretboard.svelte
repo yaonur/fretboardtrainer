@@ -547,6 +547,7 @@
 
 			const clickedNote = fretboard[stringIdx][fretIdx];
 			const clickedDegree = scaleNotes.indexOf(clickedNote) + 1;
+			debugger
 
 			if (clickedDegree === targetDegree) {
 				// Correct! Play the note and provide feedback
@@ -989,8 +990,7 @@
 								style:height="30px"
 								onclick={() => {
 									if (canGenerateQuestion) {
-										console.log('Click detected at:', stringIdx, fretIdx);
-										handleFretboardClick(stringIdx, fretIdx);
+										handleFretboardClick(stringIdx, fretIdx+1);
 									}
 								}}
 							></div>
