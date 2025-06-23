@@ -1011,7 +1011,7 @@
 			class="ml-6 mt-10 flex w-11/12 flex-col gap-2 place-self-start md:place-self-center lg:ml-0 lg:w-10/12"
 		>
 			<!-- First row: I to VII -->
-			<div class="flex justify-start md:justify-center  gap-2">
+			<div class="flex justify-start lg:justify-center  gap-2">
 				{#each degreeButtons as degree, i}
 					<button
 						onclick={() => handleAnswer(i + 1)}
@@ -1024,7 +1024,7 @@
 			</div>
 
 			<!-- Second row: VII to I (reverse order) -->
-			<div class="flex justify-start md:justify-center gap-2">
+			<div class="flex justify-start lg:justify-center gap-2">
 				{#each degreeButtons.slice().reverse() as degree, i}
 					<button
 						onclick={() => handleAnswer(degreeButtons.length - i)}
