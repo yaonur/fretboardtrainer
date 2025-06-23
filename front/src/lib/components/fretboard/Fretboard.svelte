@@ -212,9 +212,11 @@
 				targetDegree = anchorDegree;
 			} else {
 				// Only random degrees, excluding anchor degree and lastDegree
-				let availableDegrees = [1, 2, 3, 4, 5, 6, 7].filter(degree => degree !== anchorDegree && degree !== lastDegree);
+				let availableDegrees = [1, 2, 3, 4, 5, 6, 7].filter(
+					(degree) => degree !== lastDegree && (!anchorModeEnabled || degree !== anchorDegree)
+				);
 				// Filter out degrees that have no valid positions in the current range
-				availableDegrees = availableDegrees.filter(degree => {
+				availableDegrees = availableDegrees.filter((degree) => {
 					const targetNote = scaleNotes[degree - 1];
 					for (let string = stringRangeStartIndex; string <= stringRangeEndIndex; string++) {
 						for (let fret = fretRangeStart; fret <= fretRangeEnd; fret++) {
@@ -249,13 +251,17 @@
 			}
 
 			if (validPositions.length === 0) {
-				feedback = 'No valid positions for the selected degree in the current range. Please adjust your range.';
+				feedback =
+					'No valid positions for the selected degree in the current range. Please adjust your range.';
 				return;
 			}
 
 			const randomPosition = validPositions[Math.floor(Math.random() * validPositions.length)];
 
-			if (fretboard[randomPosition.string] && fretboard[randomPosition.string][randomPosition.fret]) {
+			if (
+				fretboard[randomPosition.string] &&
+				fretboard[randomPosition.string][randomPosition.fret]
+			) {
 				const note = fretboard[randomPosition.string][randomPosition.fret];
 				if (lastNote === note && validPositions.length > 1) {
 					generateNewQuestion();
@@ -560,7 +566,7 @@
 		}
 	}
 
-	function countUniqueDegreesInRange(): { count: number, hasAnchor: boolean } {
+	function countUniqueDegreesInRange(): { count: number; hasAnchor: boolean } {
 		const rootNoteIndex = getRootIndex();
 		const scaleIntervals = scales.major;
 		const scaleNotes = scaleIntervals.map(
@@ -572,7 +578,7 @@
 			for (let fret = fretRangeStart; fret <= fretRangeEnd; fret++) {
 				if (fretboard[string] && fretboard[string][fret]) {
 					let note = fretboard[string][fret];
-				
+
 					const degree = scaleNotes.indexOf(note) + 1;
 					if (degree > 0) foundDegrees.add(degree);
 					if (degree === anchorDegree) hasAnchor = true;
@@ -591,7 +597,9 @@
 
 	$effect(() => {
 		if (anchorModeEnabled && !hasAnchorDegree) {
-			alert(`Anchor degree (${degreeButtons[anchorDegree-1]}) is not present in the selected range. Please adjust your range or anchor degree.`);
+			alert(
+				`Anchor degree (${degreeButtons[anchorDegree - 1]}) is not present in the selected range. Please adjust your range or anchor degree.`
+			);
 		}
 	});
 </script>
@@ -674,7 +682,7 @@
 				</select>
 			</div>
 		</div>
-		<div class="flex mt-2 items-center gap-2">
+		<div class="mt-2 flex items-center gap-2">
 			<p class="text-sm font-medium">Lowest Note:</p>
 			<select
 				bind:value={lowestNote}
@@ -725,12 +733,13 @@
 		{/if}
 		{#if uniqueDegreesCount < 3}
 			<div class="mt-2 text-sm text-red-600 dark:text-red-400">
-				⚠️ Not enough unique degrees in selected range. Found {uniqueDegreesCount}. Select a wider range (at least 3 degrees).
+				⚠️ Not enough unique degrees in selected range. Found {uniqueDegreesCount}. Select a wider
+				range (at least 3 degrees).
 			</div>
 		{/if}
 		{#if anchorModeEnabled && !hasAnchorDegree}
 			<div class="mt-2 text-sm text-red-600 dark:text-red-400">
-				⚠️ Selected range must include the anchor degree ({degreeButtons[anchorDegree-1]}).
+				⚠️ Selected range must include the anchor degree ({degreeButtons[anchorDegree - 1]}).
 			</div>
 		{/if}
 	</div>
@@ -888,7 +897,11 @@
 		<div
 			class="relative mt-12 border-l-[5px] border-r-[5px] border-gray-400"
 			style:height="{(numStrings - 1) * 30}px"
-			onclick={gameMode === 'find-degree' ? (() => { if (canGenerateQuestion) playAndNext(); }) : undefined}
+			onclick={gameMode === 'find-degree'
+				? () => {
+						if (canGenerateQuestion) playAndNext();
+					}
+				: undefined}
 		>
 			<!-- Fret Markers -->
 			<div
@@ -1011,12 +1024,12 @@
 			class="ml-6 mt-10 flex w-11/12 flex-col gap-2 place-self-start md:place-self-center lg:ml-0 lg:w-10/12"
 		>
 			<!-- First row: I to VII -->
-			<div class="flex justify-start lg:justify-center  gap-2">
+			<div class="flex justify-start gap-2 lg:justify-center">
 				{#each degreeButtons as degree, i}
 					<button
 						onclick={() => handleAnswer(i + 1)}
 						disabled={!canGenerateQuestion}
-						class="w-10 rounded-lg bg-gray-200 px-1 text-lg font-bold transition-colors hover:bg-gray-300 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600 disabled:cursor-not-allowed disabled:bg-gray-400"
+						class="w-10 rounded-lg bg-gray-200 px-1 text-lg font-bold transition-colors hover:bg-gray-300 disabled:cursor-not-allowed disabled:bg-gray-400 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600"
 					>
 						{degree}
 					</button>
@@ -1024,18 +1037,18 @@
 			</div>
 
 			<!-- Second row: VII to I (reverse order) -->
-			<div class="flex justify-start lg:justify-center gap-2">
+			<div class="flex justify-start gap-2 lg:justify-center">
 				{#each degreeButtons.slice().reverse() as degree, i}
 					<button
 						onclick={() => handleAnswer(degreeButtons.length - i)}
 						disabled={!canGenerateQuestion}
-						class="w-10 rounded-lg bg-gray-200 px-1 text-lg font-bold transition-colors hover:bg-gray-300 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600 disabled:cursor-not-allowed disabled:bg-gray-400"
+						class="w-10 rounded-lg bg-gray-200 px-1 text-lg font-bold transition-colors hover:bg-gray-300 disabled:cursor-not-allowed disabled:bg-gray-400 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600"
 					>
 						{degree}
 					</button>
 				{/each}
 			</div>
 		</div>
-		{/if}
-		<div class="h-36 w-full"></div>
+	{/if}
+	<div class="h-36 w-full"></div>
 </div>
