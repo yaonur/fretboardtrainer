@@ -547,7 +547,6 @@
 
 			const clickedNote = fretboard[stringIdx][fretIdx];
 			const clickedDegree = scaleNotes.indexOf(clickedNote) + 1;
-			debugger
 
 			if (clickedDegree === targetDegree) {
 				// Correct! Play the note and provide feedback
