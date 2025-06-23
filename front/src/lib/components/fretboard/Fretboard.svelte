@@ -561,7 +561,7 @@
 	}
 
 	function countUniqueDegreesInRange(): { count: number, hasAnchor: boolean } {
-		const rootNoteIndex = notes.indexOf(selectedKey);
+		const rootNoteIndex = getRootIndex();
 		const scaleIntervals = scales.major;
 		const scaleNotes = scaleIntervals.map(
 			(interval) => notes[(rootNoteIndex + interval) % notes.length]
@@ -571,7 +571,8 @@
 		for (let string = stringRangeStartIndex; string <= stringRangeEndIndex; string++) {
 			for (let fret = fretRangeStart; fret <= fretRangeEnd; fret++) {
 				if (fretboard[string] && fretboard[string][fret]) {
-					const note = fretboard[string][fret];
+					let note = fretboard[string][fret];
+				
 					const degree = scaleNotes.indexOf(note) + 1;
 					if (degree > 0) foundDegrees.add(degree);
 					if (degree === anchorDegree) hasAnchor = true;
