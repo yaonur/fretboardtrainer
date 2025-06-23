@@ -188,7 +188,6 @@
 	}
 
 	const validNotesCount = $derived(checkValidNotesInRange());
-	const canGenerateQuestion = $derived(validNotesCount >= 2);
 
 	let lastNote = '';
 	function getRootIndex() {
@@ -200,37 +199,45 @@
 		questionCount++;
 
 		if (gameMode === 'find-degree') {
-			// Original mode: find the degree of a note
-			// If anchor mode is enabled, alternate between anchor degree and random degree
 			let targetDegree: number;
-			if (anchorModeEnabled && questionCount % anchorFrequency === 0) {
-				// This should be an anchor question
-				targetDegree = anchorDegree;
-			} else {
-				// This should be a random question (excluding anchor degree if anchor mode is enabled)
-				let availableDegrees = [1, 2, 3, 4, 5, 6, 7];
-				if (anchorModeEnabled) {
-					// Remove the anchor degree from available options for random questions
-					availableDegrees = availableDegrees.filter((degree) => degree !== anchorDegree);
-				}
-				targetDegree = availableDegrees[Math.floor(Math.random() * availableDegrees.length)];
-			}
-
-			// Find a note that corresponds to the target degree
 			const rootNoteIndex = getRootIndex();
 			const scaleIntervals = scales.major;
 			const scaleNotes = scaleIntervals.map(
 				(interval) => notes[(rootNoteIndex + interval) % notes.length]
 			);
 
-			// Get the target note for the degree (convert to 0-based index)
+			if (anchorModeEnabled && questionCount % anchorFrequency === 0) {
+				// Only ask anchor degree on the Nth question
+				targetDegree = anchorDegree;
+			} else {
+				// Only random degrees, excluding anchor degree
+				let availableDegrees = [1, 2, 3, 4, 5, 6, 7].filter(degree => degree !== anchorDegree);
+				// Filter out degrees that have no valid positions in the current range
+				availableDegrees = availableDegrees.filter(degree => {
+					const targetNote = scaleNotes[degree - 1];
+					for (let string = stringRangeStartIndex; string <= stringRangeEndIndex; string++) {
+						for (let fret = fretRangeStart; fret <= fretRangeEnd; fret++) {
+							if (fretboard[string] && fretboard[string][fret] === targetNote) {
+								return true;
+							}
+						}
+					}
+					return false;
+				});
+				if (availableDegrees.length === 0) {
+					feedback = 'No valid non-anchor degrees in the current range. Please adjust your range.';
+					return;
+				}
+				targetDegree = availableDegrees[Math.floor(Math.random() * availableDegrees.length)];
+			}
+
+			// Find a note that corresponds to the target degree
 			const targetNote = scaleNotes[targetDegree - 1];
 
 			// Find all positions where this note appears in the practice range
 			const validPositions: Array<{ string: number; fret: number }> = [];
 			for (let string = stringRangeStartIndex; string <= stringRangeEndIndex; string++) {
 				for (let fret = fretRangeStart; fret <= fretRangeEnd; fret++) {
-					// Add bounds checking
 					if (fretboard[string] && fretboard[string][fret]) {
 						const note = fretboard[string][fret];
 						if (note === targetNote) {
@@ -240,56 +247,16 @@
 				}
 			}
 
-			// If no valid positions found, try to generate a random question instead
 			if (validPositions.length === 0) {
-				if (anchorModeEnabled && questionCount % anchorFrequency === 0) {
-					// If this was supposed to be an anchor question but failed, try random
-					questionCount--; // Decrement to retry
-					generateNewQuestion();
-					return;
-				} else {
-					// Fallback to original random logic
-					const newString =
-						Math.floor(Math.random() * (stringRangeEndIndex - stringRangeStartIndex + 1)) +
-						stringRangeStartIndex;
-					const newFret =
-						Math.floor(Math.random() * (fretRangeEnd - fretRangeStart + 1)) + fretRangeStart;
-
-					// Add bounds checking
-					if (fretboard[newString] && fretboard[newString][newFret]) {
-						const note = fretboard[newString][newFret];
-						const degree = scaleNotes.indexOf(note) + 1; // Convert to 1-indexed
-
-						// Check if this degree is valid (not anchor degree when anchor mode is enabled)
-						const isValidDegree = !anchorModeEnabled || degree !== anchorDegree;
-
-						if (degree === 0 || lastNote === note || !isValidDegree) {
-							generateNewQuestion();
-						} else {
-							lastNote = note;
-							activeString = newString;
-							activeFret = newFret;
-							correctAnswer = degree;
-						}
-					} else {
-						// If bounds check fails, try again
-						generateNewQuestion();
-					}
-					return;
-				}
+				feedback = 'No valid positions for the selected degree in the current range. Please adjust your range.';
+				return;
 			}
 
-			// Select a random position from valid positions
 			const randomPosition = validPositions[Math.floor(Math.random() * validPositions.length)];
 
-			// Check if this position has the same note as last time
-			if (
-				fretboard[randomPosition.string] &&
-				fretboard[randomPosition.string][randomPosition.fret]
-			) {
+			if (fretboard[randomPosition.string] && fretboard[randomPosition.string][randomPosition.fret]) {
 				const note = fretboard[randomPosition.string][randomPosition.fret];
 				if (lastNote === note && validPositions.length > 1) {
-					// Try again with a different position
 					generateNewQuestion();
 					return;
 				}
@@ -299,7 +266,6 @@
 				activeFret = randomPosition.fret;
 				correctAnswer = targetDegree;
 			} else {
-				// If bounds check fails, try again
 				generateNewQuestion();
 			}
 		} else {
@@ -591,6 +557,40 @@
 			playAndNext();
 		}
 	}
+
+	function countUniqueDegreesInRange(): { count: number, hasAnchor: boolean } {
+		const rootNoteIndex = notes.indexOf(selectedKey);
+		const scaleIntervals = scales.major;
+		const scaleNotes = scaleIntervals.map(
+			(interval) => notes[(rootNoteIndex + interval) % notes.length]
+		);
+		const foundDegrees = new Set<number>();
+		let hasAnchor = false;
+		for (let string = stringRangeStartIndex; string <= stringRangeEndIndex; string++) {
+			for (let fret = fretRangeStart; fret <= fretRangeEnd; fret++) {
+				if (fretboard[string] && fretboard[string][fret]) {
+					const note = fretboard[string][fret];
+					const degree = scaleNotes.indexOf(note) + 1;
+					if (degree > 0) foundDegrees.add(degree);
+					if (degree === anchorDegree) hasAnchor = true;
+				}
+			}
+		}
+		return { count: foundDegrees.size, hasAnchor };
+	}
+
+	const uniqueDegreesInfo = $derived(countUniqueDegreesInRange());
+	const uniqueDegreesCount = $derived(uniqueDegreesInfo.count);
+	const hasAnchorDegree = $derived(uniqueDegreesInfo.hasAnchor);
+	const canGenerateQuestion = $derived(
+		uniqueDegreesCount >= 3 && (!anchorModeEnabled || hasAnchorDegree)
+	);
+
+	$effect(() => {
+		if (anchorModeEnabled && !hasAnchorDegree) {
+			alert(`Anchor degree (${degreeButtons[anchorDegree-1]}) is not present in the selected range. Please adjust your range or anchor degree.`);
+		}
+	});
 </script>
 
 <div class="flex flex-col items-center">
@@ -720,12 +720,14 @@
 				🔊 Play Note
 			</button>
 		{/if}
-		{#if !canGenerateQuestion}
+		{#if uniqueDegreesCount < 3}
 			<div class="mt-2 text-sm text-red-600 dark:text-red-400">
-				⚠️ Not enough valid notes in selected range. Found {validNotesCount} note{validNotesCount !==
-				1
-					? 's'
-					: ''}. Change the range.
+				⚠️ Not enough unique degrees in selected range. Found {uniqueDegreesCount}. Select a wider range (at least 3 degrees).
+			</div>
+		{/if}
+		{#if anchorModeEnabled && !hasAnchorDegree}
+			<div class="mt-2 text-sm text-red-600 dark:text-red-400">
+				⚠️ Selected range must include the anchor degree ({degreeButtons[anchorDegree-1]}).
 			</div>
 		{/if}
 	</div>
@@ -881,9 +883,9 @@
 		<!-- fretboard main -->
 		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (because of reasons) -->
 		<div
-			class="relative mt-6 border-l-[5px] border-r-[5px] border-gray-400"
+			class="relative mt-12 border-l-[5px] border-r-[5px] border-gray-400"
 			style:height="{(numStrings - 1) * 30}px"
-			onclick={gameMode === 'find-degree' ? playAndNext : undefined}
+			onclick={gameMode === 'find-degree' ? (() => { if (canGenerateQuestion) playAndNext(); }) : undefined}
 		>
 			<!-- Fret Markers -->
 			<div
@@ -970,7 +972,10 @@
 								style:width="calc(100% / {numFrets})"
 								style:height="30px"
 								onclick={() => {
-									handleFretboardClick(stringIdx, fretIdx + 1);
+									if (canGenerateQuestion) {
+										console.log('Click detected at:', stringIdx, fretIdx);
+										handleFretboardClick(stringIdx, fretIdx);
+									}
 								}}
 							></div>
 						{/each}
@@ -1003,11 +1008,12 @@
 			class="ml-6 mt-10 flex w-11/12 flex-col gap-2 place-self-start md:place-self-center lg:ml-0 lg:w-10/12"
 		>
 			<!-- First row: I to VII -->
-			<div class="flex justify-start gap-2 md:justify-center">
+			<div class="flex justify-start md:justify-center  gap-2">
 				{#each degreeButtons as degree, i}
 					<button
 						onclick={() => handleAnswer(i + 1)}
-						class="w-10 rounded-lg bg-gray-200 px-1 text-lg font-bold transition-colors hover:bg-gray-300 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600"
+						disabled={!canGenerateQuestion}
+						class="w-10 rounded-lg bg-gray-200 px-1 text-lg font-bold transition-colors hover:bg-gray-300 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600 disabled:cursor-not-allowed disabled:bg-gray-400"
 					>
 						{degree}
 					</button>
@@ -1015,11 +1021,12 @@
 			</div>
 
 			<!-- Second row: VII to I (reverse order) -->
-			<div class="flex justify-start gap-2 md:justify-center">
+			<div class="flex justify-start md:justify-center gap-2">
 				{#each degreeButtons.slice().reverse() as degree, i}
 					<button
 						onclick={() => handleAnswer(degreeButtons.length - i)}
-						class="w-10 rounded-lg bg-gray-200 px-1 text-lg font-bold transition-colors hover:bg-gray-300 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600"
+						disabled={!canGenerateQuestion}
+						class="w-10 rounded-lg bg-gray-200 px-1 text-lg font-bold transition-colors hover:bg-gray-300 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600 disabled:cursor-not-allowed disabled:bg-gray-400"
 					>
 						{degree}
 					</button>
