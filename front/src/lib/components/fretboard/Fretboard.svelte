@@ -670,30 +670,30 @@
 					{/each}
 				</select>
 			</div>
-			<div class="flex items-center gap-2">
-				<p class="text-sm font-medium">Lowest Note:</p>
-				<select
-					bind:value={lowestNote}
-					class="ease w-full cursor-pointer appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none dark:text-slate-100"
-				>
-					<option class="px-2 dark:bg-slate-700" value="B1">B1 (Bass)</option>
-					<option class="px-2 dark:bg-slate-700" value="C2">C2 (Low Bass)</option>
-					<option class="px-2 dark:bg-slate-700" value="D2">D2 (Bass)</option>
-					<option class="px-2 dark:bg-slate-700" value="E2">E2 (Bass)</option>
-					<option class="px-2 dark:bg-slate-700" value="F2">F2 (Bass)</option>
-					<option class="px-2 dark:bg-slate-700" value="G2">G2 (Bass)</option>
-					<option class="px-2 dark:bg-slate-700" value="A2">A2 (Bass)</option>
-					<option class="px-2 dark:bg-slate-700" value="B2">B2 (Bass)</option>
-					<option class="px-2 dark:bg-slate-700" value="C3">C3 (Baritone)</option>
-					<option class="px-2 dark:bg-slate-700" value="D3">D3 (Baritone)</option>
-					<option class="px-2 dark:bg-slate-700" value="E3">E3 (Baritone)</option>
-					<option class="px-2 dark:bg-slate-700" value="F3">F3 (Baritone)</option>
-					<option class="px-2 dark:bg-slate-700" value="G3">G3 (Baritone/Tenor)</option>
-					<option class="px-2 dark:bg-slate-700" value="A3">A3 (Tenor)</option>
-					<option class="px-2 dark:bg-slate-700" value="B3">B3 (Tenor)</option>
-					<option class="px-2 dark:bg-slate-700" value="C4">C4 (Tenor/Alto)</option>
-				</select>
-			</div>
+		</div>
+		<div class="flex mt-2 items-center gap-2">
+			<p class="text-sm font-medium">Lowest Note:</p>
+			<select
+				bind:value={lowestNote}
+				class="ease w-full cursor-pointer appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none dark:text-slate-100"
+			>
+				<option class="px-2 dark:bg-slate-700" value="B1">B1 (Bass)</option>
+				<option class="px-2 dark:bg-slate-700" value="C2">C2 (Low Bass)</option>
+				<option class="px-2 dark:bg-slate-700" value="D2">D2 (Bass)</option>
+				<option class="px-2 dark:bg-slate-700" value="E2">E2 (Bass)</option>
+				<option class="px-2 dark:bg-slate-700" value="F2">F2 (Bass)</option>
+				<option class="px-2 dark:bg-slate-700" value="G2">G2 (Bass)</option>
+				<option class="px-2 dark:bg-slate-700" value="A2">A2 (Bass)</option>
+				<option class="px-2 dark:bg-slate-700" value="B2">B2 (Bass)</option>
+				<option class="px-2 dark:bg-slate-700" value="C3">C3 (Baritone)</option>
+				<option class="px-2 dark:bg-slate-700" value="D3">D3 (Baritone)</option>
+				<option class="px-2 dark:bg-slate-700" value="E3">E3 (Baritone)</option>
+				<option class="px-2 dark:bg-slate-700" value="F3">F3 (Baritone)</option>
+				<option class="px-2 dark:bg-slate-700" value="G3">G3 (Baritone/Tenor)</option>
+				<option class="px-2 dark:bg-slate-700" value="A3">A3 (Tenor)</option>
+				<option class="px-2 dark:bg-slate-700" value="B3">B3 (Tenor)</option>
+				<option class="px-2 dark:bg-slate-700" value="C4">C4 (Tenor/Alto)</option>
+			</select>
 		</div>
 		<div class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
 			Tuning: {tuning.join(' - ')} (from highest to lowest string)
