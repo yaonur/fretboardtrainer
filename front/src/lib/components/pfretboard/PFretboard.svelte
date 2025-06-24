@@ -24,8 +24,7 @@
 			sampler = new Tone.Sampler({
 				urls: {
 					C4: 'C4.mp3',
-					'D#4': 'Ds4.mp3',
-					'F#4': 'Fs4.mp3'
+					
 				},
 				release: 1,
 				baseUrl: 'https://tonejs.github.io/audio/salamander/'
@@ -100,7 +99,7 @@
 		}
 		
 		try {
-			sampler.triggerAttackRelease(noteToPlay, 0.5);
+			sampler.triggerAttackRelease(noteToPlay, getNoteDuration());
 		} catch (error) {
 			console.error('Failed to play note:', noteToPlay, error);
 		}
@@ -133,6 +132,7 @@
 	let currentString = $state(0);
 	let currentFret = $state(0);
 	let currentShift = $state(0);
+	let bpm = $state(120); // Beats per minute
 
 	// Vocal range options
 	const vocalRanges = [
@@ -411,8 +411,10 @@
 				const note = fretboard[stringIdx][currentFret];
 				playNote(note, stringIdx, currentFret);
 				
-				// Wait 1 second
-				await new Promise(resolve => setTimeout(resolve, 500));
+				// Wait based on BPM
+				const beatDuration = 60 / bpm; // seconds per beat
+				const waitTime = beatDuration * 1000; // convert to milliseconds
+				await new Promise(resolve => setTimeout(resolve, waitTime));
 			}
 		}
 		
@@ -426,6 +428,14 @@
 		isPlaying = false;
 		currentPosition = 0;
 		currentShift = 0;
+	}
+
+	// Calculate note duration from BPM (quarter note = 1 beat)
+	function getNoteDuration(): string {
+		// Convert BPM to duration in seconds
+		const beatDuration = 60 / bpm; // seconds per beat
+		const noteDuration = beatDuration * 0.5; // half note duration
+		return noteDuration.toString();
 	}
 </script>
 
@@ -485,6 +495,25 @@
 			<span class="text-sm">Play notes in vocal range</span>
 		</label>
 	</div>
+	<!-- BPM control -->
+	<div class="mb-4 flex items-center gap-4">
+		<span class="text-sm font-semibold">BPM:</span>
+		<input 
+			type="range" 
+			min="40" 
+			max="400" 
+			step="5" 
+			bind:value={bpm} 
+			class="w-32 accent-blue-500"
+		/>
+		<input 
+			type="number" 
+			min="40" 
+			max="400" 
+			bind:value={bpm} 
+			class="w-16 rounded border px-2 py-1 text-sm dark:text-slate-800"
+		/>
+	</div>
 	<!-- Play controls -->
 	<div class="mb-4 flex gap-2">
 		<button
@@ -505,6 +534,7 @@
 	</div>
 	<!-- Red degree buttons -->
 	<div class="mb-2 flex justify-center gap-2">
+		<span class="text-sm font-semibold text-gray-700">Show Degrees:</span>
 		<button
 			onclick={toggleAllDegrees}
 			class="rounded border-2 border-gray-400 bg-gray-100 px-2 py-0 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-200"
@@ -556,7 +586,7 @@
 	</div>
 	<!-- Feedback placeholder -->
 	<div class="h-8 text-2xl font-semibold"></div>
-	<div class="w-11/12 lg:w-10/12">
+	<div class="w-11/12 lg:w-10/12 h-64 ">
 		<!-- Fretboard main -->
 		<div
 			class="relative mt-12 border-l-[5px] border-r-[5px] border-gray-400"
