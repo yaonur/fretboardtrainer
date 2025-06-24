@@ -152,6 +152,16 @@
 		}
 	});
 
+	// Update fragment drill area when key changes
+	$effect(() => {
+		if (fragmentModeEnabled) {
+			// Recalculate fragment area when key changes
+			const fragmentFretRange = calculateFragmentFretRange();
+			fretRangeStart = fragmentFretRange.start;
+			fretRangeEnd = fragmentFretRange.end;
+		}
+	});
+
 	// Update lowest note when instrument changes
 	$effect(() => {
 		// Reset active position when instrument changes
@@ -645,17 +655,17 @@
 		// These are the specific areas where the Alpha Fragment appears
 		const keyFretRanges: Record<string, { start: number; end: number }> = {
 			'C': { start: 4, end: 6 },
-			'G': { start: 11, end: 13 },
-			'D': { start: 6, end: 8 },
-			'A': { start: 1, end: 3 },
-			'E': { start: 8, end: 10 },
-			'B': { start: 7, end: 9 },
-			'F#/Gb': { start: 6, end: 8 },
 			'Db': { start: 5, end: 7 },
-			'Ab': { start: 4, end: 6 },
-			'Eb': { start: 3, end: 5 },
+			'D': { start: 6, end: 8 },
+			'Eb': { start: 7, end: 9 },
+			'E': { start: 8, end: 10 },
+			'F': { start: 9, end: 11 },
+			'F#/Gb': { start: 10, end: 12 },
+			'G': { start: 11, end: 13 },
+			'Ab': { start: 12, end: 14 },
+			'A': { start: 1, end: 3 },
 			'Bb': { start: 2, end: 4 },
-			'F': { start: 9, end: 11 }
+			'B': { start: 3, end: 5 },
 		};
 		
 		// Get the fret range for the current key
