@@ -118,10 +118,11 @@
 
 	// UI state
 	let showNoteNameOnDot = $state(true);
-	let showDegreeOnRedDots = $state(false);
+	let showDegreeOnRedDots = $state(true);
+	let showDegreeOnYellowDots = $state(true);
 	let selectedTone = $state('C');
 	let highlightedDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7]);
-	let selectedExercise = $state('skippingWith6');
+	let selectedExercise = $state('maj6/7');
 	let selectedVocalRange = $state('Baritone/Tenor (G3)');
 	let playInVocalRange = $state(false);
 
@@ -196,6 +197,12 @@
 	}
 
 	function getRedDotDegreeLabel(stringIdx: number, fretIdx: number): string {
+		const note = fretboard[stringIdx][fretIdx];
+		const degree = scaleNotes.indexOf(note) + 1;
+		return degree > 0 ? degreeButtons[degree - 1] : '';
+	}
+
+	function getYellowDotDegreeLabel(stringIdx: number, fretIdx: number): string {
 		const note = fretboard[stringIdx][fretIdx];
 		const degree = scaleNotes.indexOf(note) + 1;
 		return degree > 0 ? degreeButtons[degree - 1] : '';
@@ -280,6 +287,13 @@
 		<label class="flex cursor-pointer select-none items-center gap-2">
 			<input type="checkbox" bind:checked={showDegreeOnRedDots} class="accent-red-500" />
 			<span class="text-sm">Show degree name in red dots</span>
+		</label>
+	</div>
+	<!-- Yellow dots degree label toggle -->
+	<div class="mb-2 flex justify-center">
+		<label class="flex cursor-pointer select-none items-center gap-2">
+			<input type="checkbox" bind:checked={showDegreeOnYellowDots} class="accent-yellow-500" />
+			<span class="text-sm">Show degree name in yellow dots</span>
 		</label>
 	</div>
 	<!-- Exercise selection -->
@@ -393,10 +407,12 @@
 				{#each Array(numFrets + 1) as _, fretIdx}
 					{#if shouldShowYellowDot(stringIdx, fretIdx)}
 						<div
-							class="absolute flex h-[16px] z-10 w-[16px] items-center justify-center rounded-full border-2 border-yellow-600 bg-yellow-500 text-xs font-bold text-white  sm:h-[20px] sm:w-[20px] md:h-[24px] md:w-[24px] lg:h-[28px] lg:w-[28px]"
+							class="absolute text-slate-800 flex h-[16px] z-10 w-[16px] items-center justify-center rounded-full border-2 border-yellow-600 bg-yellow-400 text-xs font-bold  sm:h-[20px] sm:w-[20px] md:h-[24px] md:w-[24px] lg:h-[28px] lg:w-[28px]"
 							style:top="calc({stringIdx} * 30px - 10px)"
 							style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
-						></div>
+						>
+							{showDegreeOnYellowDots ? getYellowDotDegreeLabel(stringIdx, fretIdx) : ''}
+						</div>
 					{/if}
 				{/each}
 			{/each}
