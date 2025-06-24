@@ -282,7 +282,7 @@
 
 	// Fragment cycling state
 	let fragmentCycleEnabled = $state(false);
-	let fragmentCycleCount = $state(3); // default cycle length
+	let fragmentCycleCount = $state(5); // default cycle length
 	let fragmentCycleCurrent = $state(0);
 	let fragmentCycleIndex = $state(0);
 	let fragmentCycleOrderType = $state<'default' | 'custom'>('default');
