@@ -1319,7 +1319,9 @@
 			</div>
 		</div>
 	{/if}
-	<div class="h-36 w-full">
+
+	<div class="h-36 w-full flex flex-col items-center">
+		<p>Quick Fragments</p>
 		{#if gameMode === 'find-degree'}
 			<div class="mt-2 flex justify-center gap-2">
 				<button
@@ -1332,7 +1334,7 @@
 					class:hover:bg-yellow-600={fragmentModeEnabled}
 					class:hover:bg-gray-300={!fragmentModeEnabled}
 				>
-					{fragmentModeEnabled ? 'Disable Alpha Fragment' : 'Enable Alpha Fragment'}
+					Alpha
 				</button>
 				<button
 					onclick={() => activateFragmentDrill('beta')}
@@ -1344,7 +1346,7 @@
 					class:hover:bg-orange-600={betaFragmentModeEnabled}
 					class:hover:bg-gray-300={!betaFragmentModeEnabled}
 				>
-					{betaFragmentModeEnabled ? 'Disable Beta Fragment' : 'Enable Beta Fragment'}
+					Beta
 				</button>
 				<button
 					onclick={() => activateFragmentDrill('delta')}
@@ -1356,7 +1358,7 @@
 					class:hover:bg-green-600={deltaFragmentModeEnabled}
 					class:hover:bg-gray-300={!deltaFragmentModeEnabled}
 				>
-					{deltaFragmentModeEnabled ? 'Disable delta Fragment' : 'Enable delta Fragment'}
+					Delta
 				</button>
 				<button
 					onclick={() => activateFragmentDrill('epsilon')}
@@ -1368,7 +1370,7 @@
 					class:hover:bg-purple-600={epsilonFragmentModeEnabled}
 					class:hover:bg-gray-300={!epsilonFragmentModeEnabled}
 				>
-					{epsilonFragmentModeEnabled ? 'Disable epsilon Fragment' : 'Enable epsilon Fragment'}
+					Epsilon
 				</button>
 				<button
 					onclick={() => activateFragmentDrill('gemini')}
@@ -1380,7 +1382,7 @@
 					class:hover:bg-teal-600={geminiFragmentModeEnabled}
 					class:hover:bg-gray-300={!geminiFragmentModeEnabled}
 				>
-					{geminiFragmentModeEnabled ? 'Disable gemini Fragment' : 'Enable gemini Fragment'}
+					Gemini
 				</button>
 			</div>
 		{/if}
