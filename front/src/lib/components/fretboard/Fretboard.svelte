@@ -1506,22 +1506,22 @@
 					type="number"
 					min="1"
 					bind:value={fragmentCycleCount}
-					class="ml-4 w-16 rounded border border-gray-400 px-2 py-1 text-sm dark:text-black"
+					class="w-16 rounded border border-gray-400 px-2 py-1 text-sm dark:text-black"
 					placeholder="Cycle N"
 				/>
 				<select
 					bind:value={fragmentCycleOrderType}
-					class="ml-2 rounded border border-gray-400 px-2 py-1 text-sm dark:text-black"
+					class=" w-36 rounded border border-gray-400 px-2 py-1 text-sm dark:text-black"
 				>
 					<option value="default">Default Order</option>
-					<option value="custom">Alpha→Delta→Gemini→Beta→Epsilon</option>
+					<option value="custom">A→D→G→B→E</option>
 				</select>
 				<button
 					onclick={startFragmentCycle}
 					class="ml-1 rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
 					disabled={fragmentCycleEnabled}
 				>
-					Cycle Fragments
+					Auto Cycle
 				</button>
 			</div>
 			{#if fragmentCycleEnabled}
