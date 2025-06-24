@@ -1,13 +1,12 @@
 <script lang="ts">
 	import * as Tone from 'tone';
-	import { onMount } from 'svelte';
 
 	// Only support guitar
 	const tuning = ['E', 'B', 'G', 'D', 'A', 'E']; // Standard tuning from high E to low E
 	const numStrings = 6;
 	const numFrets = 15;
 	const degreeButtons = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
-	const notes = ['E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C', 'C#', 'D', 'D#'];
+	const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 	// Audio setup
 	let sampler: Tone.Sampler;
@@ -58,54 +57,44 @@
 		return stringNotes;
 	});
 
-	// Only note-to-degree mode
-	let activeString = 0;
-	let activeFret = 1;
-	let correctAnswer: number | null = null;
-	let feedback = '';
-	let showNoteNameOnDot = true;
+	// UI state
+	let showNoteNameOnDot = $state(true);
+	let showDegreeOnRedDots = $state(false);
+	let selectedTone = $state('C');
+	let highlightedDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7]);
 
-	// Predetermined questions (stub)
-	// Each question: { string: number, fret: number, degree: number }
-	const questions = [
-		{ string: 0, fret: 3, degree: 1 },
-		{ string: 1, fret: 5, degree: 3 },
-		{ string: 2, fret: 7, degree: 5 },
-		// ... add more as needed
-	];
-	let currentQuestionIndex = 0;
-
-	function loadQuestion(index: number) {
-		const q = questions[index];
-		activeString = q.string;
-		activeFret = q.fret;
-		correctAnswer = q.degree;
-		feedback = '';
-	}
-
-	function nextQuestion() {
-		if (currentQuestionIndex < questions.length - 1) {
-			currentQuestionIndex++;
-			loadQuestion(currentQuestionIndex);
+	function toggleAllDegrees() {
+		if (highlightedDegrees.length === degreeButtons.length) {
+			highlightedDegrees = [];
 		} else {
-			feedback = 'Practice complete!';
+			highlightedDegrees = degreeButtons.map((_, i) => i + 1);
 		}
 	}
 
-	function handleAnswer(selectedDegree: number) {
-		if (correctAnswer === null) return;
-		if (selectedDegree === correctAnswer) {
-			playNote(fretboard[activeString][activeFret]);
-			feedback = 'Correct!';
-			setTimeout(() => nextQuestion(), 500);
-		} else {
-			feedback = `Incorrect. It's ${degreeButtons[correctAnswer - 1]}.`;
-		}
+	// Major scale intervals (in semitones from root)
+	const majorScaleIntervals = [0, 2, 4, 5, 7, 9, 11];
+
+	// Compute the major scale notes for the selected key
+	function getMajorScale(root: string): string[] {
+		const rootIdx = notes.indexOf(root);
+		if (rootIdx === -1) return [];
+		return majorScaleIntervals.map(i => notes[(rootIdx + i) % 12]);
 	}
 
-	onMount(() => {
-		loadQuestion(0);
-	});
+	const scaleNotes = $derived(getMajorScale(selectedTone));
+
+	function shouldShowRedDot(stringIdx: number, fretIdx: number): boolean {
+		if (highlightedDegrees.length === 0) return false;
+		const note = fretboard[stringIdx][fretIdx];
+		const degree = scaleNotes.indexOf(note) + 1;
+		return highlightedDegrees.includes(degree) && degree > 0;
+	}
+
+	function getRedDotDegreeLabel(stringIdx: number, fretIdx: number): string {
+		const note = fretboard[stringIdx][fretIdx];
+		const degree = scaleNotes.indexOf(note) + 1;
+		return degree > 0 ? degreeButtons[degree - 1] : '';
+	}
 </script>
 
 <div class="flex flex-col items-center">
@@ -116,26 +105,71 @@
 			<span class="text-sm">Show note name on dot</span>
 		</label>
 	</div>
-	<div class="h-8 text-2xl font-semibold">{feedback}</div>
+	<!-- Degree label toggle -->
+	<div class="mb-2 flex justify-center">
+		<label class="flex cursor-pointer select-none items-center gap-2">
+			<input type="checkbox" bind:checked={showDegreeOnRedDots} class="accent-red-500" />
+			<span class="text-sm">Show degree name in red dots</span>
+		</label>
+	</div>
+	<!-- Tone selection -->
+	<div class="mb-4 flex items-center gap-2">
+		<span class="text-sm">Select Key:</span>
+		<select bind:value={selectedTone} class="rounded w-14 dark:text-black border px-2 py-1 text-sm">
+			{#each notes as note}
+				<option value={note}>{note}</option>
+			{/each}
+		</select>
+	</div>
+	<!-- Red degree buttons -->
+	<div class="mb-2 flex justify-center gap-2">
+		<button
+			onclick={toggleAllDegrees}
+			class="rounded border-2 border-gray-400 bg-gray-100 px-2 py-0 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-200"
+		>
+			{highlightedDegrees.length === degreeButtons.length ? 'None' : 'All'}
+		</button>
+		{#each degreeButtons as degree, i}
+			<button
+				onclick={() => {
+					highlightedDegrees = highlightedDegrees.includes(i + 1)
+						? highlightedDegrees.filter((d) => d !== i + 1)
+						: [...highlightedDegrees, i + 1];
+				}}
+				class="rounded border-2 px-2 py-0 text-lg font-bold transition-colors"
+				class:bg-red-600={highlightedDegrees.includes(i + 1)}
+				class:text-white={highlightedDegrees.includes(i + 1)}
+				class:border-red-600={highlightedDegrees.includes(i + 1)}
+				class:bg-gray-200={!highlightedDegrees.includes(i + 1)}
+				class:text-red-600={!highlightedDegrees.includes(i + 1)}
+				class:border-gray-300={!highlightedDegrees.includes(i + 1)}
+			>
+				{degree}
+			</button>
+		{/each}
+	</div>
+	<!-- Feedback placeholder -->
+	<div class="h-8 text-2xl font-semibold"></div>
 	<div class="w-11/12 lg:w-10/12">
 		<!-- Fretboard main -->
 		<div
 			class="relative mt-12 border-l-[5px] border-r-[5px] border-gray-400"
 			style:height="{(numStrings - 1) * 30}px"
 		>
-			<!-- Main question dot -->
-			<div
-				class="absolute flex h-[20px] w-[20px] items-center justify-center rounded-full border-2 text-xs font-bold text-black sm:h-[25px] sm:w-[25px] md:h-[30px] md:w-[30px] lg:h-[35px] lg:w-[35px] border-blue-500 bg-blue-100"
-				style:top="calc({activeString} * 30px - 12.5px)"
-				style:left="calc(({activeFret} - 0.5) * (100% / {numFrets}) - 12.5px)"
-				style:transition="all 0.3s"
-			>
-				{#if showNoteNameOnDot}
-					<span class="mb-[1px] text-sm sm:text-lg md:text-xl lg:text-2xl">
-						{fretboard[activeString][activeFret]}
-					</span>
-				{/if}
-			</div>
+			<!-- Red dots for selected degrees in the selected key -->
+			{#each Array(tuning.length) as _, stringIdx}
+				{#each Array(numFrets + 1) as _, fretIdx}
+					{#if shouldShowRedDot(stringIdx, fretIdx)}
+						<div
+							class="absolute flex h-[16px] w-[16px] items-center justify-center rounded-full border-2 border-red-600 bg-red-500 text-xs font-bold text-white opacity-80 sm:h-[20px] sm:w-[20px] md:h-[24px] md:w-[24px] lg:h-[28px] lg:w-[28px]"
+							style:top="calc({stringIdx} * 30px - 10px)"
+							style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
+						>
+							{showDegreeOnRedDots ? getRedDotDegreeLabel(stringIdx, fretIdx) : ''}
+						</div>
+					{/if}
+				{/each}
+			{/each}
 			<!-- strings wrap -->
 			<div>
 				{#each { length: numStrings - 1 } as _, i}
@@ -160,12 +194,11 @@
 			</div>
 		</div>
 	</div>
-	<!-- Answer buttons -->
+	<!-- Answer buttons (no logic yet) -->
 	<div class="ml-6 mt-10 flex w-11/12 flex-col gap-2 place-self-start md:place-self-center lg:ml-0 lg:w-10/12">
 		<div class="flex justify-start gap-2 lg:justify-center">
 			{#each degreeButtons as degree, i}
 				<button
-					onclick={() => handleAnswer(i + 1)}
 					class="w-10 rounded-lg bg-gray-200 px-1 text-lg font-bold transition-colors hover:bg-gray-300 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600"
 				>
 					{degree}
@@ -173,14 +206,9 @@
 			{/each}
 		</div>
 	</div>
+	<!-- Restart button placeholder -->
 	<div class="mt-6">
-		<button
-			onclick={() => {
-				currentQuestionIndex = 0;
-				loadQuestion(0);
-			}}
-			class="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
-		>
+		<button class="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600" disabled>
 			Restart
 		</button>
 	</div>
