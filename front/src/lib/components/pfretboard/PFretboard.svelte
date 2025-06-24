@@ -272,7 +272,7 @@
 	<div class="mb-2 flex justify-center">
 		<label class="flex cursor-pointer select-none items-center gap-2">
 			<input type="checkbox" bind:checked={showNoteNameOnDot} class="accent-blue-500" />
-			<span class="text-sm">Show note name on dot</span>
+			<span class="text-sm">Show note name (unchecked = show degree)</span>
 		</label>
 	</div>
 	<!-- Degree label toggle -->
@@ -376,11 +376,16 @@
 					style:top="calc({currentString} * 30px - 12.5px)"
 					style:left="calc(({currentFret} - 0.5) * (100% / {numFrets}) - 12.5px)"
 				>
-					{#if showNoteNameOnDot}
-						<span class="text-sm sm:text-lg md:text-xl lg:text-2xl">
-							{fretboard[currentString][currentFret]}
-						</span>
-					{/if}
+					<span class="text-sm sm:text-lg md:text-xl lg:text-2xl">
+						{showNoteNameOnDot 
+							? fretboard[currentString][currentFret]
+							: (() => {
+								const note = fretboard[currentString][currentFret];
+								const degree = scaleNotes.indexOf(note) + 1;
+								return degree > 0 ? degreeButtons[degree - 1] : '';
+							})()
+						}
+					</span>
 				</div>
 			{/if}
 			<!-- Yellow dots for exercise -->
