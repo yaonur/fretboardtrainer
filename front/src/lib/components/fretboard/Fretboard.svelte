@@ -118,6 +118,13 @@
 	let lowestNote = $state<string>('G3'); // User's lowest note as reference
 	let gameMode = $state<'find-degree' | 'find-note'>('find-degree'); // find-degree: note -> degree, find-note: degree -> note
 	let targetDegree = $state<number | null>(null); // For find-note mode
+	let fragmentModeEnabled = $state(false); // Track if fragment mode is enabled
+
+	// Store user's last known settings
+	let lastUserStringStart = $state<number>(1);
+	let lastUserStringEnd = $state<number>(6);
+	let lastUserFretStart = $state<number>(1);
+	let lastUserFretEnd = $state<number>(12);
 
 	// --- Anchor Mode Settings ---
 	let anchorModeEnabled = $state(false);
@@ -602,6 +609,85 @@
 			);
 		}
 	});
+
+	// Add fragment drill activation
+	function activateFragmentDrill() {
+		if (fragmentModeEnabled) {
+			// Disable fragment mode - restore user's last known settings
+			fragmentModeEnabled = false;
+			stringRangeStart = lastUserStringStart;
+			stringRangeEnd = lastUserStringEnd;
+			fretRangeStart = lastUserFretStart;
+			fretRangeEnd = lastUserFretEnd;
+		} else {
+			// Enable fragment mode - save current settings and set to fragment area
+			fragmentModeEnabled = true;
+			lastUserStringStart = stringRangeStart;
+			lastUserStringEnd = stringRangeEnd;
+			lastUserFretStart = fretRangeStart;
+			lastUserFretEnd = fretRangeEnd;
+			
+			// Calculate fragment area based on current key
+			// The fragment degrees should appear in strings 1-6, but frets vary by key
+			stringRangeStart = 1;
+			stringRangeEnd = 6;
+			
+			// Calculate the fret range where the fragment degrees appear for this key
+			const fragmentFretRange = calculateFragmentFretRange();
+			fretRangeStart = fragmentFretRange.start;
+			fretRangeEnd = fragmentFretRange.end;
+		}
+	}
+
+	// Calculate the fret range where the fragment degrees appear for the current key
+	function calculateFragmentFretRange(): { start: number; end: number } {
+		// Hardcoded fret ranges for Alpha Fragment in different keys
+		// These are the specific areas where the Alpha Fragment appears
+		const keyFretRanges: Record<string, { start: number; end: number }> = {
+			'C': { start: 4, end: 6 },
+			'G': { start: 11, end: 13 },
+			'D': { start: 6, end: 8 },
+			'A': { start: 1, end: 3 },
+			'E': { start: 8, end: 10 },
+			'B': { start: 7, end: 9 },
+			'F#/Gb': { start: 6, end: 8 },
+			'Db': { start: 5, end: 7 },
+			'Ab': { start: 4, end: 6 },
+			'Eb': { start: 3, end: 5 },
+			'Bb': { start: 2, end: 4 },
+			'F': { start: 9, end: 11 }
+		};
+		
+		// Get the fret range for the current key
+		const keyName = selectedKey.includes('/') ? selectedKey.split('/')[0] : selectedKey;
+		const fretRange = keyFretRanges[keyName] || { start: 4, end: 6 }; // Default to C major range
+		
+		return fretRange;
+	}
+
+	// Add yellow dot logic for fragment area - dynamic based on key
+	function shouldShowYellowDot(stringIdx: number, fretIdx: number): boolean {
+		if (!fragmentModeEnabled) return false;
+		
+		// Check if position is within the current drill area (not the entire fretboard)
+		const inDrillArea = stringIdx + 1 >= stringRangeStart && stringIdx + 1 <= stringRangeEnd && 
+							fretIdx >= fretRangeStart && fretIdx <= fretRangeEnd;
+		if (!inDrillArea) return false;
+		
+		// Check if this position has a fragment note for the current key
+		const fragmentDegrees = [6, 2, 5, 7, 1, 3, 4, 6]; // Alpha Fragment degrees
+		const rootNoteIndex = getRootIndex();
+		const scaleIntervals = scales.major;
+		const scaleNotes = scaleIntervals.map(
+			(interval) => notes[(rootNoteIndex + interval) % notes.length]
+		);
+		
+		// Get the fragment notes for the current key
+		const fragmentNotes = fragmentDegrees.map(degree => scaleNotes[degree - 1]);
+		
+		const note = fretboard[stringIdx][fretIdx];
+		return fragmentNotes.includes(note);
+	}
 </script>
 
 <div class="flex flex-col items-center">
@@ -936,6 +1022,18 @@
 						{/if}
 					{/each}
 				{/each}
+				<!-- Yellow dots for fragment area -->
+				{#each Array(tuning.length) as _, stringIdx}
+					{#each Array(numFrets + 1) as _, fretIdx}
+						{#if shouldShowYellowDot(stringIdx, fretIdx)}
+							<div
+								class="absolute flex h-[16px] w-[16px] items-center justify-center rounded-full border-2 border-yellow-600 bg-yellow-500 opacity-80 sm:h-[20px] sm:w-[20px] md:h-[24px] md:w-[24px] lg:h-[28px] lg:w-[28px]"
+								style:top="calc({stringIdx} * 30px - 10px)"
+								style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
+							></div>
+						{/if}
+					{/each}
+				{/each}
 				<!-- Main question dot -->
 				{#if correctAnswer !== null}
 					<div
@@ -989,7 +1087,7 @@
 								style:height="30px"
 								onclick={() => {
 									if (canGenerateQuestion) {
-										handleFretboardClick(stringIdx, fretIdx+1);
+										handleFretboardClick(stringIdx, fretIdx + 1);
 									}
 								}}
 							></div>
@@ -1049,5 +1147,22 @@
 			</div>
 		</div>
 	{/if}
-	<div class="h-36 w-full"></div>
+	<div class="h-36 w-full">
+		{#if gameMode === 'find-degree'}
+			<div class="mt-2 flex justify-center gap-2">
+				<button
+					onclick={activateFragmentDrill}
+					class="rounded px-3 py-1 text-sm transition-colors"
+					class:bg-yellow-500={fragmentModeEnabled}
+					class:text-white={fragmentModeEnabled}
+					class:bg-gray-200={!fragmentModeEnabled}
+					class:text-gray-700={!fragmentModeEnabled}
+					class:hover:bg-yellow-600={fragmentModeEnabled}
+					class:hover:bg-gray-300={!fragmentModeEnabled}
+				>
+					{fragmentModeEnabled ? 'Disable Fragment Drill' : 'Enable Fragment Drill'}
+				</button>
+			</div>
+		{/if}
+	</div>
 </div>
