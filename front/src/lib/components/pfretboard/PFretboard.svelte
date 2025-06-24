@@ -194,18 +194,6 @@
 			</div>
 		</div>
 	</div>
-	<!-- Answer buttons (no logic yet) -->
-	<div class="ml-6 mt-10 flex w-11/12 flex-col gap-2 place-self-start md:place-self-center lg:ml-0 lg:w-10/12">
-		<div class="flex justify-start gap-2 lg:justify-center">
-			{#each degreeButtons as degree, i}
-				<button
-					class="w-10 rounded-lg bg-gray-200 px-1 text-lg font-bold transition-colors hover:bg-gray-300 sm:text-2xl dark:bg-gray-700 dark:hover:bg-gray-600"
-				>
-					{degree}
-				</button>
-			{/each}
-		</div>
-	</div>
 	<!-- Restart button placeholder -->
 	<div class="mt-6">
 		<button class="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600" disabled>
