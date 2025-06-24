@@ -12,9 +12,14 @@
 	// Audio setup
 	let sampler: Tone.Sampler;
 	let isAudioInitialized = false;
+	let isAudioLoading = false;
 
 	async function initAudio() {
-		if (!isAudioInitialized) {
+		if (isAudioLoading) return; // Prevent multiple simultaneous loads
+		if (isAudioInitialized) return;
+		
+		isAudioLoading = true;
+		try {
 			await Tone.start();
 			sampler = new Tone.Sampler({
 				urls: {
@@ -25,7 +30,16 @@
 				release: 1,
 				baseUrl: 'https://tonejs.github.io/audio/salamander/'
 			}).toDestination();
+			
+			// Give the sampler a moment to load
+			await new Promise(resolve => setTimeout(resolve, 100));
+			
 			isAudioInitialized = true;
+			isAudioLoading = false;
+		} catch (error) {
+			isAudioLoading = false;
+			console.error('Failed to initialize audio:', error);
+			throw error;
 		}
 	}
 
@@ -41,47 +55,54 @@
 	}
 
 	function playNote(note: string, stringIdx?: number, fretIdx?: number) {
-		if (isAudioInitialized && sampler) {
-			let noteToPlay: string;
-			
-			if (playInVocalRange) {
-				// Play in vocal range
+		if (!isAudioInitialized || !sampler) {
+			console.warn('Audio not initialized, cannot play note');
+			return;
+		}
+		
+		let noteToPlay: string;
+		
+		if (playInVocalRange) {
+			// Play in vocal range
+			const bestOctave = getBestOctave(note);
+			noteToPlay = note + bestOctave;
+		} else {
+			// Play at actual fretboard position
+			if (stringIdx !== undefined && fretIdx !== undefined) {
+				// Calculate the actual octave based on string and fret position
+				const openNote = tuning[stringIdx];
+				const openNoteIndex = notes.indexOf(openNote);
+				const actualNoteIndex = (openNoteIndex + fretIdx) % notes.length;
+				const actualNote = notes[actualNoteIndex];
+				
+				// Calculate octave based on string (standard guitar tuning)
+				let baseOctave: number;
+				if (stringIdx === 0) baseOctave = 4; // Treble E (E4)
+				else if (stringIdx === 1) baseOctave = 3; // B (B3)
+				else if (stringIdx === 2) baseOctave = 3; // G (G3)
+				else if (stringIdx === 3) baseOctave = 3; // D (D3)
+				else if (stringIdx === 4) baseOctave = 2; // A (A2)
+				else if (stringIdx === 5) baseOctave = 2; // Bass E (E2)
+				else baseOctave = 3; // fallback
+				
+				// Calculate the total semitones from the open string
+				// We need to account for the fact that the note might have wrapped around the octave
+				const totalSemitones = openNoteIndex + fretIdx;
+				const octaveOffset = Math.floor(totalSemitones / 12);
+				const finalOctave = baseOctave + octaveOffset;
+				
+				noteToPlay = actualNote + finalOctave;
+			} else {
+				// Fallback to vocal range if no position provided
 				const bestOctave = getBestOctave(note);
 				noteToPlay = note + bestOctave;
-			} else {
-				// Play at actual fretboard position
-				if (stringIdx !== undefined && fretIdx !== undefined) {
-					// Calculate the actual octave based on string and fret position
-					const openNote = tuning[stringIdx];
-					const openNoteIndex = notes.indexOf(openNote);
-					const actualNoteIndex = (openNoteIndex + fretIdx) % notes.length;
-					const actualNote = notes[actualNoteIndex];
-					
-					// Calculate octave based on string (standard guitar tuning)
-					let baseOctave: number;
-					if (stringIdx === 0) baseOctave = 4; // Treble E (E4)
-					else if (stringIdx === 1) baseOctave = 3; // B (B3)
-					else if (stringIdx === 2) baseOctave = 3; // G (G3)
-					else if (stringIdx === 3) baseOctave = 3; // D (D3)
-					else if (stringIdx === 4) baseOctave = 2; // A (A2)
-					else if (stringIdx === 5) baseOctave = 2; // Bass E (E2)
-					else baseOctave = 3; // fallback
-					
-					// Calculate the total semitones from the open string
-					// We need to account for the fact that the note might have wrapped around the octave
-					const totalSemitones = openNoteIndex + fretIdx;
-					const octaveOffset = Math.floor(totalSemitones / 12);
-					const finalOctave = baseOctave + octaveOffset;
-					
-					noteToPlay = actualNote + finalOctave;
-				} else {
-					// Fallback to vocal range if no position provided
-					const bestOctave = getBestOctave(note);
-					noteToPlay = note + bestOctave;
-				}
 			}
-			
+		}
+		
+		try {
 			sampler.triggerAttackRelease(noteToPlay, '8n');
+		} catch (error) {
+			console.error('Failed to play note:', noteToPlay, error);
 		}
 	}
 
@@ -195,7 +216,14 @@
 	async function startExercise() {
 		if (isPlaying) return;
 		
-		await initAudio();
+		try {
+			await initAudio();
+		} catch (error) {
+			console.error('Failed to initialize audio for exercise:', error);
+			alert('Failed to load audio. Please try again.');
+			return;
+		}
+		
 		isPlaying = true;
 		currentPosition = 0;
 		
