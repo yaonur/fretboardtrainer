@@ -119,6 +119,7 @@
 	let gameMode = $state<'find-degree' | 'find-note'>('find-degree'); // find-degree: note -> degree, find-note: degree -> note
 	let targetDegree = $state<number | null>(null); // For find-note mode
 	let fragmentModeEnabled = $state(false); // Track if fragment mode is enabled
+	let betaFragmentModeEnabled = $state(false); // Track if beta fragment mode is enabled
 
 	// Store user's last known settings
 	let lastUserStringStart = $state<number>(1);
@@ -156,9 +157,15 @@
 	$effect(() => {
 		if (fragmentModeEnabled) {
 			// Recalculate fragment area when key changes
-			const fragmentFretRange = calculateFragmentFretRange();
+			const fragmentFretRange = calculateFragmentFretRange('alpha');
 			fretRangeStart = fragmentFretRange.start;
 			fretRangeEnd = fragmentFretRange.end;
+		}
+		if (betaFragmentModeEnabled) {
+			// Recalculate beta fragment area when key changes
+			const betaFragmentFretRange = calculateFragmentFretRange('beta');
+			fretRangeStart = betaFragmentFretRange.start;
+			fretRangeEnd = betaFragmentFretRange.end;
 		}
 	});
 
@@ -621,17 +628,22 @@
 	});
 
 	// Add fragment drill activation
-	function activateFragmentDrill() {
-		if (fragmentModeEnabled) {
+	function activateFragmentDrill(fragmentName: 'alpha' | 'beta') {
+		const isAlpha = fragmentName === 'alpha';
+		const isBeta = fragmentName === 'beta';
+		
+		if ((isAlpha && fragmentModeEnabled) || (isBeta && betaFragmentModeEnabled)) {
 			// Disable fragment mode - restore user's last known settings
 			fragmentModeEnabled = false;
+			betaFragmentModeEnabled = false;
 			stringRangeStart = lastUserStringStart;
 			stringRangeEnd = lastUserStringEnd;
 			fretRangeStart = lastUserFretStart;
 			fretRangeEnd = lastUserFretEnd;
 		} else {
 			// Enable fragment mode - save current settings and set to fragment area
-			fragmentModeEnabled = true;
+			fragmentModeEnabled = isAlpha;
+			betaFragmentModeEnabled = isBeta;
 			lastUserStringStart = stringRangeStart;
 			lastUserStringEnd = stringRangeEnd;
 			lastUserFretStart = fretRangeStart;
@@ -643,17 +655,17 @@
 			stringRangeEnd = 6;
 			
 			// Calculate the fret range where the fragment degrees appear for this key
-			const fragmentFretRange = calculateFragmentFretRange();
+			const fragmentFretRange = calculateFragmentFretRange(fragmentName);
 			fretRangeStart = fragmentFretRange.start;
 			fretRangeEnd = fragmentFretRange.end;
 		}
 	}
 
 	// Calculate the fret range where the fragment degrees appear for the current key
-	function calculateFragmentFretRange(): { start: number; end: number } {
-		// Hardcoded fret ranges for Alpha Fragment in different keys
-		// These are the specific areas where the Alpha Fragment appears
-		const keyFretRanges: Record<string, { start: number; end: number }> = {
+	function calculateFragmentFretRange(fragmentName: 'alpha' | 'beta'): { start: number; end: number } {
+		// Hardcoded fret ranges for fragments in different keys
+		// These are the specific areas where each fragment appears
+		const alphaKeyFretRanges: Record<string, { start: number; end: number }> = {
 			'C': { start: 4, end: 6 },
 			'Db': { start: 5, end: 7 },
 			'D': { start: 6, end: 8 },
@@ -668,16 +680,33 @@
 			'B': { start: 3, end: 5 },
 		};
 		
+		const betaKeyFretRanges: Record<string, { start: number; end: number }> = {
+			'C': { start: 7, end: 8 },
+			'Db': { start: 8, end: 9 },
+			'D': { start: 9, end: 10 },
+			'Eb': { start: 10, end: 11 },
+			'E': { start: 11, end: 12 },
+			'F': { start: 12, end: 13 },
+			'F#/Gb': { start: 13, end: 14 },
+			'G': { start: 14, end: 15 },
+			'Ab': { start: 1, end: 2 },
+			'A': { start: 2, end: 3 },
+			'Bb': { start: 3, end: 4 },
+			'B': { start: 4, end: 5 },
+		};
+		
 		// Get the fret range for the current key
 		const keyName = selectedKey.includes('/') ? selectedKey.split('/')[0] : selectedKey;
-		const fretRange = keyFretRanges[keyName] || { start: 4, end: 6 }; // Default to C major range
+		const keyFretRanges = fragmentName === 'alpha' ? alphaKeyFretRanges : betaKeyFretRanges;
+		const defaultRange = fragmentName === 'alpha' ? { start: 4, end: 6 } : { start: 7, end: 8 };
+		const fretRange = keyFretRanges[keyName] || defaultRange;
 		
 		return fretRange;
 	}
 
 	// Add yellow dot logic for fragment area - dynamic based on key
 	function shouldShowYellowDot(stringIdx: number, fretIdx: number): boolean {
-		if (!fragmentModeEnabled) return false;
+		if (!fragmentModeEnabled && !betaFragmentModeEnabled) return false;
 		
 		// Check if position is within the current drill area (not the entire fretboard)
 		const inDrillArea = stringIdx + 1 >= stringRangeStart && stringIdx + 1 <= stringRangeEnd && 
@@ -686,6 +715,7 @@
 		
 		// Check if this position has a fragment note for the current key
 		const fragmentDegrees = [6, 2, 5, 7, 1, 3, 4, 6]; // Alpha Fragment degrees
+		const betaFragmentDegrees = [7, 3, 6, 1, 2, 4, 5, 7]; // Beta Fragment degrees
 		const rootNoteIndex = getRootIndex();
 		const scaleIntervals = scales.major;
 		const scaleNotes = scaleIntervals.map(
@@ -694,9 +724,37 @@
 		
 		// Get the fragment notes for the current key
 		const fragmentNotes = fragmentDegrees.map(degree => scaleNotes[degree - 1]);
+		const betaFragmentNotes = betaFragmentDegrees.map(degree => scaleNotes[degree - 1]);
 		
 		const note = fretboard[stringIdx][fretIdx];
-		return fragmentNotes.includes(note);
+		return fragmentNotes.includes(note) || betaFragmentNotes.includes(note);
+	}
+
+	// Add function to determine which fragment type a position belongs to
+	function getFragmentType(stringIdx: number, fretIdx: number): 'alpha' | 'beta' | null {
+		if (!fragmentModeEnabled && !betaFragmentModeEnabled) return null;
+		
+		// Check if position is within the current drill area
+		const inDrillArea = stringIdx + 1 >= stringRangeStart && stringIdx + 1 <= stringRangeEnd && 
+							fretIdx >= fretRangeStart && fretIdx <= fretRangeEnd;
+		if (!inDrillArea) return null;
+		
+		const fragmentDegrees = [6, 2, 5, 7, 1, 3, 4, 6]; // Alpha Fragment degrees
+		const betaFragmentDegrees = [7, 3, 6, 1, 2, 4, 5, 7]; // Beta Fragment degrees
+		const rootNoteIndex = getRootIndex();
+		const scaleIntervals = scales.major;
+		const scaleNotes = scaleIntervals.map(
+			(interval) => notes[(rootNoteIndex + interval) % notes.length]
+		);
+		
+		const fragmentNotes = fragmentDegrees.map(degree => scaleNotes[degree - 1]);
+		const betaFragmentNotes = betaFragmentDegrees.map(degree => scaleNotes[degree - 1]);
+		
+		const note = fretboard[stringIdx][fretIdx];
+		
+		if (fragmentNotes.includes(note)) return 'alpha';
+		if (betaFragmentNotes.includes(note)) return 'beta';
+		return null;
 	}
 </script>
 
@@ -841,7 +899,7 @@
 	</div>
 
 	<!-- Practice Range Controls -->
-	{#if !fragmentModeEnabled}
+	{#if !fragmentModeEnabled && !betaFragmentModeEnabled}
 		<div
 			class="mb-6 w-10/12 rounded-lg bg-gray-100 p-4 md:w-5/6 dark:bg-gray-800 dark:text-slate-500"
 		>
@@ -1038,8 +1096,13 @@
 				{#each Array(tuning.length) as _, stringIdx}
 					{#each Array(numFrets + 1) as _, fretIdx}
 						{#if shouldShowYellowDot(stringIdx, fretIdx)}
+							{@const fragmentType = getFragmentType(stringIdx, fretIdx)}
 							<div
-								class="absolute flex h-[16px] w-[16px] items-center justify-center rounded-full border-2 border-yellow-600 bg-yellow-500 opacity-80 sm:h-[20px] sm:w-[20px] md:h-[24px] md:w-[24px] lg:h-[28px] lg:w-[28px]"
+								class="absolute flex h-[16px] w-[16px] items-center justify-center rounded-full border-2 opacity-80 sm:h-[20px] sm:w-[20px] md:h-[24px] md:w-[24px] lg:h-[28px] lg:w-[28px]"
+								class:border-yellow-600={fragmentType === 'alpha'}
+								class:bg-yellow-500={fragmentType === 'alpha'}
+								class:border-orange-600={fragmentType === 'beta'}
+								class:bg-orange-500={fragmentType === 'beta'}
 								style:top="calc({stringIdx} * 30px - 10px)"
 								style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
 							></div>
@@ -1163,7 +1226,7 @@
 		{#if gameMode === 'find-degree'}
 			<div class="mt-2 flex justify-center gap-2">
 				<button
-					onclick={activateFragmentDrill}
+					onclick={() => activateFragmentDrill('alpha')}
 					class="rounded px-3 py-1 text-sm transition-colors"
 					class:bg-yellow-500={fragmentModeEnabled}
 					class:text-white={fragmentModeEnabled}
@@ -1172,7 +1235,19 @@
 					class:hover:bg-yellow-600={fragmentModeEnabled}
 					class:hover:bg-gray-300={!fragmentModeEnabled}
 				>
-					{fragmentModeEnabled ? 'Disable Fragment Drill' : 'Enable Fragment Drill'}
+					{fragmentModeEnabled ? 'Disable Alpha Fragment' : 'Enable Alpha Fragment'}
+				</button>
+				<button
+					onclick={() => activateFragmentDrill('beta')}
+					class="rounded px-3 py-1 text-sm transition-colors"
+					class:bg-orange-500={betaFragmentModeEnabled}
+					class:text-white={betaFragmentModeEnabled}
+					class:bg-gray-200={!betaFragmentModeEnabled}
+					class:text-gray-700={!betaFragmentModeEnabled}
+					class:hover:bg-orange-600={betaFragmentModeEnabled}
+					class:hover:bg-gray-300={!betaFragmentModeEnabled}
+				>
+					{betaFragmentModeEnabled ? 'Disable Beta Fragment' : 'Enable Beta Fragment'}
 				</button>
 			</div>
 		{/if}
