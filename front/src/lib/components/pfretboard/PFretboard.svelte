@@ -122,7 +122,7 @@
 	let showDegreeOnYellowDots = $state(true);
 	let selectedTone = $state('C');
 	let highlightedDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7]);
-	let selectedExercise = $state('maj6/7');
+	let selectedExercise = $state('maj6/7 skipping');
 	let selectedVocalRange = $state('Baritone/Tenor (G3)');
 	let playInVocalRange = $state(false);
 
@@ -183,11 +183,11 @@
 
 	function shouldShowYellowDot(stringIdx: number, fretIdx: number): boolean {
 		const exercise = exercises[selectedExercise as keyof typeof exercises];
-		if (!exercise || !exercise[stringIdx]) return false;
+		if (!exercise || !exercise.structure || !exercise.structure[stringIdx]) return false;
 		
 		const note = fretboard[stringIdx][fretIdx];
 		const degree = scaleNotes.indexOf(note) + 1;
-		const targetDegrees = exercise[5 - stringIdx];
+		const targetDegrees = exercise.structure[5 - stringIdx];
 		
 		return targetDegrees.includes(degree);
 	}
@@ -210,13 +210,38 @@
 
 	// Find the fret position for a given degree on a given string
 	function findFretForDegree(stringIdx: number, degree: number): number {
-		for (let fret = 0; fret <= numFrets; fret++) {
+		// Prefer higher fret positions (12th fret and above) for certain degrees
+		const preferredFrets: { [key: number]: number } = {
+			2: 12,  // 2nd degree at 12th fret
+			5: 14,  // 5th degree at 14th fret  
+			1: 13,  // 1st degree at 13th fret
+			4: 13,  // 4th degree at 13th fret
+			6: 12,  // 6th degree at 12th fret
+			7: 12,  // 7th degree at 12th fret
+			3: 12   // 3rd degree at 12th fret
+		};
+		
+		// If we have a preferred fret for this degree, check if it's available
+		if (preferredFrets[degree] !== undefined) {
+			const preferredFret = preferredFrets[degree];
+			if (preferredFret <= numFrets) {
+				const note = fretboard[stringIdx][preferredFret];
+				const noteDegree = scaleNotes.indexOf(note) + 1;
+				if (noteDegree === degree) {
+					return preferredFret;
+				}
+			}
+		}
+		
+		// Fallback: search from highest fret to lowest to prefer higher positions
+		for (let fret = numFrets; fret >= 0; fret--) {
 			const note = fretboard[stringIdx][fret];
 			const noteDegree = scaleNotes.indexOf(note) + 1;
 			if (noteDegree === degree) {
 				return fret;
 			}
 		}
+		
 		return 0; // fallback to open string
 	}
 
@@ -239,9 +264,9 @@
 		
 		// Flatten the exercise into a sequence of [stringIdx, degree] pairs
 		const sequence: Array<{stringIdx: number, degree: number}> = [];
-		exercise.forEach((degrees, exerciseIdx) => {
+		exercise.structure.forEach((degrees, exerciseIdx) => {
 			const stringIdx = 5 - exerciseIdx; // Reverse the indexing
-			degrees.forEach(degree => {
+			degrees.forEach((degree: number) => {
 				sequence.push({stringIdx, degree});
 			});
 		});
