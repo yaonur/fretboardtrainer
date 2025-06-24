@@ -122,6 +122,7 @@
 	let showDegreeOnYellowDots = $state(true);
 	let selectedTone = $state('C');
 	let highlightedDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7]);
+	let selectedDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7]); // Degrees to play in exercise
 	let selectedExercise = $state('maj6/7 skipping');
 	let selectedVocalRange = $state('Baritone/Tenor (G3)');
 	let playInVocalRange = $state(false);
@@ -160,6 +161,25 @@
 			highlightedDegrees = [];
 		} else {
 			highlightedDegrees = degreeButtons.map((_, i) => i + 1);
+		}
+	}
+
+	function toggleSelectedDegrees() {
+		if (selectedDegrees.length === degreeButtons.length) {
+			selectedDegrees = [1]; // Keep at least 1 degree selected
+		} else {
+			selectedDegrees = degreeButtons.map((_, i) => i + 1);
+		}
+	}
+
+	function toggleDegreeForPlaying(degree: number) {
+		if (selectedDegrees.includes(degree)) {
+			// Only allow removal if there's more than 1 degree selected
+			if (selectedDegrees.length > 1) {
+				selectedDegrees = selectedDegrees.filter(d => d !== degree);
+			}
+		} else {
+			selectedDegrees = [...selectedDegrees, degree];
 		}
 	}
 
@@ -347,10 +367,11 @@
 		const exercise = exercises[selectedExercise as keyof typeof exercises];
 		if (!exercise) return;
 		
-		// Play through all 7 degrees (0-6 shifts)
-		for (let shift = 0; shift < 7; shift++) {
+		// Play through selected degrees only
+		for (let shiftIndex = 0; shiftIndex < selectedDegrees.length; shiftIndex++) {
 			if (!isPlaying) break; // Stop if exercise was stopped
 			
+			const shift = selectedDegrees[shiftIndex] - 1; // Convert degree to shift (1-based to 0-based)
 			currentShift = shift; // Update current shift for yellow dots
 			
 			// Create shifted structure for this iteration
@@ -504,6 +525,30 @@
 				class:bg-gray-200={!highlightedDegrees.includes(i + 1)}
 				class:text-red-600={!highlightedDegrees.includes(i + 1)}
 				class:border-gray-300={!highlightedDegrees.includes(i + 1)}
+			>
+				{degree}
+			</button>
+		{/each}
+	</div>
+	<!-- Selected degrees for playing -->
+	<div class="mb-2 flex justify-center gap-2">
+		<span class="text-sm font-semibold text-gray-700">Play Degrees:</span>
+		<button
+			onclick={toggleSelectedDegrees}
+			class="rounded border-2 border-blue-400 bg-blue-100 px-2 py-0 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-200"
+		>
+			{selectedDegrees.length === degreeButtons.length ? 'All' : `${selectedDegrees.length} selected`}
+		</button>
+		{#each degreeButtons as degree, i}
+			<button
+				onclick={() => toggleDegreeForPlaying(i + 1)}
+				class="rounded border-2 px-2 py-0 text-lg font-bold transition-colors"
+				class:bg-blue-600={selectedDegrees.includes(i + 1)}
+				class:text-white={selectedDegrees.includes(i + 1)}
+				class:border-blue-600={selectedDegrees.includes(i + 1)}
+				class:bg-gray-200={!selectedDegrees.includes(i + 1)}
+				class:text-blue-600={!selectedDegrees.includes(i + 1)}
+				class:border-gray-300={!selectedDegrees.includes(i + 1)}
 			>
 				{degree}
 			</button>
