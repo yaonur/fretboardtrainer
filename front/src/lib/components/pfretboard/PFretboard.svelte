@@ -634,9 +634,5 @@
 		</div>
 	</div>
 	<!-- Restart button placeholder -->
-	<div class="mt-6">
-		<button class="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600" disabled>
-			Restart
-		</button>
-	</div>
+	
 </div>
