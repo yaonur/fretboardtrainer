@@ -841,30 +841,32 @@
 	</div>
 
 	<!-- Practice Range Controls -->
-	<div
-		class="mb-6 w-10/12 rounded-lg bg-gray-100 p-4 md:w-5/6 dark:bg-gray-800 dark:text-slate-500"
-	>
-		<h3 class="mb-3 text-lg font-semibold">Practice Range</h3>
-		<div class="flex flex-wrap justify-center gap-4">
-			<div class="flex items-center gap-2">
-				<UiSelect bind:value={stringRangeStart} length={numStrings} start={1} label="Strings:" />
-				<span>to</span>
-				<UiSelect bind:value={stringRangeEnd} length={numStrings} start={1} />
+	{#if !fragmentModeEnabled}
+		<div
+			class="mb-6 w-10/12 rounded-lg bg-gray-100 p-4 md:w-5/6 dark:bg-gray-800 dark:text-slate-500"
+		>
+			<h3 class="mb-3 text-lg font-semibold">Practice Range</h3>
+			<div class="flex flex-wrap justify-center gap-4">
+				<div class="flex items-center gap-2">
+					<UiSelect bind:value={stringRangeStart} length={numStrings} start={1} label="Strings:" />
+					<span>to</span>
+					<UiSelect bind:value={stringRangeEnd} length={numStrings} start={1} />
+				</div>
+				<div class="flex items-center gap-2">
+					<UiSelect bind:value={fretRangeStart} length={numFrets} start={1} label="Frets:" />
+					<span>to</span>
+					<UiSelect bind:value={fretRangeEnd} length={numFrets} start={1} />
+				</div>
 			</div>
-			<div class="flex items-center gap-2">
-				<UiSelect bind:value={fretRangeStart} length={numFrets} start={1} label="Frets:" />
-				<span>to</span>
-				<UiSelect bind:value={fretRangeEnd} length={numFrets} start={1} />
+			<div class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
+				Currently practicing: Strings {stringRangeStart}-{stringRangeEnd}, Frets {fretRangeStart}-{fretRangeEnd}
+				<br />
+				<span class:text-green-600={validNotesCount >= 2} class:text-red-600={validNotesCount < 2}>
+					Found {validNotesCount} valid note{validNotesCount !== 1 ? 's' : ''} in {selectedKey} Major
+				</span>
 			</div>
 		</div>
-		<div class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-			Currently practicing: Strings {stringRangeStart}-{stringRangeEnd}, Frets {fretRangeStart}-{fretRangeEnd}
-			<br />
-			<span class:text-green-600={validNotesCount >= 2} class:text-red-600={validNotesCount < 2}>
-				Found {validNotesCount} valid note{validNotesCount !== 1 ? 's' : ''} in {selectedKey} Major
-			</span>
-		</div>
-	</div>
+	{/if}
 
 	<!-- Toggle for note name on dot -->
 	<div class="mb-2 flex justify-center">
