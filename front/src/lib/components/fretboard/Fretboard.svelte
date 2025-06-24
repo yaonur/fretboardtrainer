@@ -4,7 +4,7 @@
 	import { fretboardPresetsStore, type FretboardPreset } from '$lib/stores/fretboardStore.svelte';
 
 	const notes = ['E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C', 'C#', 'D', 'D#'];
-	const circleOfFifths = ['C', 'G', 'D', 'A', 'E', 'B', 'F#/Gb', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
+	const circleOfFifths = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
 
 	// Instrument configurations
 	const instruments = {
@@ -206,16 +206,51 @@
 		};
 	});
 
-	const scales = {
-		major: [0, 2, 4, 5, 7, 9, 11] // Major scale intervals
-	};
+	// Function to generate the correct major scale for any key
+	function generateMajorScale(rootNote: string): string[] {
+		// Define the major scale intervals (semitones from root)
+		const majorScaleIntervals = [0, 2, 4, 5, 7, 9, 11];
+		
+		// Create a chromatic scale starting from the root note
+		const chromaticScale: string[] = [];
+		const allNotes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+		
+		// Find the starting index
+		let startIndex = allNotes.indexOf(rootNote);
+		if (startIndex === -1) {
+			// Handle flat notes by converting to sharp equivalents
+			const flatToSharp: Record<string, string> = {
+				'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#'
+			};
+			const sharpNote = flatToSharp[rootNote];
+			if (sharpNote) {
+				startIndex = allNotes.indexOf(sharpNote);
+			}
+		}
+		
+		if (startIndex === -1) {
+			console.error(`Could not find note: ${rootNote}`);
+			return [];
+		}
+		
+		// Build chromatic scale starting from root
+		for (let i = 0; i < 12; i++) {
+			const noteIndex = (startIndex + i) % 12;
+			chromaticScale.push(allNotes[noteIndex]);
+		}
+		
+		// Apply major scale intervals
+		const scale = majorScaleIntervals.map((interval: number) => chromaticScale[interval]);
+		
+		// Convert notes to proper enharmonic equivalents based on the key
+		return scale.map(note => getNoteNameWithAccidental(note));
+	}
+
+	// Get the major scale for the current key
+	const currentScale = $derived(generateMajorScale(selectedKey));
 
 	function checkValidNotesInRange(): number {
-		const rootNoteIndex = notes.indexOf(selectedKey);
-		const scaleIntervals = scales.major;
-		const scaleNotes = scaleIntervals.map(
-			(interval) => notes[(rootNoteIndex + interval) % notes.length]
-		);
+		const scaleNotes = currentScale;
 
 		let validNotes = 0;
 		for (let string = stringRangeStartIndex; string <= stringRangeEndIndex; string++) {
@@ -246,11 +281,7 @@
 
 		if (gameMode === 'find-degree') {
 			let targetDegree: number;
-			const rootNoteIndex = getRootIndex();
-			const scaleIntervals = scales.major;
-			const scaleNotes = scaleIntervals.map(
-				(interval) => notes[(rootNoteIndex + interval) % notes.length]
-			);
+			const scaleNotes = currentScale;
 
 			if (anchorModeEnabled && questionCount % anchorFrequency === 0) {
 				// Only ask anchor degree on the Nth question
@@ -366,10 +397,9 @@
 			setTimeout(() => generateNewQuestion(), 100);
 		} else {
 			// Play the note corresponding to the wrong degree selected
-			const rootNoteIndex = getRootIndex();
-			const scaleIntervals = scales.major;
+			const scaleNotes = currentScale;
 			const wrongDegreeIndex = selectedDegree - 1; // Convert to 0-based index
-			const wrongNote = notes[(rootNoteIndex + scaleIntervals[wrongDegreeIndex]) % notes.length];
+			const wrongNote = scaleNotes[wrongDegreeIndex];
 			playNote(wrongNote);
 
 			// Check if this was an anchor question
@@ -485,11 +515,7 @@
 
 	function shouldShowRedDot(stringIdx: number, fretIdx: number): boolean {
 		if (highlightedDegrees.length === 0) return false;
-		const rootNoteIndex = getRootIndex();
-		const scaleIntervals = scales.major;
-		const scaleNotes = scaleIntervals.map(
-			(interval) => notes[(rootNoteIndex + interval) % notes.length]
-		);
+		const scaleNotes = currentScale;
 		const note = fretboard[stringIdx][fretIdx];
 		const degree = scaleNotes.indexOf(note) + 1;
 		return (
@@ -499,11 +525,7 @@
 	}
 
 	function getRedDotDegreeLabel(stringIdx: number, fretIdx: number): string {
-		const rootNoteIndex = getRootIndex();
-		const scaleIntervals = scales.major;
-		const scaleNotes = scaleIntervals.map(
-			(interval) => notes[(rootNoteIndex + interval) % notes.length]
-		);
+		const scaleNotes = currentScale;
 		const note = fretboard[stringIdx][fretIdx];
 		const degree = scaleNotes.indexOf(note) + 1;
 		return degree > 0 ? degreeButtons[degree - 1] : '';
@@ -584,11 +606,7 @@
 	function handleFretboardClick(stringIdx: number, fretIdx: number) {
 		if (gameMode === 'find-note' && targetDegree !== null) {
 			// Check if the clicked note matches the target degree
-			const rootNoteIndex = getRootIndex();
-			const scaleIntervals = scales.major;
-			const scaleNotes = scaleIntervals.map(
-				(interval) => notes[(rootNoteIndex + interval) % notes.length]
-			);
+			const scaleNotes = currentScale;
 
 			const clickedNote = fretboard[stringIdx][fretIdx];
 			const clickedDegree = scaleNotes.indexOf(clickedNote) + 1;
@@ -612,11 +630,7 @@
 	}
 
 	function countUniqueDegreesInRange(): { count: number; hasAnchor: boolean } {
-		const rootNoteIndex = getRootIndex();
-		const scaleIntervals = scales.major;
-		const scaleNotes = scaleIntervals.map(
-			(interval) => notes[(rootNoteIndex + interval) % notes.length]
-		);
+		const scaleNotes = currentScale;
 		const foundDegrees = new Set<number>();
 		let hasAnchor = false;
 		for (let string = stringRangeStartIndex; string <= stringRangeEndIndex; string++) {
@@ -702,7 +716,7 @@
 			'Eb': { start: 7, end: 9 },
 			'E': { start: 8, end: 10 },
 			'F': { start: 9, end: 11 },
-			'F#/Gb': { start: 10, end: 12 },
+			'F#': { start: 10, end: 12 },
 			'G': { start: 11, end: 13 },
 			'Ab': { start: 12, end: 14 },
 			'A': { start: 1, end: 3 },
@@ -717,7 +731,7 @@
 			'Eb': { start: 10, end: 11 },
 			'E': { start: 11, end: 12 },
 			'F': { start: 12, end: 13 },
-			'F#/Gb': { start: 13, end: 14 },
+			'F#': { start: 13, end: 14 },
 			'G': { start: 2, end: 3 },
 			'Ab': { start: 3, end: 4 },
 			'A': { start: 4, end: 5 },
@@ -732,7 +746,7 @@
 			'Eb': { start: 12, end: 13 },
 			'E': { start: 13, end: 14 },
 			'F': { start: 2, end: 3 },
-			'F#/Gb': { start: 3, end: 4 },
+			'F#': { start: 3, end: 4 },
 			'G': { start: 4, end: 5 },
 			'Ab': { start: 5, end: 6 },
 			'A': { start: 6, end: 7 },
@@ -747,7 +761,7 @@
 			'Eb': { start: 3, end: 4 },
 			'E': { start: 4, end: 5 },
 			'F': { start: 5, end: 6 },
-			'F#/Gb': { start: 6, end: 7 },
+			'F#': { start: 6, end: 7 },
 			'G': { start: 7, end: 8 },
 			'Ab': { start: 8, end: 9 },
 			'A': { start: 9, end: 10 },
@@ -762,7 +776,7 @@
 			'Eb': { start: 5, end: 6 },
 			'E': { start: 6, end: 7 },
 			'F': { start: 7, end: 8 },
-			'F#/Gb': { start: 8, end: 9 },
+			'F#': { start: 8, end: 9 },
 			'G': { start: 9, end: 10 },
 			'Ab': { start: 10, end: 11 },
 			'A': { start: 11, end: 12 },
@@ -794,11 +808,7 @@
 		const deltaFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1]; // delta Fragment degrees
 		const epsilonFragmentDegrees = [2, 3, 4, 5, 6, 7, 1, 2]; // epsilon Fragment degrees
 		const geminiFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1]; // gemini Fragment degrees
-		const rootNoteIndex = getRootIndex();
-		const scaleIntervals = scales.major;
-		const scaleNotes = scaleIntervals.map(
-			(interval) => notes[(rootNoteIndex + interval) % notes.length]
-		);
+		const scaleNotes = currentScale;
 		
 		// Get the fragment notes for the current key
 		const fragmentNotes = fragmentDegrees.map(degree => scaleNotes[degree - 1]);
@@ -825,11 +835,7 @@
 		const deltaFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1]; // delta Fragment degrees
 		const epsilonFragmentDegrees = [2, 3, 4, 5, 6, 7, 1, 2]; // epsilon Fragment degrees
 		const geminiFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1]; // gemini Fragment degrees
-		const rootNoteIndex = getRootIndex();
-		const scaleIntervals = scales.major;
-		const scaleNotes = scaleIntervals.map(
-			(interval) => notes[(rootNoteIndex + interval) % notes.length]
-		);
+		const scaleNotes = currentScale;
 		
 		const fragmentNotes = fragmentDegrees.map(degree => scaleNotes[degree - 1]);
 		const betaFragmentNotes = betaFragmentDegrees.map(degree => scaleNotes[degree - 1]);
