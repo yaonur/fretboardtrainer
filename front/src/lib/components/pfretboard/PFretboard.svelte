@@ -131,6 +131,7 @@
 	let currentPosition = $state(0);
 	let currentString = $state(0);
 	let currentFret = $state(0);
+	let currentShift = $state(0);
 
 	// Vocal range options
 	const vocalRanges = [
@@ -187,9 +188,17 @@
 		
 		const note = fretboard[stringIdx][fretIdx];
 		const degree = scaleNotes.indexOf(note) + 1;
-		const targetDegrees = exercise.structure[5 - stringIdx];
 		
-		return targetDegrees.includes(degree);
+		// Show yellow dots only for the current shift being played
+		const shiftedStructure = exercise.structure.map(stringDegrees => 
+			stringDegrees.map(d => {
+				if (d === 0) return 0;
+				return ((d + currentShift - 1) % 7) + 1;
+			})
+		);
+		
+		const targetDegrees = shiftedStructure[5 - stringIdx];
+		return targetDegrees && targetDegrees.includes(degree);
 	}
 
 	function shouldShowWhiteDot(stringIdx: number, fretIdx: number): boolean {
@@ -262,40 +271,60 @@
 		const exercise = exercises[selectedExercise as keyof typeof exercises];
 		if (!exercise) return;
 		
-		// Flatten the exercise into a sequence of [stringIdx, degree] pairs
-		const sequence: Array<{stringIdx: number, degree: number}> = [];
-		exercise.structure.forEach((degrees, exerciseIdx) => {
-			const stringIdx = 5 - exerciseIdx; // Reverse the indexing
-			degrees.forEach((degree: number) => {
-				sequence.push({stringIdx, degree});
-			});
-		});
-		
-		// Play the sequence
-		for (let i = 0; i < sequence.length; i++) {
+		// Play through all 7 degrees (0-6 shifts)
+		for (let shift = 0; shift < 7; shift++) {
 			if (!isPlaying) break; // Stop if exercise was stopped
 			
-			const {stringIdx, degree} = sequence[i];
-			currentString = stringIdx;
-			currentFret = findFretForDegree(stringIdx, degree);
-			currentPosition = i;
+			currentShift = shift; // Update current shift for yellow dots
 			
-			// Play the note
-			const note = fretboard[stringIdx][currentFret];
-			playNote(note, stringIdx, currentFret);
+			// Create shifted structure for this iteration
+			const shiftedStructure = exercise.structure.map(stringDegrees => 
+				stringDegrees.map(degree => {
+					if (degree === 0) return 0;
+					// Shift the degree and wrap around (1-7)
+					return ((degree + shift - 1) % 7) + 1;
+				})
+			);
 			
-			// Wait 1 second
-			await new Promise(resolve => setTimeout(resolve, 1000));
+			// Flatten the shifted structure into a sequence of [stringIdx, degree] pairs
+			const sequence: Array<{stringIdx: number, degree: number}> = [];
+			shiftedStructure.forEach((degrees, exerciseIdx) => {
+				const stringIdx = 5 - exerciseIdx; // Reverse the indexing
+				degrees.forEach((degree: number) => {
+					if (degree > 0) { // Only add non-zero degrees
+						sequence.push({stringIdx, degree});
+					}
+				});
+			});
+			
+			// Play the sequence for this shift
+			for (let i = 0; i < sequence.length; i++) {
+				if (!isPlaying) break; // Stop if exercise was stopped
+				
+				const {stringIdx, degree} = sequence[i];
+				currentString = stringIdx;
+				currentFret = findFretForDegree(stringIdx, degree);
+				currentPosition = shift * 100 + i; // Track position across all shifts
+				
+				// Play the note
+				const note = fretboard[stringIdx][currentFret];
+				playNote(note, stringIdx, currentFret);
+				
+				// Wait 1 second
+				await new Promise(resolve => setTimeout(resolve, 1000));
+			}
 		}
 		
 		// Exercise finished
 		isPlaying = false;
 		currentPosition = 0;
+		currentShift = 0;
 	}
 
 	function stopExercise() {
 		isPlaying = false;
 		currentPosition = 0;
+		currentShift = 0;
 	}
 </script>
 
