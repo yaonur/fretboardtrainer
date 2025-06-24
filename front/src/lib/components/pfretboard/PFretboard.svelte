@@ -133,6 +133,7 @@
 	let currentFret = $state(0);
 	let currentShift = $state(0);
 	let bpm = $state(120); // Beats per minute
+	let playBackwards = $state(false); // Play treble to bass instead of bass to treble
 
 	// Vocal range options
 	const vocalRanges = [
@@ -367,61 +368,81 @@
 		const exercise = exercises[selectedExercise as keyof typeof exercises];
 		if (!exercise) return;
 		
-		// Play through selected degrees only
-		for (let shiftIndex = 0; shiftIndex < selectedDegrees.length; shiftIndex++) {
-			if (!isPlaying) break; // Stop if exercise was stopped
+		// Play through selected degrees only (infinite loop)
+		while (isPlaying) {
+			// Create the sequence of degrees to play
+			const degreesToPlay = selectedDegrees;
 			
-			const shift = selectedDegrees[shiftIndex] - 1; // Convert degree to shift (1-based to 0-based)
-			currentShift = shift; // Update current shift for yellow dots
-			
-			// Create shifted structure for this iteration
-			const shiftedStructure = exercise.structure.map(stringDegrees => 
-				stringDegrees.map(degree => {
-					if (degree === 0) return 0;
-					// Shift the degree and wrap around (1-7)
-					return ((degree + shift - 1) % 7) + 1;
-				})
-			);
-			
-			// Find the best chord positions that minimize splits
-			const bestPositions = findBestChordPosition(shiftedStructure);
-			
-			// Flatten the shifted structure into a sequence of [stringIdx, degree] pairs
-			const sequence: Array<{stringIdx: number, degree: number}> = [];
-			shiftedStructure.forEach((degrees, exerciseIdx) => {
-				const stringIdx = 5 - exerciseIdx; // Reverse the indexing
-				degrees.forEach((degree: number) => {
-					if (degree > 0) { // Only add non-zero degrees
-						sequence.push({stringIdx, degree});
-					}
-				});
-			});
-			
-			// Play the sequence for this shift
-			for (let i = 0; i < sequence.length; i++) {
+			for (let shiftIndex = 0; shiftIndex < degreesToPlay.length; shiftIndex++) {
 				if (!isPlaying) break; // Stop if exercise was stopped
 				
-				const {stringIdx, degree} = sequence[i];
-				currentString = stringIdx;
-				// Use the pre-calculated best position for this string
-				currentFret = bestPositions[stringIdx][degree] || findFretForDegree(stringIdx, degree);
-				currentPosition = shift * 100 + i; // Track position across all shifts
+				const shift = degreesToPlay[shiftIndex] - 1; // Convert degree to shift (1-based to 0-based)
+				currentShift = shift; // Update current shift for yellow dots
 				
-				// Play the note
-				const note = fretboard[stringIdx][currentFret];
-				playNote(note, stringIdx, currentFret);
+				// Create shifted structure for this iteration
+				const shiftedStructure = exercise.structure.map(stringDegrees => 
+					stringDegrees.map(degree => {
+						if (degree === 0) return 0;
+						// Shift the degree and wrap around (1-7)
+						return ((degree + shift - 1) % 7) + 1;
+					})
+				);
 				
-				// Wait based on BPM
-				const beatDuration = 60 / bpm; // seconds per beat
-				const waitTime = beatDuration * 1000; // convert to milliseconds
-				await new Promise(resolve => setTimeout(resolve, waitTime));
+				// Find the best chord positions that minimize splits
+				const bestPositions = findBestChordPosition(shiftedStructure);
+				
+				// Flatten the shifted structure into a sequence of [stringIdx, degree] pairs
+				const sequence: Array<{stringIdx: number, degree: number}> = [];
+				shiftedStructure.forEach((degrees, exerciseIdx) => {
+					const stringIdx = 5 - exerciseIdx; // Reverse the indexing
+					degrees.forEach((degree: number) => {
+						if (degree > 0) { // Only add non-zero degrees
+							sequence.push({stringIdx, degree});
+						}
+					});
+				});
+				
+				// Play the sequence for this shift (bass to treble)
+				for (let i = 0; i < sequence.length; i++) {
+					if (!isPlaying) break; // Stop if exercise was stopped
+					
+					const {stringIdx, degree} = sequence[i];
+					currentString = stringIdx;
+					// Use the pre-calculated best position for this string
+					currentFret = bestPositions[stringIdx][degree] || findFretForDegree(stringIdx, degree);
+					currentPosition = shiftIndex * 100 + i; // Track position across shifts
+					
+					// Play the note
+					const note = fretboard[stringIdx][currentFret];
+					playNote(note, stringIdx, currentFret);
+					
+					// Wait based on BPM
+					const beatDuration = 60 / bpm; // seconds per beat
+					const waitTime = beatDuration * 1000; // convert to milliseconds
+					await new Promise(resolve => setTimeout(resolve, waitTime));
+				}
+				
+				// Play the sequence for this shift (treble to bass)
+				for (let i = sequence.length - 1; i >= 0; i--) {
+					if (!isPlaying) break; // Stop if exercise was stopped
+					
+					const {stringIdx, degree} = sequence[i];
+					currentString = stringIdx;
+					// Use the pre-calculated best position for this string
+					currentFret = bestPositions[stringIdx][degree] || findFretForDegree(stringIdx, degree);
+					currentPosition = shiftIndex * 100 + sequence.length + (sequence.length - 1 - i); // Track position across shifts
+					
+					// Play the note
+					const note = fretboard[stringIdx][currentFret];
+					playNote(note, stringIdx, currentFret);
+					
+					// Wait based on BPM
+					const beatDuration = 60 / bpm; // seconds per beat
+					const waitTime = beatDuration * 1000; // convert to milliseconds
+					await new Promise(resolve => setTimeout(resolve, waitTime));
+				}
 			}
 		}
-		
-		// Exercise finished
-		isPlaying = false;
-		currentPosition = 0;
-		currentShift = 0;
 	}
 
 	function stopExercise() {
@@ -513,6 +534,10 @@
 			bind:value={bpm} 
 			class="w-16 rounded border px-2 py-1 text-sm dark:text-slate-800"
 		/>
+	</div>
+	<!-- Loop and direction controls -->
+	<div class="mb-4 flex items-center gap-4">
+		<span class="text-sm text-gray-600">Each degree plays: bass→treble → treble→bass</span>
 	</div>
 	<!-- Play controls -->
 	<div class="mb-4 flex gap-2">
