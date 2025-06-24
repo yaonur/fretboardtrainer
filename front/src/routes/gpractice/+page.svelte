@@ -3,6 +3,5 @@
 </script>
 
 <div>
-	<h1>Degrees</h1>
 	<PFretboard />
 </div>
