@@ -839,11 +839,12 @@
 		
 		const note = fretboard[stringIdx][fretIdx];
 		
-		if (fragmentNotes.includes(note)) return 'alpha';
-		if (betaFragmentNotes.includes(note)) return 'beta';
-		if (deltaFragmentNotes.includes(note)) return 'delta';
-		if (epsilonFragmentNotes.includes(note)) return 'epsilon';
-		if (geminiFragmentNotes.includes(note)) return 'gemini';
+		// Only check for the currently active fragment mode
+		if (fragmentModeEnabled && fragmentNotes.includes(note)) return 'alpha';
+		if (betaFragmentModeEnabled && betaFragmentNotes.includes(note)) return 'beta';
+		if (deltaFragmentModeEnabled && deltaFragmentNotes.includes(note)) return 'delta';
+		if (epsilonFragmentModeEnabled && epsilonFragmentNotes.includes(note)) return 'epsilon';
+		if (geminiFragmentModeEnabled && geminiFragmentNotes.includes(note)) return 'gemini';
 		return null;
 	}
 </script>
@@ -1188,17 +1189,17 @@
 						{#if shouldShowYellowDot(stringIdx, fretIdx)}
 							{@const fragmentType = getFragmentType(stringIdx, fretIdx)}
 							<div
-								class="absolute flex h-[16px] w-[16px] items-center justify-center rounded-full border-2 opacity-80 sm:h-[20px] sm:w-[20px] md:h-[24px] md:w-[24px] lg:h-[28px] lg:w-[28px]"
+								class="absolute flex h-[16px] w-[16px] items-center justify-center rounded-full border-2  sm:h-[20px] sm:w-[20px] md:h-[24px] md:w-[24px] lg:h-[28px] lg:w-[28px]"
 								class:border-yellow-600={fragmentType === 'alpha'}
 								class:bg-yellow-500={fragmentType === 'alpha'}
-								class:border-orange-600={fragmentType === 'beta'}
-								class:bg-orange-500={fragmentType === 'beta'}
+								class:border-orange-400={fragmentType === 'beta'}
+								class:bg-orange-600={fragmentType === 'beta'}
 								class:border-green-600={fragmentType === 'delta'}
 								class:bg-green-500={fragmentType === 'delta'}
 								class:border-purple-600={fragmentType === 'epsilon'}
 								class:bg-purple-500={fragmentType === 'epsilon'}
-								class:border-pink-600={fragmentType === 'gemini'}
-								class:bg-pink-500={fragmentType === 'gemini'}
+								class:border-teal-600={fragmentType === 'gemini'}
+								class:bg-teal-500={fragmentType === 'gemini'}
 								style:top="calc({stringIdx} * 30px - 10px)"
 								style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
 							></div>
@@ -1372,11 +1373,11 @@
 				<button
 					onclick={() => activateFragmentDrill('gemini')}
 					class="rounded px-3 py-1 text-sm transition-colors"
-					class:bg-pink-500={geminiFragmentModeEnabled}
+					class:bg-teal-500={geminiFragmentModeEnabled}
 					class:text-white={geminiFragmentModeEnabled}
 					class:bg-gray-200={!geminiFragmentModeEnabled}
 					class:text-gray-700={!geminiFragmentModeEnabled}
-					class:hover:bg-pink-600={geminiFragmentModeEnabled}
+					class:hover:bg-teal-600={geminiFragmentModeEnabled}
 					class:hover:bg-gray-300={!geminiFragmentModeEnabled}
 				>
 					{geminiFragmentModeEnabled ? 'Disable gemini Fragment' : 'Enable gemini Fragment'}
