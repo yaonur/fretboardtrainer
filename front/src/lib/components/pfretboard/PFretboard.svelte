@@ -100,7 +100,7 @@
 		}
 		
 		try {
-			sampler.triggerAttackRelease(noteToPlay, '8n');
+			sampler.triggerAttackRelease(noteToPlay, 0.5);
 		} catch (error) {
 			console.error('Failed to play note:', noteToPlay, error);
 		}
@@ -217,33 +217,109 @@
 		return degree > 0 ? degreeButtons[degree - 1] : '';
 	}
 
-	// Find the fret position for a given degree on a given string
-	function findFretForDegree(stringIdx: number, degree: number): number {
-		// Prefer higher fret positions (12th fret and above) for certain degrees
-		const preferredFrets: { [key: number]: number } = {
-			2: 12,  // 2nd degree at 12th fret
-			5: 14,  // 5th degree at 14th fret  
-			1: 13,  // 1st degree at 13th fret
-			4: 13,  // 4th degree at 13th fret
-			6: 12,  // 6th degree at 12th fret
-			7: 12,  // 7th degree at 12th fret
-			3: 12   // 3rd degree at 12th fret
-		};
+	// Find the best chord position that minimizes splits across all strings
+	function findBestChordPosition(shiftedStructure: number[][]): { [stringIdx: number]: { [degree: number]: number } } {
+		const exercise = exercises[selectedExercise as keyof typeof exercises];
+		const bassString = exercise?.bassString || 5;
 		
-		// If we have a preferred fret for this degree, check if it's available
-		if (preferredFrets[degree] !== undefined) {
-			const preferredFret = preferredFrets[degree];
-			if (preferredFret <= numFrets) {
-				const note = fretboard[stringIdx][preferredFret];
+		// Get all the degrees that need to be played
+		const degreesToPlay: Array<{stringIdx: number, degree: number}> = [];
+		shiftedStructure.forEach((stringDegrees, exerciseIdx) => {
+			const stringIdx = 5 - exerciseIdx;
+			stringDegrees.forEach(degree => {
+				if (degree > 0) {
+					degreesToPlay.push({stringIdx, degree});
+				}
+			});
+		});
+		
+		// Find all possible fret positions for each degree on each string
+		const allPositions: { [stringIdx: number]: { [degree: number]: number[] } } = {};
+		degreesToPlay.forEach(({stringIdx, degree}) => {
+			if (!allPositions[stringIdx]) allPositions[stringIdx] = {};
+			if (!allPositions[stringIdx][degree]) allPositions[stringIdx][degree] = [];
+			
+			for (let fret = 0; fret <= numFrets; fret++) {
+				const note = fretboard[stringIdx][fret];
 				const noteDegree = scaleNotes.indexOf(note) + 1;
 				if (noteDegree === degree) {
-					return preferredFret;
+					allPositions[stringIdx][degree].push(fret);
+				}
+			}
+		});
+		
+		// Find the best combination that minimizes the spread
+		let bestPositions: { [stringIdx: number]: { [degree: number]: number } } = {};
+		let minSpread = Infinity;
+		
+		// Try different combinations of positions
+		function tryCombinations(currentPositions: { [stringIdx: number]: { [degree: number]: number } }, remainingDegrees: Array<{stringIdx: number, degree: number}>) {
+			if (remainingDegrees.length === 0) {
+				// Calculate the spread of this combination
+				const allFrets: number[] = [];
+				Object.values(currentPositions).forEach(degreePositions => {
+					Object.values(degreePositions).forEach(fret => {
+						allFrets.push(fret);
+					});
+				});
+				
+				if (allFrets.length === 0) return;
+				
+				const minFret = Math.min(...allFrets);
+				const maxFret = Math.max(...allFrets);
+				const spread = maxFret - minFret;
+				
+				// Prefer positions that keep the bass string in lower frets if it's the bass string
+				let score = spread;
+				if (currentPositions[bassString]) {
+					const bassFrets = Object.values(currentPositions[bassString]);
+					const maxBassFret = Math.max(...bassFrets);
+					if (maxBassFret > 8) {
+						score += 10; // Penalty for high bass position
+					}
+				}
+				
+				if (score < minSpread) {
+					minSpread = score;
+					bestPositions = JSON.parse(JSON.stringify(currentPositions)); // Deep copy
+				}
+				return;
+			}
+			
+			const {stringIdx, degree} = remainingDegrees[0];
+			const positions = allPositions[stringIdx][degree];
+			
+			for (const fret of positions) {
+				if (!currentPositions[stringIdx]) currentPositions[stringIdx] = {};
+				currentPositions[stringIdx][degree] = fret;
+				tryCombinations(currentPositions, remainingDegrees.slice(1));
+			}
+		}
+		
+		tryCombinations({}, degreesToPlay);
+		return bestPositions;
+	}
+
+	// Find the fret position for a given degree on a given string
+	function findFretForDegree(stringIdx: number, degree: number): number {
+		// This function will be updated to use the chord-aware positioning
+		const exercise = exercises[selectedExercise as keyof typeof exercises];
+		const bassString = exercise?.bassString || 5;
+		
+		// For now, use a simple approach that prefers reasonable positions
+		for (let fret = 0; fret <= numFrets; fret++) {
+			const note = fretboard[stringIdx][fret];
+			const noteDegree = scaleNotes.indexOf(note) + 1;
+			if (noteDegree === degree) {
+				// Prefer positions that are not too extreme
+				if (fret <= 12 || (stringIdx === bassString && fret <= 8)) {
+					return fret;
 				}
 			}
 		}
 		
-		// Fallback: search from highest fret to lowest to prefer higher positions
-		for (let fret = numFrets; fret >= 0; fret--) {
+		// Fallback to any position
+		for (let fret = 0; fret <= numFrets; fret++) {
 			const note = fretboard[stringIdx][fret];
 			const noteDegree = scaleNotes.indexOf(note) + 1;
 			if (noteDegree === degree) {
@@ -251,7 +327,7 @@
 			}
 		}
 		
-		return 0; // fallback to open string
+		return 0;
 	}
 
 	async function startExercise() {
@@ -286,6 +362,9 @@
 				})
 			);
 			
+			// Find the best chord positions that minimize splits
+			const bestPositions = findBestChordPosition(shiftedStructure);
+			
 			// Flatten the shifted structure into a sequence of [stringIdx, degree] pairs
 			const sequence: Array<{stringIdx: number, degree: number}> = [];
 			shiftedStructure.forEach((degrees, exerciseIdx) => {
@@ -303,7 +382,8 @@
 				
 				const {stringIdx, degree} = sequence[i];
 				currentString = stringIdx;
-				currentFret = findFretForDegree(stringIdx, degree);
+				// Use the pre-calculated best position for this string
+				currentFret = bestPositions[stringIdx][degree] || findFretForDegree(stringIdx, degree);
 				currentPosition = shift * 100 + i; // Track position across all shifts
 				
 				// Play the note
@@ -311,7 +391,7 @@
 				playNote(note, stringIdx, currentFret);
 				
 				// Wait 1 second
-				await new Promise(resolve => setTimeout(resolve, 1000));
+				await new Promise(resolve => setTimeout(resolve, 500));
 			}
 		}
 		
