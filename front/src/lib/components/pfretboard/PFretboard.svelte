@@ -40,10 +40,48 @@
 		return lowestOctave;
 	}
 
-	function playNote(note: string) {
+	function playNote(note: string, stringIdx?: number, fretIdx?: number) {
 		if (isAudioInitialized && sampler) {
-			const bestOctave = getBestOctave(note);
-			sampler.triggerAttackRelease(note + bestOctave, '8n');
+			let noteToPlay: string;
+			
+			if (playInVocalRange) {
+				// Play in vocal range
+				const bestOctave = getBestOctave(note);
+				noteToPlay = note + bestOctave;
+			} else {
+				// Play at actual fretboard position
+				if (stringIdx !== undefined && fretIdx !== undefined) {
+					// Calculate the actual octave based on string and fret position
+					const openNote = tuning[stringIdx];
+					const openNoteIndex = notes.indexOf(openNote);
+					const actualNoteIndex = (openNoteIndex + fretIdx) % notes.length;
+					const actualNote = notes[actualNoteIndex];
+					
+					// Calculate octave based on string (standard guitar tuning)
+					let baseOctave: number;
+					if (stringIdx === 0) baseOctave = 4; // Treble E (E4)
+					else if (stringIdx === 1) baseOctave = 3; // B (B3)
+					else if (stringIdx === 2) baseOctave = 3; // G (G3)
+					else if (stringIdx === 3) baseOctave = 3; // D (D3)
+					else if (stringIdx === 4) baseOctave = 2; // A (A2)
+					else if (stringIdx === 5) baseOctave = 2; // Bass E (E2)
+					else baseOctave = 3; // fallback
+					
+					// Calculate the total semitones from the open string
+					// We need to account for the fact that the note might have wrapped around the octave
+					const totalSemitones = openNoteIndex + fretIdx;
+					const octaveOffset = Math.floor(totalSemitones / 12);
+					const finalOctave = baseOctave + octaveOffset;
+					
+					noteToPlay = actualNote + finalOctave;
+				} else {
+					// Fallback to vocal range if no position provided
+					const bestOctave = getBestOctave(note);
+					noteToPlay = note + bestOctave;
+				}
+			}
+			
+			sampler.triggerAttackRelease(noteToPlay, '8n');
 		}
 	}
 
@@ -64,6 +102,7 @@
 	let highlightedDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7]);
 	let selectedExercise = $state('skippingWith6');
 	let selectedVocalRange = $state('Baritone/Tenor (G3)');
+	let playInVocalRange = $state(false);
 
 	// Exercise playing state
 	let isPlaying = $state(false);
@@ -183,7 +222,7 @@
 			
 			// Play the note
 			const note = fretboard[stringIdx][currentFret];
-			playNote(note);
+			playNote(note, stringIdx, currentFret);
 			
 			// Wait 1 second
 			await new Promise(resolve => setTimeout(resolve, 1000));
@@ -241,6 +280,13 @@
 				<option value="{range.name} ({range.note})">{range.name} ({range.note})</option>
 			{/each}
 		</select>
+	</div>
+	<!-- Play notes in vocal range toggle -->
+	<div class="mb-4 flex items-center gap-2">
+		<label class="flex cursor-pointer select-none items-center gap-2">
+			<input type="checkbox" bind:checked={playInVocalRange} class="accent-green-500" />
+			<span class="text-sm">Play notes in vocal range</span>
+		</label>
 	</div>
 	<!-- Play controls -->
 	<div class="mb-4 flex gap-2">
