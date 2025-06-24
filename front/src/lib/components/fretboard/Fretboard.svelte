@@ -121,6 +121,8 @@
 	let fragmentModeEnabled = $state(false); // Track if fragment mode is enabled
 	let betaFragmentModeEnabled = $state(false); // Track if beta fragment mode is enabled
 	let deltaFragmentModeEnabled = $state(false); // Track if delta fragment mode is enabled
+	let epsilonFragmentModeEnabled = $state(false); // Track if epsilon fragment mode is enabled
+	let geminiFragmentModeEnabled = $state(false); // Track if gemini fragment mode is enabled
 
 	// Store user's last known settings
 	let lastUserStringStart = $state<number>(1);
@@ -173,6 +175,18 @@
 			const deltaFragmentFretRange = calculateFragmentFretRange('delta');
 			fretRangeStart = deltaFragmentFretRange.start;
 			fretRangeEnd = deltaFragmentFretRange.end;
+		}
+		if (epsilonFragmentModeEnabled) {
+			// Recalculate epsilon fragment area when key changes
+			const epsilonFragmentFretRange = calculateFragmentFretRange('epsilon');
+			fretRangeStart = epsilonFragmentFretRange.start;
+			fretRangeEnd = epsilonFragmentFretRange.end;
+		}
+		if (geminiFragmentModeEnabled) {
+			// Recalculate gemini fragment area when key changes
+			const geminiFragmentFretRange = calculateFragmentFretRange('gemini');
+			fretRangeStart = geminiFragmentFretRange.start;
+			fretRangeEnd = geminiFragmentFretRange.end;
 		}
 	});
 
@@ -635,16 +649,20 @@
 	});
 
 	// Add fragment drill activation
-	function activateFragmentDrill(fragmentName: 'alpha' | 'beta' | 'delta') {
+	function activateFragmentDrill(fragmentName: 'alpha' | 'beta' | 'delta' | 'epsilon' | 'gemini') {
 		const isAlpha = fragmentName === 'alpha';
 		const isBeta = fragmentName === 'beta';
 		const isdelta = fragmentName === 'delta';
+		const isEpsilon = fragmentName === 'epsilon';
+		const isGemini = fragmentName === 'gemini';
 		
-		if ((isAlpha && fragmentModeEnabled) || (isBeta && betaFragmentModeEnabled) || (isdelta && deltaFragmentModeEnabled)) {
+		if ((isAlpha && fragmentModeEnabled) || (isBeta && betaFragmentModeEnabled) || (isdelta && deltaFragmentModeEnabled) || (isEpsilon && epsilonFragmentModeEnabled) || (isGemini && geminiFragmentModeEnabled)) {
 			// Disable fragment mode - restore user's last known settings
 			fragmentModeEnabled = false;
 			betaFragmentModeEnabled = false;
 			deltaFragmentModeEnabled = false;
+			epsilonFragmentModeEnabled = false;
+			geminiFragmentModeEnabled = false;
 			stringRangeStart = lastUserStringStart;
 			stringRangeEnd = lastUserStringEnd;
 			fretRangeStart = lastUserFretStart;
@@ -654,6 +672,8 @@
 			fragmentModeEnabled = isAlpha;
 			betaFragmentModeEnabled = isBeta;
 			deltaFragmentModeEnabled = isdelta;
+			epsilonFragmentModeEnabled = isEpsilon;
+			geminiFragmentModeEnabled = isGemini;
 			lastUserStringStart = stringRangeStart;
 			lastUserStringEnd = stringRangeEnd;
 			lastUserFretStart = fretRangeStart;
@@ -672,7 +692,7 @@
 	}
 
 	// Calculate the fret range where the fragment degrees appear for the current key
-	function calculateFragmentFretRange(fragmentName: 'alpha' | 'beta' | 'delta'): { start: number; end: number } {
+	function calculateFragmentFretRange(fragmentName: 'alpha' | 'beta' | 'delta' | 'epsilon' | 'gemini'): { start: number; end: number } {
 		// Hardcoded fret ranges for fragments in different keys
 		// These are the specific areas where each fragment appears
 		const alphaKeyFretRanges: Record<string, { start: number; end: number }> = {
@@ -720,10 +740,40 @@
 			'B': { start: 8, end: 9 },
 		};
 		
+		const epsilonKeyFretRanges: Record<string, { start: number; end: number }> = {
+			'C': { start: 12, end: 13 },
+			'Db': { start: 1, end: 2 },
+			'D': { start: 2, end: 3 },
+			'Eb': { start: 3, end: 4 },
+			'E': { start: 4, end: 5 },
+			'F': { start: 5, end: 6 },
+			'F#/Gb': { start: 6, end: 7 },
+			'G': { start: 7, end: 8 },
+			'Ab': { start: 8, end: 9 },
+			'A': { start: 9, end: 10 },
+			'Bb': { start: 10, end: 11 },
+			'B': { start: 11, end: 12 },
+		};
+		
+		const geminiKeyFretRanges: Record<string, { start: number; end: number }> = {
+			'C': { start: 2, end: 3 },
+			'Db': { start: 3, end: 4 },
+			'D': { start: 4, end: 5 },
+			'Eb': { start: 5, end: 6 },
+			'E': { start: 6, end: 7 },
+			'F': { start: 7, end: 8 },
+			'F#/Gb': { start: 8, end: 9 },
+			'G': { start: 9, end: 10 },
+			'Ab': { start: 10, end: 11 },
+			'A': { start: 11, end: 12 },
+			'Bb': { start: 12, end: 13 },
+			'B': { start: 1, end: 2 },
+		};
+		
 		// Get the fret range for the current key
 		const keyName = selectedKey.includes('/') ? selectedKey.split('/')[0] : selectedKey;
-		const keyFretRanges = fragmentName === 'alpha' ? alphaKeyFretRanges : fragmentName === 'beta' ? betaKeyFretRanges : deltaKeyFretRanges;
-		const defaultRange = fragmentName === 'alpha' ? { start: 4, end: 6 } : fragmentName === 'beta' ? { start: 7, end: 8 } : { start: 9, end: 10 };
+		const keyFretRanges = fragmentName === 'alpha' ? alphaKeyFretRanges : fragmentName === 'beta' ? betaKeyFretRanges : fragmentName === 'delta' ? deltaKeyFretRanges : fragmentName === 'epsilon' ? epsilonKeyFretRanges : geminiKeyFretRanges;
+		const defaultRange = fragmentName === 'alpha' ? { start: 4, end: 6 } : fragmentName === 'beta' ? { start: 7, end: 8 } : fragmentName === 'delta' ? { start: 9, end: 10 } : fragmentName === 'epsilon' ? { start: 12, end: 13 } : { start: 2, end: 3 };
 		const fretRange = keyFretRanges[keyName] || defaultRange;
 		
 		return fretRange;
@@ -731,7 +781,7 @@
 
 	// Add yellow dot logic for fragment area - dynamic based on key
 	function shouldShowYellowDot(stringIdx: number, fretIdx: number): boolean {
-		if (!fragmentModeEnabled && !betaFragmentModeEnabled && !deltaFragmentModeEnabled) return false;
+		if (!fragmentModeEnabled && !betaFragmentModeEnabled && !deltaFragmentModeEnabled && !epsilonFragmentModeEnabled && !geminiFragmentModeEnabled) return false;
 		
 		// Check if position is within the current drill area (not the entire fretboard)
 		const inDrillArea = stringIdx + 1 >= stringRangeStart && stringIdx + 1 <= stringRangeEnd && 
@@ -742,6 +792,8 @@
 		const fragmentDegrees = [6, 2, 5, 7, 1, 3, 4, 6]; // Alpha Fragment degrees
 		const betaFragmentDegrees = [7, 3, 6, 1, 2, 4, 5, 7]; // Beta Fragment degrees
 		const deltaFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1]; // delta Fragment degrees
+		const epsilonFragmentDegrees = [2, 3, 4, 5, 6, 7, 1, 2]; // epsilon Fragment degrees
+		const geminiFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1]; // gemini Fragment degrees
 		const rootNoteIndex = getRootIndex();
 		const scaleIntervals = scales.major;
 		const scaleNotes = scaleIntervals.map(
@@ -752,14 +804,16 @@
 		const fragmentNotes = fragmentDegrees.map(degree => scaleNotes[degree - 1]);
 		const betaFragmentNotes = betaFragmentDegrees.map(degree => scaleNotes[degree - 1]);
 		const deltaFragmentNotes = deltaFragmentDegrees.map(degree => scaleNotes[degree - 1]);
+		const epsilonFragmentNotes = epsilonFragmentDegrees.map(degree => scaleNotes[degree - 1]);
+		const geminiFragmentNotes = geminiFragmentDegrees.map(degree => scaleNotes[degree - 1]);
 		
 		const note = fretboard[stringIdx][fretIdx];
-		return fragmentNotes.includes(note) || betaFragmentNotes.includes(note) || deltaFragmentNotes.includes(note);
+		return fragmentNotes.includes(note) || betaFragmentNotes.includes(note) || deltaFragmentNotes.includes(note) || epsilonFragmentNotes.includes(note) || geminiFragmentNotes.includes(note);
 	}
 
 	// Add function to determine which fragment type a position belongs to
-	function getFragmentType(stringIdx: number, fretIdx: number): 'alpha' | 'beta' | 'delta' | null {
-		if (!fragmentModeEnabled && !betaFragmentModeEnabled && !deltaFragmentModeEnabled) return null;
+	function getFragmentType(stringIdx: number, fretIdx: number): 'alpha' | 'beta' | 'delta' | 'epsilon' | 'gemini' | null {
+		if (!fragmentModeEnabled && !betaFragmentModeEnabled && !deltaFragmentModeEnabled && !epsilonFragmentModeEnabled && !geminiFragmentModeEnabled) return null;
 		
 		// Check if position is within the current drill area
 		const inDrillArea = stringIdx + 1 >= stringRangeStart && stringIdx + 1 <= stringRangeEnd && 
@@ -769,6 +823,8 @@
 		const fragmentDegrees = [6, 2, 5, 7, 1, 3, 4, 6]; // Alpha Fragment degrees
 		const betaFragmentDegrees = [7, 3, 6, 1, 2, 4, 5, 7]; // Beta Fragment degrees
 		const deltaFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1]; // delta Fragment degrees
+		const epsilonFragmentDegrees = [2, 3, 4, 5, 6, 7, 1, 2]; // epsilon Fragment degrees
+		const geminiFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1]; // gemini Fragment degrees
 		const rootNoteIndex = getRootIndex();
 		const scaleIntervals = scales.major;
 		const scaleNotes = scaleIntervals.map(
@@ -778,12 +834,16 @@
 		const fragmentNotes = fragmentDegrees.map(degree => scaleNotes[degree - 1]);
 		const betaFragmentNotes = betaFragmentDegrees.map(degree => scaleNotes[degree - 1]);
 		const deltaFragmentNotes = deltaFragmentDegrees.map(degree => scaleNotes[degree - 1]);
+		const epsilonFragmentNotes = epsilonFragmentDegrees.map(degree => scaleNotes[degree - 1]);
+		const geminiFragmentNotes = geminiFragmentDegrees.map(degree => scaleNotes[degree - 1]);
 		
 		const note = fretboard[stringIdx][fretIdx];
 		
 		if (fragmentNotes.includes(note)) return 'alpha';
 		if (betaFragmentNotes.includes(note)) return 'beta';
 		if (deltaFragmentNotes.includes(note)) return 'delta';
+		if (epsilonFragmentNotes.includes(note)) return 'epsilon';
+		if (geminiFragmentNotes.includes(note)) return 'gemini';
 		return null;
 	}
 </script>
@@ -929,7 +989,7 @@
 	</div>
 
 	<!-- Practice Range Controls -->
-	{#if !fragmentModeEnabled && !betaFragmentModeEnabled && !deltaFragmentModeEnabled}
+	{#if !fragmentModeEnabled && !betaFragmentModeEnabled && !deltaFragmentModeEnabled && !epsilonFragmentModeEnabled && !geminiFragmentModeEnabled}
 		<div
 			class="mb-6 w-10/12 rounded-lg bg-gray-100 p-4 md:w-5/6 dark:bg-gray-800 dark:text-slate-500"
 		>
@@ -1135,6 +1195,10 @@
 								class:bg-orange-500={fragmentType === 'beta'}
 								class:border-green-600={fragmentType === 'delta'}
 								class:bg-green-500={fragmentType === 'delta'}
+								class:border-purple-600={fragmentType === 'epsilon'}
+								class:bg-purple-500={fragmentType === 'epsilon'}
+								class:border-pink-600={fragmentType === 'gemini'}
+								class:bg-pink-500={fragmentType === 'gemini'}
 								style:top="calc({stringIdx} * 30px - 10px)"
 								style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
 							></div>
@@ -1292,6 +1356,30 @@
 					class:hover:bg-gray-300={!deltaFragmentModeEnabled}
 				>
 					{deltaFragmentModeEnabled ? 'Disable delta Fragment' : 'Enable delta Fragment'}
+				</button>
+				<button
+					onclick={() => activateFragmentDrill('epsilon')}
+					class="rounded px-3 py-1 text-sm transition-colors"
+					class:bg-purple-500={epsilonFragmentModeEnabled}
+					class:text-white={epsilonFragmentModeEnabled}
+					class:bg-gray-200={!epsilonFragmentModeEnabled}
+					class:text-gray-700={!epsilonFragmentModeEnabled}
+					class:hover:bg-purple-600={epsilonFragmentModeEnabled}
+					class:hover:bg-gray-300={!epsilonFragmentModeEnabled}
+				>
+					{epsilonFragmentModeEnabled ? 'Disable epsilon Fragment' : 'Enable epsilon Fragment'}
+				</button>
+				<button
+					onclick={() => activateFragmentDrill('gemini')}
+					class="rounded px-3 py-1 text-sm transition-colors"
+					class:bg-pink-500={geminiFragmentModeEnabled}
+					class:text-white={geminiFragmentModeEnabled}
+					class:bg-gray-200={!geminiFragmentModeEnabled}
+					class:text-gray-700={!geminiFragmentModeEnabled}
+					class:hover:bg-pink-600={geminiFragmentModeEnabled}
+					class:hover:bg-gray-300={!geminiFragmentModeEnabled}
+				>
+					{geminiFragmentModeEnabled ? 'Disable gemini Fragment' : 'Enable gemini Fragment'}
 				</button>
 			</div>
 		{/if}
