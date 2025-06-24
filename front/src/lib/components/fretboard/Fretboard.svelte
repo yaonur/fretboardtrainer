@@ -120,7 +120,7 @@
 	let targetDegree = $state<number | null>(null); // For find-note mode
 	let fragmentModeEnabled = $state(false); // Track if fragment mode is enabled
 	let betaFragmentModeEnabled = $state(false); // Track if beta fragment mode is enabled
-	let epsilonFragmentModeEnabled = $state(false); // Track if delta fragment mode is enabled
+	let deltaFragmentModeEnabled = $state(false); // Track if delta fragment mode is enabled
 
 	// Store user's last known settings
 	let lastUserStringStart = $state<number>(1);
@@ -168,11 +168,11 @@
 			fretRangeStart = betaFragmentFretRange.start;
 			fretRangeEnd = betaFragmentFretRange.end;
 		}
-		if (epsilonFragmentModeEnabled) {
+		if (deltaFragmentModeEnabled) {
 			// Recalculate delta fragment area when key changes
-			const epsilonFragmentFretRange = calculateFragmentFretRange('delta');
-			fretRangeStart = epsilonFragmentFretRange.start;
-			fretRangeEnd = epsilonFragmentFretRange.end;
+			const deltaFragmentFretRange = calculateFragmentFretRange('delta');
+			fretRangeStart = deltaFragmentFretRange.start;
+			fretRangeEnd = deltaFragmentFretRange.end;
 		}
 	});
 
@@ -638,13 +638,13 @@
 	function activateFragmentDrill(fragmentName: 'alpha' | 'beta' | 'delta') {
 		const isAlpha = fragmentName === 'alpha';
 		const isBeta = fragmentName === 'beta';
-		const isEpsilon = fragmentName === 'delta';
+		const isdelta = fragmentName === 'delta';
 		
-		if ((isAlpha && fragmentModeEnabled) || (isBeta && betaFragmentModeEnabled) || (isEpsilon && epsilonFragmentModeEnabled)) {
+		if ((isAlpha && fragmentModeEnabled) || (isBeta && betaFragmentModeEnabled) || (isdelta && deltaFragmentModeEnabled)) {
 			// Disable fragment mode - restore user's last known settings
 			fragmentModeEnabled = false;
 			betaFragmentModeEnabled = false;
-			epsilonFragmentModeEnabled = false;
+			deltaFragmentModeEnabled = false;
 			stringRangeStart = lastUserStringStart;
 			stringRangeEnd = lastUserStringEnd;
 			fretRangeStart = lastUserFretStart;
@@ -653,7 +653,7 @@
 			// Enable fragment mode - save current settings and set to fragment area
 			fragmentModeEnabled = isAlpha;
 			betaFragmentModeEnabled = isBeta;
-			epsilonFragmentModeEnabled = isEpsilon;
+			deltaFragmentModeEnabled = isdelta;
 			lastUserStringStart = stringRangeStart;
 			lastUserStringEnd = stringRangeEnd;
 			lastUserFretStart = fretRangeStart;
@@ -705,7 +705,7 @@
 			'B': { start: 6, end: 7 },
 		};
 		
-		const epsilonKeyFretRanges: Record<string, { start: number; end: number }> = {
+		const deltaKeyFretRanges: Record<string, { start: number; end: number }> = {
 			'C': { start: 9, end: 10 },
 			'Db': { start: 10, end: 11 },
 			'D': { start: 11, end: 12 },
@@ -722,7 +722,7 @@
 		
 		// Get the fret range for the current key
 		const keyName = selectedKey.includes('/') ? selectedKey.split('/')[0] : selectedKey;
-		const keyFretRanges = fragmentName === 'alpha' ? alphaKeyFretRanges : fragmentName === 'beta' ? betaKeyFretRanges : epsilonKeyFretRanges;
+		const keyFretRanges = fragmentName === 'alpha' ? alphaKeyFretRanges : fragmentName === 'beta' ? betaKeyFretRanges : deltaKeyFretRanges;
 		const defaultRange = fragmentName === 'alpha' ? { start: 4, end: 6 } : fragmentName === 'beta' ? { start: 7, end: 8 } : { start: 9, end: 10 };
 		const fretRange = keyFretRanges[keyName] || defaultRange;
 		
@@ -731,7 +731,7 @@
 
 	// Add yellow dot logic for fragment area - dynamic based on key
 	function shouldShowYellowDot(stringIdx: number, fretIdx: number): boolean {
-		if (!fragmentModeEnabled && !betaFragmentModeEnabled && !epsilonFragmentModeEnabled) return false;
+		if (!fragmentModeEnabled && !betaFragmentModeEnabled && !deltaFragmentModeEnabled) return false;
 		
 		// Check if position is within the current drill area (not the entire fretboard)
 		const inDrillArea = stringIdx + 1 >= stringRangeStart && stringIdx + 1 <= stringRangeEnd && 
@@ -741,7 +741,7 @@
 		// Check if this position has a fragment note for the current key
 		const fragmentDegrees = [6, 2, 5, 7, 1, 3, 4, 6]; // Alpha Fragment degrees
 		const betaFragmentDegrees = [7, 3, 6, 1, 2, 4, 5, 7]; // Beta Fragment degrees
-		const epsilonFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1]; // delta Fragment degrees
+		const deltaFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1]; // delta Fragment degrees
 		const rootNoteIndex = getRootIndex();
 		const scaleIntervals = scales.major;
 		const scaleNotes = scaleIntervals.map(
@@ -751,15 +751,15 @@
 		// Get the fragment notes for the current key
 		const fragmentNotes = fragmentDegrees.map(degree => scaleNotes[degree - 1]);
 		const betaFragmentNotes = betaFragmentDegrees.map(degree => scaleNotes[degree - 1]);
-		const epsilonFragmentNotes = epsilonFragmentDegrees.map(degree => scaleNotes[degree - 1]);
+		const deltaFragmentNotes = deltaFragmentDegrees.map(degree => scaleNotes[degree - 1]);
 		
 		const note = fretboard[stringIdx][fretIdx];
-		return fragmentNotes.includes(note) || betaFragmentNotes.includes(note) || epsilonFragmentNotes.includes(note);
+		return fragmentNotes.includes(note) || betaFragmentNotes.includes(note) || deltaFragmentNotes.includes(note);
 	}
 
 	// Add function to determine which fragment type a position belongs to
 	function getFragmentType(stringIdx: number, fretIdx: number): 'alpha' | 'beta' | 'delta' | null {
-		if (!fragmentModeEnabled && !betaFragmentModeEnabled && !epsilonFragmentModeEnabled) return null;
+		if (!fragmentModeEnabled && !betaFragmentModeEnabled && !deltaFragmentModeEnabled) return null;
 		
 		// Check if position is within the current drill area
 		const inDrillArea = stringIdx + 1 >= stringRangeStart && stringIdx + 1 <= stringRangeEnd && 
@@ -768,7 +768,7 @@
 		
 		const fragmentDegrees = [6, 2, 5, 7, 1, 3, 4, 6]; // Alpha Fragment degrees
 		const betaFragmentDegrees = [7, 3, 6, 1, 2, 4, 5, 7]; // Beta Fragment degrees
-		const epsilonFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1]; // delta Fragment degrees
+		const deltaFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1]; // delta Fragment degrees
 		const rootNoteIndex = getRootIndex();
 		const scaleIntervals = scales.major;
 		const scaleNotes = scaleIntervals.map(
@@ -777,13 +777,13 @@
 		
 		const fragmentNotes = fragmentDegrees.map(degree => scaleNotes[degree - 1]);
 		const betaFragmentNotes = betaFragmentDegrees.map(degree => scaleNotes[degree - 1]);
-		const epsilonFragmentNotes = epsilonFragmentDegrees.map(degree => scaleNotes[degree - 1]);
+		const deltaFragmentNotes = deltaFragmentDegrees.map(degree => scaleNotes[degree - 1]);
 		
 		const note = fretboard[stringIdx][fretIdx];
 		
 		if (fragmentNotes.includes(note)) return 'alpha';
 		if (betaFragmentNotes.includes(note)) return 'beta';
-		if (epsilonFragmentNotes.includes(note)) return 'delta';
+		if (deltaFragmentNotes.includes(note)) return 'delta';
 		return null;
 	}
 </script>
@@ -929,7 +929,7 @@
 	</div>
 
 	<!-- Practice Range Controls -->
-	{#if !fragmentModeEnabled && !betaFragmentModeEnabled && !epsilonFragmentModeEnabled}
+	{#if !fragmentModeEnabled && !betaFragmentModeEnabled && !deltaFragmentModeEnabled}
 		<div
 			class="mb-6 w-10/12 rounded-lg bg-gray-100 p-4 md:w-5/6 dark:bg-gray-800 dark:text-slate-500"
 		>
@@ -1284,14 +1284,14 @@
 				<button
 					onclick={() => activateFragmentDrill('delta')}
 					class="rounded px-3 py-1 text-sm transition-colors"
-					class:bg-green-500={epsilonFragmentModeEnabled}
-					class:text-white={epsilonFragmentModeEnabled}
-					class:bg-gray-200={!epsilonFragmentModeEnabled}
-					class:text-gray-700={!epsilonFragmentModeEnabled}
-					class:hover:bg-green-600={epsilonFragmentModeEnabled}
-					class:hover:bg-gray-300={!epsilonFragmentModeEnabled}
+					class:bg-green-500={deltaFragmentModeEnabled}
+					class:text-white={deltaFragmentModeEnabled}
+					class:bg-gray-200={!deltaFragmentModeEnabled}
+					class:text-gray-700={!deltaFragmentModeEnabled}
+					class:hover:bg-green-600={deltaFragmentModeEnabled}
+					class:hover:bg-gray-300={!deltaFragmentModeEnabled}
 				>
-					{epsilonFragmentModeEnabled ? 'Disable delta Fragment' : 'Enable delta Fragment'}
+					{deltaFragmentModeEnabled ? 'Disable delta Fragment' : 'Enable delta Fragment'}
 				</button>
 			</div>
 		{/if}
