@@ -99,7 +99,7 @@
 
 	const fretboard = $derived(
 		tuning.map((openNote) => {
-			const openNoteIndex = notes.indexOf(openNote);
+			const openNoteIndex = notes.indexOf(convertToSharp(openNote));
 			const stringNotes: string[] = [];
 			for (let fret = 0; fret <= numFrets; fret++) {
 				const noteIndex = (openNoteIndex + fret) % notes.length;
@@ -262,7 +262,7 @@
 				// Add bounds checking
 				if (fretboard[string] && fretboard[string][fret]) {
 					const note = fretboard[string][fret];
-					if (scaleNotes.includes(note)) {
+					if (scaleNotes.includes(convertToSharp(note))) {
 						validNotes++;
 					}
 				}
@@ -276,8 +276,8 @@
 	let lastNote = '';
 	let lastDegree: number | null = null;
 	function getRootIndex() {
-		if (isFlatOrSharp() === 'isFlat') return notes.indexOf(convertToSharp(selectedKey));
-		return notes.indexOf(selectedKey);
+		// Always convert to sharp for indexOf
+		return notes.indexOf(convertToSharp(selectedKey));
 	}
 
 	// Fragment cycling state
@@ -349,7 +349,10 @@
 					const targetNote = scaleNotes[degree - 1];
 					for (let string = stringRangeStartIndex; string <= stringRangeEndIndex; string++) {
 						for (let fret = fretRangeStart; fret <= fretRangeEnd; fret++) {
-							if (fretboard[string] && fretboard[string][fret] === targetNote) {
+							if (
+								fretboard[string] &&
+								convertToSharp(fretboard[string][fret]) === convertToSharp(targetNote)
+							) {
 								return true;
 							}
 						}
@@ -370,11 +373,11 @@
 			const validPositions: Array<{ string: number; fret: number }> = [];
 			for (let string = stringRangeStartIndex; string <= stringRangeEndIndex; string++) {
 				for (let fret = fretRangeStart; fret <= fretRangeEnd; fret++) {
-					if (fretboard[string] && fretboard[string][fret]) {
-						const note = fretboard[string][fret];
-						if (note === targetNote) {
-							validPositions.push({ string, fret });
-						}
+					if (
+						fretboard[string] &&
+						convertToSharp(fretboard[string][fret]) === convertToSharp(targetNote)
+					) {
+						validPositions.push({ string, fret });
 					}
 				}
 			}
@@ -571,7 +574,7 @@
 		if (highlightedDegrees.length === 0) return false;
 		const scaleNotes = currentScale;
 		const note = fretboard[stringIdx][fretIdx];
-		const degree = scaleNotes.indexOf(note) + 1;
+		const degree = scaleNotes.indexOf(convertToSharp(note)) + 1;
 		return (
 			highlightedDegrees.includes(degree) &&
 			!(stringIdx === activeString && fretIdx === activeFret && correctAnswer !== null)
@@ -581,7 +584,7 @@
 	function getRedDotDegreeLabel(stringIdx: number, fretIdx: number): string {
 		const scaleNotes = currentScale;
 		const note = fretboard[stringIdx][fretIdx];
-		const degree = scaleNotes.indexOf(note) + 1;
+		const degree = scaleNotes.indexOf(convertToSharp(note)) + 1;
 		return degree > 0 ? degreeButtons[degree - 1] : '';
 	}
 
@@ -663,7 +666,7 @@
 			const scaleNotes = currentScale;
 
 			const clickedNote = fretboard[stringIdx][fretIdx];
-			const clickedDegree = scaleNotes.indexOf(clickedNote) + 1;
+			const clickedDegree = scaleNotes.indexOf(convertToSharp(clickedNote)) + 1;
 
 			if (clickedDegree === targetDegree) {
 				// Correct! Play the note and provide feedback
@@ -692,7 +695,7 @@
 				if (fretboard[string] && fretboard[string][fret]) {
 					let note = fretboard[string][fret];
 
-					const degree = scaleNotes.indexOf(note) + 1;
+					const degree = scaleNotes.indexOf(convertToSharp(note)) + 1;
 					if (degree > 0) foundDegrees.add(degree);
 					if (degree === anchorDegree) hasAnchor = true;
 				}
@@ -910,11 +913,11 @@
 
 		const note = fretboard[stringIdx][fretIdx];
 		return (
-			fragmentNotes.includes(note) ||
-			betaFragmentNotes.includes(note) ||
-			deltaFragmentNotes.includes(note) ||
-			epsilonFragmentNotes.includes(note) ||
-			geminiFragmentNotes.includes(note)
+			fragmentNotes.includes(convertToSharp(note)) ||
+			betaFragmentNotes.includes(convertToSharp(note)) ||
+			deltaFragmentNotes.includes(convertToSharp(note)) ||
+			epsilonFragmentNotes.includes(convertToSharp(note)) ||
+			geminiFragmentNotes.includes(convertToSharp(note))
 		);
 	}
 
@@ -956,11 +959,11 @@
 		const note = fretboard[stringIdx][fretIdx];
 
 		// Only check for the currently active fragment mode
-		if (fragmentModeEnabled && fragmentNotes.includes(note)) return 'alpha';
-		if (betaFragmentModeEnabled && betaFragmentNotes.includes(note)) return 'beta';
-		if (deltaFragmentModeEnabled && deltaFragmentNotes.includes(note)) return 'delta';
-		if (epsilonFragmentModeEnabled && epsilonFragmentNotes.includes(note)) return 'epsilon';
-		if (geminiFragmentModeEnabled && geminiFragmentNotes.includes(note)) return 'gemini';
+		if (fragmentModeEnabled && fragmentNotes.includes(convertToSharp(note))) return 'alpha';
+		if (betaFragmentModeEnabled && betaFragmentNotes.includes(convertToSharp(note))) return 'beta';
+		if (deltaFragmentModeEnabled && deltaFragmentNotes.includes(convertToSharp(note))) return 'delta';
+		if (epsilonFragmentModeEnabled && epsilonFragmentNotes.includes(convertToSharp(note))) return 'epsilon';
+		if (geminiFragmentModeEnabled && geminiFragmentNotes.includes(convertToSharp(note))) return 'gemini';
 		return null;
 	}
 </script>
