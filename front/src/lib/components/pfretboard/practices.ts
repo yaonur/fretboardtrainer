@@ -3,6 +3,10 @@ export const exercises = {
 		chordName: "6/7",
 		bassString: 6,
 		structure:  [[1], [5], [6], [3], [5], [7, 1,7]],
+		rootString: 6,
+		thirdString:3,
+		fifthString: 5,
+
 	},
 	"root 7 chords (treble)":{
 		chordName: "7",
