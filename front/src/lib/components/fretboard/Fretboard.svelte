@@ -912,12 +912,13 @@
 		const geminiFragmentNotes = geminiFragmentDegrees.map((degree) => scaleNotes[degree - 1]);
 
 		const note = fretboard[stringIdx][fretIdx];
+		const displayNote = getNoteNameWithAccidental(note);
 		return (
-			fragmentNotes.includes(convertToSharp(note)) ||
-			betaFragmentNotes.includes(convertToSharp(note)) ||
-			deltaFragmentNotes.includes(convertToSharp(note)) ||
-			epsilonFragmentNotes.includes(convertToSharp(note)) ||
-			geminiFragmentNotes.includes(convertToSharp(note))
+			fragmentNotes.includes(displayNote) ||
+			betaFragmentNotes.includes(displayNote) ||
+			deltaFragmentNotes.includes(displayNote) ||
+			epsilonFragmentNotes.includes(displayNote) ||
+			geminiFragmentNotes.includes(displayNote)
 		);
 	}
 
@@ -957,13 +958,14 @@
 		const geminiFragmentNotes = geminiFragmentDegrees.map((degree) => scaleNotes[degree - 1]);
 
 		const note = fretboard[stringIdx][fretIdx];
+		const displayNote = getNoteNameWithAccidental(note);
 
 		// Only check for the currently active fragment mode
-		if (fragmentModeEnabled && fragmentNotes.includes(convertToSharp(note))) return 'alpha';
-		if (betaFragmentModeEnabled && betaFragmentNotes.includes(convertToSharp(note))) return 'beta';
-		if (deltaFragmentModeEnabled && deltaFragmentNotes.includes(convertToSharp(note))) return 'delta';
-		if (epsilonFragmentModeEnabled && epsilonFragmentNotes.includes(convertToSharp(note))) return 'epsilon';
-		if (geminiFragmentModeEnabled && geminiFragmentNotes.includes(convertToSharp(note))) return 'gemini';
+		if (fragmentModeEnabled && fragmentNotes.includes(displayNote)) return 'alpha';
+		if (betaFragmentModeEnabled && betaFragmentNotes.includes(displayNote)) return 'beta';
+		if (deltaFragmentModeEnabled && deltaFragmentNotes.includes(displayNote)) return 'delta';
+		if (epsilonFragmentModeEnabled && epsilonFragmentNotes.includes(displayNote)) return 'epsilon';
+		if (geminiFragmentModeEnabled && geminiFragmentNotes.includes(displayNote)) return 'gemini';
 		return null;
 	}
 </script>
