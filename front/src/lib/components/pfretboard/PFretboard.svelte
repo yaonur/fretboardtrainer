@@ -20,7 +20,6 @@
 		
 		isAudioLoading = true;
 		try {
-			await Tone.start();
 			sampler = new Tone.Sampler({
 				urls: {
 					C4: 'C4.mp3',
@@ -29,6 +28,7 @@
 				release: 1,
 				baseUrl: 'https://tonejs.github.io/audio/salamander/'
 			}).toDestination();
+			await Tone.start();
 			
 			// Give the sampler a moment to load
 			await new Promise(resolve => setTimeout(resolve, 100));
