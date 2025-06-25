@@ -716,7 +716,7 @@
 							class:bg-purple-400={isFifthString(stringIdx)}
 							class:border-teal-600={isSeventhString(stringIdx)}
 							class:bg-teal-400={isSeventhString(stringIdx)}
-							style:top="calc({stringIdx} * 30px - 10px)"
+							style:top="calc({stringIdx} * 30px - 12.5px)"
 							style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
 						>
 							{showDegreeOnYellowDots ? getYellowDotDegreeLabel(stringIdx, fretIdx) : ''}
@@ -730,7 +730,7 @@
 					{#if shouldShowRedDot(stringIdx, fretIdx)}
 						<div
 							class="absolute flex h-[16px] w-[16px] items-center justify-center rounded-full border-2 border-red-600 bg-red-500 text-xs font-bold text-white opacity-80 sm:h-[20px] sm:w-[20px] md:h-[24px] md:w-[24px] lg:h-[28px] lg:w-[28px]"
-							style:top="calc({stringIdx} * 30px - 10px)"
+							style:top="calc({stringIdx} * 30px - 12.5px)"
 							style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
 						>
 							{showDegreeOnRedDots ? getRedDotDegreeLabel(stringIdx, fretIdx) : ''}
