@@ -117,7 +117,7 @@
 	});
 
 	// UI state
-	let showNoteNameOnDot = $state(true);
+	let showNoteNameOnDot = $state(false);
 	let showDegreeOnRedDots = $state(true);
 	let showDegreeOnYellowDots = $state(true);
 	let selectedTone = $state('C');
