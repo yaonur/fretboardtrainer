@@ -1331,7 +1331,7 @@
 								style:top="calc({stringIdx} * 30px - 10px)"
 								style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
 							>
-								<span class="text-[10px] text-black">{getNoteNameWithAccidental(fretboard[stringIdx][fretIdx])}</span>
+								<!-- <span class="text-[10px] text-black">{getNoteNameWithAccidental(fretboard[stringIdx][fretIdx])}</span> -->
 							</div>
 						{/if}
 					{/each}
