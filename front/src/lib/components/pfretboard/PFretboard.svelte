@@ -15,6 +15,7 @@
 	let isAudioLoading = false;
 
 	async function initAudio() {
+		console.log("initing audio")
 		if (isAudioLoading) return; // Prevent multiple simultaneous loads
 		if (isAudioInitialized) return;
 		
@@ -449,6 +450,11 @@
 				}
 			}
 		} while (isPlaying && loopEnabled); // Continue looping if enabled and still playing
+		
+		// Reset state when exercise finishes naturally
+		isPlaying = false;
+		currentPosition = 0;
+		currentShift = 0;
 	}
 
 	function stopExercise() {
