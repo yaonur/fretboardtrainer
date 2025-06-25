@@ -243,7 +243,22 @@
 
 	function isRootString(stringIdx: number): boolean {
 		const exercise = exercises[selectedExercise as keyof typeof exercises];
-		return exercise && 'rootString' in exercise && ( exercise.rootString-1) === stringIdx;
+		return exercise && 'rootString' in exercise && (exercise.rootString-1) === stringIdx;
+	}
+
+	function isThirdString(stringIdx: number): boolean {
+		const exercise = exercises[selectedExercise as keyof typeof exercises];
+		return exercise && 'thirdString' in exercise && (exercise.thirdString-1) === stringIdx;
+	}
+
+	function isFifthString(stringIdx: number): boolean {
+		const exercise = exercises[selectedExercise as keyof typeof exercises];
+		return exercise && 'fifthString' in exercise && (exercise.fifthString-1) === stringIdx;
+	}
+
+	function isSeventhString(stringIdx: number): boolean {
+		const exercise = exercises[selectedExercise as keyof typeof exercises];
+		return exercise && 'seventhString' in exercise && (exercise.seventhString-1) === stringIdx;
 	}
 
 	// Find the best chord position that minimizes splits across all strings
@@ -635,6 +650,29 @@
 			</button>
 		{/each}
 	</div>
+	<!-- Color legend -->
+	<div class="mb-4 flex justify-center gap-4 text-sm">
+		<div class="flex items-center gap-2">
+			<div class="h-4 w-4 rounded-full border-2 border-blue-600 bg-blue-400"></div>
+			<span class="text-gray-700">Root</span>
+		</div>
+		<div class="flex items-center gap-2">
+			<div class="h-4 w-4 rounded-full border-2 border-green-600 bg-green-400"></div>
+			<span class="text-gray-700">Third</span>
+		</div>
+		<div class="flex items-center gap-2">
+			<div class="h-4 w-4 rounded-full border-2 border-purple-600 bg-purple-400"></div>
+			<span class="text-gray-700">Fifth</span>
+		</div>
+		<div class="flex items-center gap-2">
+			<div class="h-4 w-4 rounded-full border-2 border-teal-600 bg-teal-400"></div>
+			<span class="text-gray-700">Seventh</span>
+		</div>
+		<div class="flex items-center gap-2">
+			<div class="h-4 w-4 rounded-full border-2 border-yellow-600 bg-yellow-400"></div>
+			<span class="text-gray-700">Other</span>
+		</div>
+	</div>
 	<!-- Feedback placeholder -->
 	<div class="h-8 text-2xl font-semibold"></div>
 	<div class="w-11/12 lg:w-10/12 h-64 ">
@@ -668,10 +706,16 @@
 					{#if shouldShowYellowDot(stringIdx, fretIdx)}
 						<div
 							class="absolute text-slate-800 flex h-[16px] z-10 w-[16px] items-center justify-center rounded-full border-2 text-xs font-bold sm:h-[20px] sm:w-[20px] md:h-[24px] md:w-[24px] lg:h-[28px] lg:w-[28px]"
-							class:border-yellow-600={!isRootString(stringIdx)}
-							class:bg-yellow-400={!isRootString(stringIdx)}
+							class:border-yellow-600={!isRootString(stringIdx) && !isThirdString(stringIdx) && !isFifthString(stringIdx) && !isSeventhString(stringIdx)}
+							class:bg-yellow-400={!isRootString(stringIdx) && !isThirdString(stringIdx) && !isFifthString(stringIdx) && !isSeventhString(stringIdx)}
 							class:border-blue-600={isRootString(stringIdx)}
 							class:bg-blue-400={isRootString(stringIdx)}
+							class:border-green-600={isThirdString(stringIdx)}
+							class:bg-green-400={isThirdString(stringIdx)}
+							class:border-purple-600={isFifthString(stringIdx)}
+							class:bg-purple-400={isFifthString(stringIdx)}
+							class:border-teal-600={isSeventhString(stringIdx)}
+							class:bg-teal-400={isSeventhString(stringIdx)}
 							style:top="calc({stringIdx} * 30px - 10px)"
 							style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
 						>
