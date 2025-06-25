@@ -133,6 +133,7 @@
 	let currentFret = $state(0);
 	let currentShift = $state(0);
 	let bpm = $state(120); // Beats per minute
+	let stringDirection = $state('bass-to-treble'); // 'bass-to-treble', 'treble-to-bass', or 'both'
 	let playBackwards = $state(false); // Play treble to bass instead of bass to treble
 
 	// Vocal range options
@@ -403,43 +404,47 @@
 				});
 				
 				// Play the sequence for this shift (bass to treble)
-				for (let i = 0; i < sequence.length; i++) {
-					if (!isPlaying) break; // Stop if exercise was stopped
-					
-					const {stringIdx, degree} = sequence[i];
-					currentString = stringIdx;
-					// Use the pre-calculated best position for this string
-					currentFret = bestPositions[stringIdx][degree] || findFretForDegree(stringIdx, degree);
-					currentPosition = shiftIndex * 100 + i; // Track position across shifts
-					
-					// Play the note
-					const note = fretboard[stringIdx][currentFret];
-					playNote(note, stringIdx, currentFret);
-					
-					// Wait based on BPM
-					const beatDuration = 60 / bpm; // seconds per beat
-					const waitTime = beatDuration * 1000; // convert to milliseconds
-					await new Promise(resolve => setTimeout(resolve, waitTime));
+				if (stringDirection === 'bass-to-treble' || stringDirection === 'both') {
+					for (let i = 0; i < sequence.length; i++) {
+						if (!isPlaying) break; // Stop if exercise was stopped
+						
+						const {stringIdx, degree} = sequence[i];
+						currentString = stringIdx;
+						// Use the pre-calculated best position for this string
+						currentFret = bestPositions[stringIdx][degree] || findFretForDegree(stringIdx, degree);
+						currentPosition = shiftIndex * 100 + i; // Track position across shifts
+						
+						// Play the note
+						const note = fretboard[stringIdx][currentFret];
+						playNote(note, stringIdx, currentFret);
+						
+						// Wait based on BPM
+						const beatDuration = 60 / bpm; // seconds per beat
+						const waitTime = beatDuration * 1000; // convert to milliseconds
+						await new Promise(resolve => setTimeout(resolve, waitTime));
+					}
 				}
 				
 				// Play the sequence for this shift (treble to bass)
-				for (let i = sequence.length - 1; i >= 0; i--) {
-					if (!isPlaying) break; // Stop if exercise was stopped
-					
-					const {stringIdx, degree} = sequence[i];
-					currentString = stringIdx;
-					// Use the pre-calculated best position for this string
-					currentFret = bestPositions[stringIdx][degree] || findFretForDegree(stringIdx, degree);
-					currentPosition = shiftIndex * 100 + sequence.length + (sequence.length - 1 - i); // Track position across shifts
-					
-					// Play the note
-					const note = fretboard[stringIdx][currentFret];
-					playNote(note, stringIdx, currentFret);
-					
-					// Wait based on BPM
-					const beatDuration = 60 / bpm; // seconds per beat
-					const waitTime = beatDuration * 1000; // convert to milliseconds
-					await new Promise(resolve => setTimeout(resolve, waitTime));
+				if (stringDirection === 'treble-to-bass' || stringDirection === 'both') {
+					for (let i = sequence.length - 1; i >= 0; i--) {
+						if (!isPlaying) break; // Stop if exercise was stopped
+						
+						const {stringIdx, degree} = sequence[i];
+						currentString = stringIdx;
+						// Use the pre-calculated best position for this string
+						currentFret = bestPositions[stringIdx][degree] || findFretForDegree(stringIdx, degree);
+						currentPosition = shiftIndex * 100 + sequence.length + (sequence.length - 1 - i); // Track position across shifts
+						
+						// Play the note
+						const note = fretboard[stringIdx][currentFret];
+						playNote(note, stringIdx, currentFret);
+						
+						// Wait based on BPM
+						const beatDuration = 60 / bpm; // seconds per beat
+						const waitTime = beatDuration * 1000; // convert to milliseconds
+						await new Promise(resolve => setTimeout(resolve, waitTime));
+					}
 				}
 			}
 		}
@@ -537,7 +542,12 @@
 	</div>
 	<!-- Loop and direction controls -->
 	<div class="mb-4 flex items-center gap-4">
-		<span class="text-sm text-gray-600">Each degree plays: bass→treble → treble→bass</span>
+		<span class="text-sm font-semibold">Direction</span>
+		<select bind:value={stringDirection} class="rounded w-32 border px-2 py-1 text-sm dark:text-slate-800">
+			<option value="bass-to-treble">Bass to Treble</option>
+			<option value="treble-to-bass">Treble to Bass</option>
+			<option value="both">Both Directions</option>
+		</select>
 	</div>
 	<!-- Play controls -->
 	<div class="mb-4 flex gap-2">
