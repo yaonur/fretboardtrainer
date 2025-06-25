@@ -135,6 +135,7 @@
 	let bpm = $state(120); // Beats per minute
 	let stringDirection = $state('bass-to-treble'); // 'bass-to-treble', 'treble-to-bass', or 'both'
 	let playBackwards = $state(false); // Play treble to bass instead of bass to treble
+	let loopEnabled = $state(false); // Enable looping after finishing all degrees
 
 	// Vocal range options
 	const vocalRanges = [
@@ -369,8 +370,8 @@
 		const exercise = exercises[selectedExercise as keyof typeof exercises];
 		if (!exercise) return;
 		
-		// Play through selected degrees only (infinite loop)
-		while (isPlaying) {
+		// Play through selected degrees only (loop if enabled)
+		do {
 			// Create the sequence of degrees to play
 			const degreesToPlay = selectedDegrees;
 			
@@ -447,7 +448,7 @@
 					}
 				}
 			}
-		}
+		} while (isPlaying && loopEnabled); // Continue looping if enabled and still playing
 	}
 
 	function stopExercise() {
@@ -548,6 +549,10 @@
 			<option value="treble-to-bass">Treble to Bass</option>
 			<option value="both">Both Directions</option>
 		</select>
+		<label class="flex cursor-pointer select-none items-center gap-2">
+			<input type="checkbox" bind:checked={loopEnabled} class="accent-green-500" />
+			<span class="text-sm">Loop</span>
+		</label>
 	</div>
 	<!-- Play controls -->
 	<div class="mb-4 flex gap-2">
