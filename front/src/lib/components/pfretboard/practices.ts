@@ -74,6 +74,15 @@ export const exercises = {
 		fifthString:5,
 		seventhString: 2
 	},
+	"root 7 chords (bass) 3.inv": {
+		chordName: "7",
+		bassString: 5,
+		structure: [[],[7],[3],[5],[1],[]],
+		rootString: 2,
+		thirdString: 4,
+		fifthString:3,
+		seventhString: 2
+	},
 	"skippin arpegio":{
 		chordName:"",
 		bassString: 6,
