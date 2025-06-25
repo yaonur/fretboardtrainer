@@ -458,7 +458,26 @@
 			const scaleNotes = currentScale;
 			const wrongDegreeIndex = selectedDegree - 1; // Convert to 0-based index
 			const wrongNote = scaleNotes[wrongDegreeIndex];
-			playNote(wrongNote);
+
+			// Find a valid fretboard position for the wrong note in the current practice range
+			let played = false;
+			for (let string = stringRangeStartIndex; string <= stringRangeEndIndex; string++) {
+				for (let fret = fretRangeStart; fret <= fretRangeEnd; fret++) {
+					if (
+						fretboard[string] &&
+						convertToSharp(fretboard[string][fret]) === convertToSharp(wrongNote)
+					) {
+						playNote(fretboard[string][fret]);
+						played = true;
+						break;
+					}
+				}
+				if (played) break;
+			}
+			if (!played) {
+				// fallback: play the note name (may have wrong octave)
+				playNote(wrongNote);
+			}
 
 			// Check if this was an anchor question
 			const isAnchorQuestion = anchorModeEnabled && questionCount % anchorFrequency === 0;
