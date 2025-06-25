@@ -262,7 +262,7 @@
 				// Add bounds checking
 				if (fretboard[string] && fretboard[string][fret]) {
 					const note = fretboard[string][fret];
-					if (scaleNotes.includes(convertToSharp(note))) {
+					if (scaleNotes.includes(getNoteNameWithAccidental(note))) {
 						validNotes++;
 					}
 				}
@@ -574,7 +574,7 @@
 		if (highlightedDegrees.length === 0) return false;
 		const scaleNotes = currentScale;
 		const note = fretboard[stringIdx][fretIdx];
-		const degree = scaleNotes.indexOf(convertToSharp(note)) + 1;
+		const degree = scaleNotes.indexOf(getNoteNameWithAccidental(note)) + 1;
 		return (
 			highlightedDegrees.includes(degree) &&
 			!(stringIdx === activeString && fretIdx === activeFret && correctAnswer !== null)
@@ -584,7 +584,7 @@
 	function getRedDotDegreeLabel(stringIdx: number, fretIdx: number): string {
 		const scaleNotes = currentScale;
 		const note = fretboard[stringIdx][fretIdx];
-		const degree = scaleNotes.indexOf(convertToSharp(note)) + 1;
+		const degree = scaleNotes.indexOf(getNoteNameWithAccidental(note)) + 1;
 		return degree > 0 ? degreeButtons[degree - 1] : '';
 	}
 
@@ -695,7 +695,7 @@
 				if (fretboard[string] && fretboard[string][fret]) {
 					let note = fretboard[string][fret];
 
-					const degree = scaleNotes.indexOf(convertToSharp(note)) + 1;
+					const degree = scaleNotes.indexOf(getNoteNameWithAccidental(note)) + 1;
 					if (degree > 0) foundDegrees.add(degree);
 					if (degree === anchorDegree) hasAnchor = true;
 				}
@@ -1304,7 +1304,7 @@
 								style:top="calc({stringIdx} * 30px - 10px)"
 								style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
 							>
-								{showDegreeOnRedDots ? getRedDotDegreeLabel(stringIdx, fretIdx) : ''}
+								{showDegreeOnRedDots ? getRedDotDegreeLabel(stringIdx, fretIdx) : getNoteNameWithAccidental(fretboard[stringIdx][fretIdx])}
 							</div>
 						{/if}
 					{/each}
@@ -1328,7 +1328,9 @@
 								class:bg-teal-500={fragmentType === 'gemini'}
 								style:top="calc({stringIdx} * 30px - 10px)"
 								style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
-							></div>
+							>
+								<span class="text-[10px] text-black">{getNoteNameWithAccidental(fretboard[stringIdx][fretIdx])}</span>
+							</div>
 						{/if}
 					{/each}
 				{/each}
