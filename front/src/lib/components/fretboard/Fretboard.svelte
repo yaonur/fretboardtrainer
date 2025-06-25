@@ -563,6 +563,7 @@
 	let highlightedDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7]);
 	let showDegreeOnRedDots = $state(false);
 	let showFragmentDots = $state(true); // NEW: toggle for yellow fragment dots
+	let showFragmentDegrees = $state(true);
 
 	function toggleAllDegrees() {
 		if (highlightedDegrees.length === degreeButtons.length) {
@@ -1004,6 +1005,28 @@
 		}
 		return false;
 	}
+
+	// Add a getFragmentDotDegreeLabel function:
+	function getFragmentDotDegreeLabel(stringIdx: number, fretIdx: number): string {
+		if (!showFragmentDegrees) return '' 
+		const scaleNotes = currentScale;
+		const note = fretboard[stringIdx][fretIdx];
+		const displayNote = getNoteNameWithAccidental(note);
+		let fragmentDegrees: number[] = [];
+		if (fragmentModeEnabled) fragmentDegrees = [6, 2, 5, 7, 1, 3, 4, 6];
+		else if (betaFragmentModeEnabled) fragmentDegrees = [7, 3, 6, 1, 2, 4, 5, 7];
+		else if (deltaFragmentModeEnabled) fragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1];
+		else if (epsilonFragmentModeEnabled) fragmentDegrees = [2, 3, 4, 5, 6, 7, 1, 2];
+		else if (geminiFragmentModeEnabled) fragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1];
+		const fragmentNotes = fragmentDegrees.map((degree) => scaleNotes[degree - 1]);
+		for (let i = 0; i < fragmentNotes.length; i++) {
+			if (displayNote === fragmentNotes[i]) {
+				const degreeIdx = ((fragmentDegrees[i] - 1 + 7) % 7);
+				return degreeButtons[degreeIdx];
+			}
+		}
+		return '';
+	}
 </script>
 
 <div class="flex flex-col items-center">
@@ -1192,8 +1215,8 @@
 	<!-- Toggle for yellow fragment dots -->
 	<div class="mb-2 flex justify-center">
 		<label class="flex cursor-pointer select-none items-center gap-2">
-			<input type="checkbox" bind:checked={showFragmentDots} class="accent-yellow-500" />
-			<span class="text-sm">Show yellow fragment dots</span>
+			<input type="checkbox" bind:checked={showFragmentDegrees} class="accent-yellow-500" />
+			<span class="text-sm">Show yellow fragment Degrees</span>
 		</label>
 	</div>
 
@@ -1369,7 +1392,7 @@
 								style:top="calc({stringIdx} * 30px - 10px)"
 								style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
 							>
-								<!-- <span class="text-[10px] text-black">{getNoteNameWithAccidental(fretboard[stringIdx][fretIdx])}</span> -->
+								<span class="text-[12px] text-black">{getFragmentDotDegreeLabel(stringIdx, fretIdx)}</span>
 							</div>
 						{/if}
 					{/each}
