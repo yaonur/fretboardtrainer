@@ -559,11 +559,11 @@
 		return noteName;
 	}
 
-	let showNoteNameOnDot = $state(true);
+	let showNoteNameOnDot = $state(false);
 	let highlightedDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7]);
-	let showDegreeOnRedDots = $state(false);
+	let showDegreeOnRedDots = $state(true);
 	let showFragmentDots = $state(true); // NEW: toggle for yellow fragment dots
-	let showFragmentDegrees = $state(true);
+	let showFragmentDegrees = $state(false);
 
 	function toggleAllDegrees() {
 		if (highlightedDegrees.length === degreeButtons.length) {
