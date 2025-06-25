@@ -241,6 +241,11 @@
 		return degree > 0 ? degreeButtons[degree - 1] : '';
 	}
 
+	function isRootString(stringIdx: number): boolean {
+		const exercise = exercises[selectedExercise as keyof typeof exercises];
+		return exercise && 'rootString' in exercise && ( exercise.rootString-1) === stringIdx;
+	}
+
 	// Find the best chord position that minimizes splits across all strings
 	function findBestChordPosition(shiftedStructure: number[][]): { [stringIdx: number]: { [degree: number]: number } } {
 		const exercise = exercises[selectedExercise as keyof typeof exercises];
@@ -662,7 +667,11 @@
 				{#each Array(numFrets + 1) as _, fretIdx}
 					{#if shouldShowYellowDot(stringIdx, fretIdx)}
 						<div
-							class="absolute text-slate-800 flex h-[16px] z-10 w-[16px] items-center justify-center rounded-full border-2 border-yellow-600 bg-yellow-400 text-xs font-bold  sm:h-[20px] sm:w-[20px] md:h-[24px] md:w-[24px] lg:h-[28px] lg:w-[28px]"
+							class="absolute text-slate-800 flex h-[16px] z-10 w-[16px] items-center justify-center rounded-full border-2 text-xs font-bold sm:h-[20px] sm:w-[20px] md:h-[24px] md:w-[24px] lg:h-[28px] lg:w-[28px]"
+							class:border-yellow-600={!isRootString(stringIdx)}
+							class:bg-yellow-400={!isRootString(stringIdx)}
+							class:border-blue-600={isRootString(stringIdx)}
+							class:bg-blue-400={isRootString(stringIdx)}
 							style:top="calc({stringIdx} * 30px - 10px)"
 							style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
 						>
