@@ -290,7 +290,9 @@
 	const customFragmentCycleOrder = ['alpha', 'delta', 'gemini', 'beta', 'epsilon'];
 
 	function getCurrentFragmentCycleOrder() {
-		return fragmentCycleOrderType === 'custom' ? customFragmentCycleOrder : defaultFragmentCycleOrder;
+		return fragmentCycleOrderType === 'custom'
+			? customFragmentCycleOrder
+			: defaultFragmentCycleOrder;
 	}
 
 	const fragmentCycleOrder = $derived(getCurrentFragmentCycleOrder());
@@ -876,8 +878,6 @@
 		return fretRange;
 	}
 
-	
-
 	// Add function to determine which fragment type a position belongs to
 	function getFragmentType(
 		stringIdx: number,
@@ -925,35 +925,18 @@
 		return null;
 	}
 
-	let highlightedAlphaFragmentDegrees = $state<number[]>([6, 2, 5, 7, 1, 3, 4, 6]);
-	let highlightedBetaFragmentDegrees = $state<number[]>([7, 3, 6, 1, 2, 4, 5, 7]);
-	let highlightedDeltaFragmentDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7, 1]);
-	let highlightedEpsilonFragmentDegrees = $state<number[]>([2, 3, 4, 5, 6, 7, 1, 2]);
-	let highlightedGeminiFragmentDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7, 1]);
+	// Add a single global highlightedFragmentDegrees state:
+	let highlightedFragmentDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7]);
 
-	function toggleAllFragmentDegrees(fragment: 'alpha'|'beta'|'delta'|'epsilon'|'gemini') {
-		const allDegrees = fragment === 'alpha' ? [6,2,5,7,1,3,4,6]
-			: fragment === 'beta' ? [7,3,6,1,2,4,5,7]
-			: fragment === 'delta' ? [1,2,3,4,5,6,7,1]
-			: fragment === 'epsilon' ? [2,3,4,5,6,7,1,2]
-			: [1,2,3,4,5,6,7,1];
-		let arr = fragment === 'alpha' ? highlightedAlphaFragmentDegrees
-			: fragment === 'beta' ? highlightedBetaFragmentDegrees
-			: fragment === 'delta' ? highlightedDeltaFragmentDegrees
-			: fragment === 'epsilon' ? highlightedEpsilonFragmentDegrees
-			: highlightedGeminiFragmentDegrees;
-		if (arr.length === allDegrees.length) {
-			arr = [];
+	function toggleAllFragmentDegrees() {
+		if (highlightedFragmentDegrees.length === degreeButtons.length) {
+			highlightedFragmentDegrees = [];
 		} else {
-			arr = [...allDegrees];
+			highlightedFragmentDegrees = degreeButtons.map((_, i) => i + 1);
 		}
-		if (fragment === 'alpha') highlightedAlphaFragmentDegrees = arr;
-		else if (fragment === 'beta') highlightedBetaFragmentDegrees = arr;
-		else if (fragment === 'delta') highlightedDeltaFragmentDegrees = arr;
-		else if (fragment === 'epsilon') highlightedEpsilonFragmentDegrees = arr;
-		else highlightedGeminiFragmentDegrees = arr;
 	}
 
+	// Update shouldShowYellowDot to use highlightedFragmentDegrees
 	function shouldShowYellowDot(stringIdx: number, fretIdx: number): boolean {
 		if (!showFragmentDots) return false;
 		if (
@@ -973,39 +956,50 @@
 		const scaleNotes = currentScale;
 		const note = fretboard[stringIdx][fretIdx];
 		const displayNote = getNoteNameWithAccidental(note);
+		// For each fragment type, only show if the degree is in highlightedFragmentDegrees
 		if (fragmentModeEnabled) {
 			const fragmentDegrees = [6, 2, 5, 7, 1, 3, 4, 6];
 			const fragmentNotes = fragmentDegrees.map((degree) => scaleNotes[degree - 1]);
-			return fragmentNotes.some((n, i) =>
-				displayNote === n && highlightedAlphaFragmentDegrees.includes(fragmentDegrees[i])
+			return fragmentNotes.some(
+				(n, i) =>
+					displayNote === n &&
+					highlightedFragmentDegrees.includes(((fragmentDegrees[i] - 1 + 7) % 7) + 1)
 			);
 		}
 		if (betaFragmentModeEnabled) {
 			const betaFragmentDegrees = [7, 3, 6, 1, 2, 4, 5, 7];
 			const betaFragmentNotes = betaFragmentDegrees.map((degree) => scaleNotes[degree - 1]);
-			return betaFragmentNotes.some((n, i) =>
-				displayNote === n && highlightedBetaFragmentDegrees.includes(betaFragmentDegrees[i])
+			return betaFragmentNotes.some(
+				(n, i) =>
+					displayNote === n &&
+					highlightedFragmentDegrees.includes(((betaFragmentDegrees[i] - 1 + 7) % 7) + 1)
 			);
 		}
 		if (deltaFragmentModeEnabled) {
 			const deltaFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1];
 			const deltaFragmentNotes = deltaFragmentDegrees.map((degree) => scaleNotes[degree - 1]);
-			return deltaFragmentNotes.some((n, i) =>
-				displayNote === n && highlightedDeltaFragmentDegrees.includes(deltaFragmentDegrees[i])
+			return deltaFragmentNotes.some(
+				(n, i) =>
+					displayNote === n &&
+					highlightedFragmentDegrees.includes(((deltaFragmentDegrees[i] - 1 + 7) % 7) + 1)
 			);
 		}
 		if (epsilonFragmentModeEnabled) {
 			const epsilonFragmentDegrees = [2, 3, 4, 5, 6, 7, 1, 2];
 			const epsilonFragmentNotes = epsilonFragmentDegrees.map((degree) => scaleNotes[degree - 1]);
-			return epsilonFragmentNotes.some((n, i) =>
-				displayNote === n && highlightedEpsilonFragmentDegrees.includes(epsilonFragmentDegrees[i])
+			return epsilonFragmentNotes.some(
+				(n, i) =>
+					displayNote === n &&
+					highlightedFragmentDegrees.includes(((epsilonFragmentDegrees[i] - 1 + 7) % 7) + 1)
 			);
 		}
 		if (geminiFragmentModeEnabled) {
 			const geminiFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1];
 			const geminiFragmentNotes = geminiFragmentDegrees.map((degree) => scaleNotes[degree - 1]);
-			return geminiFragmentNotes.some((n, i) =>
-				displayNote === n && highlightedGeminiFragmentDegrees.includes(geminiFragmentDegrees[i])
+			return geminiFragmentNotes.some(
+				(n, i) =>
+					displayNote === n &&
+					highlightedFragmentDegrees.includes(((geminiFragmentDegrees[i] - 1 + 7) % 7) + 1)
 			);
 		}
 		return false;
@@ -1348,7 +1342,9 @@
 								style:top="calc({stringIdx} * 30px - 10px)"
 								style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
 							>
-								{showDegreeOnRedDots ? getRedDotDegreeLabel(stringIdx, fretIdx) : getNoteNameWithAccidental(fretboard[stringIdx][fretIdx])}
+								{showDegreeOnRedDots
+									? getRedDotDegreeLabel(stringIdx, fretIdx)
+									: getNoteNameWithAccidental(fretboard[stringIdx][fretIdx])}
 							</div>
 						{/if}
 					{/each}
@@ -1559,6 +1555,31 @@
 				</button>
 				<!-- Fragment cycle controls -->
 			</div>
+				<div class="mt-2 flex flex-wrap justify-center gap-1">
+					<button
+						onclick={toggleAllFragmentDegrees}
+						class="rounded border-2 border-yellow-400 bg-yellow-100 px-2 py-0 text-xs font-bold text-yellow-700"
+						>{highlightedFragmentDegrees.length === degreeButtons.length ? 'None' : 'All'}</button
+					>
+					{#each degreeButtons as degree, i}
+						<button
+							onclick={() => {
+								highlightedFragmentDegrees = highlightedFragmentDegrees.includes(i + 1)
+									? highlightedFragmentDegrees.filter((d) => d !== i + 1)
+									: [...highlightedFragmentDegrees, i + 1];
+							}}
+							class="rounded border-2 px-2 py-0 text-xs font-bold transition-colors"
+							class:bg-yellow-500={highlightedFragmentDegrees.includes(i + 1)}
+							class:text-white={highlightedFragmentDegrees.includes(i + 1)}
+							class:border-yellow-600={highlightedFragmentDegrees.includes(i + 1)}
+							class:bg-yellow-100={!highlightedFragmentDegrees.includes(i + 1)}
+							class:text-yellow-700={!highlightedFragmentDegrees.includes(i + 1)}
+							class:border-yellow-300={!highlightedFragmentDegrees.includes(i + 1)}
+						>
+							{degree}
+						</button>
+					{/each}
+				</div>
 			<div class="mt-2">
 				<input
 					type="number"
@@ -1598,119 +1619,4 @@
 	</div>
 
 	<!-- Add fragment degree toggles below the fragment buttons -->
-	{#if fragmentModeEnabled}
-		<div class="mb-2 flex flex-wrap justify-center gap-1">
-			<button onclick={() => toggleAllFragmentDegrees('alpha')} class="rounded border-2 border-yellow-400 bg-yellow-100 px-2 py-0 text-xs font-bold text-yellow-700">{highlightedAlphaFragmentDegrees.length === 8 ? 'None' : 'All'}</button>
-			{#each [6,2,5,7,1,3,4,6] as degree}
-				<button
-					onclick={() => {
-						highlightedAlphaFragmentDegrees = highlightedAlphaFragmentDegrees.includes(degree)
-							? highlightedAlphaFragmentDegrees.filter((d) => d !== degree)
-							: [...highlightedAlphaFragmentDegrees, degree];
-					}}
-					class="rounded border-2 px-2 py-0 text-xs font-bold transition-colors"
-					class:bg-yellow-500={highlightedAlphaFragmentDegrees.includes(degree)}
-					class:text-white={highlightedAlphaFragmentDegrees.includes(degree)}
-					class:border-yellow-600={highlightedAlphaFragmentDegrees.includes(degree)}
-					class:bg-yellow-100={!highlightedAlphaFragmentDegrees.includes(degree)}
-					class:text-yellow-700={!highlightedAlphaFragmentDegrees.includes(degree)}
-					class:border-yellow-300={!highlightedAlphaFragmentDegrees.includes(degree)}
-				>
-					{degreeButtons[(degree-1+7)%7]}
-				</button>
-			{/each}
-		</div>
-	{/if}
-	{#if betaFragmentModeEnabled}
-		<div class="mb-2 flex flex-wrap justify-center gap-1">
-			<button onclick={() => toggleAllFragmentDegrees('beta')} class="rounded border-2 border-orange-400 bg-orange-100 px-2 py-0 text-xs font-bold text-orange-700">{highlightedBetaFragmentDegrees.length === 8 ? 'None' : 'All'}</button>
-			{#each [7,3,6,1,2,4,5,7] as degree}
-				<button
-					onclick={() => {
-						highlightedBetaFragmentDegrees = highlightedBetaFragmentDegrees.includes(degree)
-							? highlightedBetaFragmentDegrees.filter((d) => d !== degree)
-							: [...highlightedBetaFragmentDegrees, degree];
-					}}
-					class="rounded border-2 px-2 py-0 text-xs font-bold transition-colors"
-					class:bg-orange-600={highlightedBetaFragmentDegrees.includes(degree)}
-					class:text-white={highlightedBetaFragmentDegrees.includes(degree)}
-					class:border-orange-400={highlightedBetaFragmentDegrees.includes(degree)}
-					class:bg-orange-100={!highlightedBetaFragmentDegrees.includes(degree)}
-					class:text-orange-700={!highlightedBetaFragmentDegrees.includes(degree)}
-					class:border-orange-300={!highlightedBetaFragmentDegrees.includes(degree)}
-				>
-					{degreeButtons[(degree-1+7)%7]}
-				</button>
-			{/each}
-		</div>
-	{/if}
-	{#if deltaFragmentModeEnabled}
-		<div class="mb-2 flex flex-wrap justify-center gap-1">
-			<button onclick={() => toggleAllFragmentDegrees('delta')} class="rounded border-2 border-green-400 bg-green-100 px-2 py-0 text-xs font-bold text-green-700">{highlightedDeltaFragmentDegrees.length === 8 ? 'None' : 'All'}</button>
-			{#each [1,2,3,4,5,6,7,1] as degree}
-				<button
-					onclick={() => {
-						highlightedDeltaFragmentDegrees = highlightedDeltaFragmentDegrees.includes(degree)
-							? highlightedDeltaFragmentDegrees.filter((d) => d !== degree)
-							: [...highlightedDeltaFragmentDegrees, degree];
-					}}
-					class="rounded border-2 px-2 py-0 text-xs font-bold transition-colors"
-					class:bg-green-500={highlightedDeltaFragmentDegrees.includes(degree)}
-					class:text-white={highlightedDeltaFragmentDegrees.includes(degree)}
-					class:border-green-600={highlightedDeltaFragmentDegrees.includes(degree)}
-					class:bg-green-100={!highlightedDeltaFragmentDegrees.includes(degree)}
-					class:text-green-700={!highlightedDeltaFragmentDegrees.includes(degree)}
-					class:border-green-300={!highlightedDeltaFragmentDegrees.includes(degree)}
-				>
-					{degreeButtons[(degree-1+7)%7]}
-				</button>
-			{/each}
-		</div>
-	{/if}
-	{#if epsilonFragmentModeEnabled}
-		<div class="mb-2 flex flex-wrap justify-center gap-1">
-			<button onclick={() => toggleAllFragmentDegrees('epsilon')} class="rounded border-2 border-purple-400 bg-purple-100 px-2 py-0 text-xs font-bold text-purple-700">{highlightedEpsilonFragmentDegrees.length === 8 ? 'None' : 'All'}</button>
-			{#each [2,3,4,5,6,7,1,2] as degree}
-				<button
-					onclick={() => {
-						highlightedEpsilonFragmentDegrees = highlightedEpsilonFragmentDegrees.includes(degree)
-							? highlightedEpsilonFragmentDegrees.filter((d) => d !== degree)
-							: [...highlightedEpsilonFragmentDegrees, degree];
-					}}
-					class="rounded border-2 px-2 py-0 text-xs font-bold transition-colors"
-					class:bg-purple-500={highlightedEpsilonFragmentDegrees.includes(degree)}
-					class:text-white={highlightedEpsilonFragmentDegrees.includes(degree)}
-					class:border-purple-600={highlightedEpsilonFragmentDegrees.includes(degree)}
-					class:bg-purple-100={!highlightedEpsilonFragmentDegrees.includes(degree)}
-					class:text-purple-700={!highlightedEpsilonFragmentDegrees.includes(degree)}
-					class:border-purple-300={!highlightedEpsilonFragmentDegrees.includes(degree)}
-				>
-					{degreeButtons[(degree-1+7)%7]}
-				</button>
-			{/each}
-		</div>
-	{/if}
-	{#if geminiFragmentModeEnabled}
-		<div class="mb-2 flex flex-wrap justify-center gap-1">
-			<button onclick={() => toggleAllFragmentDegrees('gemini')} class="rounded border-2 border-teal-400 bg-teal-100 px-2 py-0 text-xs font-bold text-teal-700">{highlightedGeminiFragmentDegrees.length === 8 ? 'None' : 'All'}</button>
-			{#each [1,2,3,4,5,6,7,1] as degree}
-				<button
-					onclick={() => {
-						highlightedGeminiFragmentDegrees = highlightedGeminiFragmentDegrees.includes(degree)
-							? highlightedGeminiFragmentDegrees.filter((d) => d !== degree)
-							: [...highlightedGeminiFragmentDegrees, degree];
-					}}
-					class="rounded border-2 px-2 py-0 text-xs font-bold transition-colors"
-					class:bg-teal-500={highlightedGeminiFragmentDegrees.includes(degree)}
-					class:text-white={highlightedGeminiFragmentDegrees.includes(degree)}
-					class:border-teal-600={highlightedGeminiFragmentDegrees.includes(degree)}
-					class:bg-teal-100={!highlightedGeminiFragmentDegrees.includes(degree)}
-					class:text-teal-700={!highlightedGeminiFragmentDegrees.includes(degree)}
-					class:border-teal-300={!highlightedGeminiFragmentDegrees.includes(degree)}
-				>
-					{degreeButtons[(degree-1+7)%7]}
-				</button>
-			{/each}
-		</div>
-	{/if}
 </div>
