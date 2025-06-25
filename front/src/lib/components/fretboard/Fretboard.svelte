@@ -557,6 +557,7 @@
 	let showNoteNameOnDot = $state(true);
 	let highlightedDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7]);
 	let showDegreeOnRedDots = $state(false);
+	let showFragmentDots = $state(true); // NEW: toggle for yellow fragment dots
 
 	function toggleAllDegrees() {
 		if (highlightedDegrees.length === degreeButtons.length) {
@@ -874,12 +875,13 @@
 
 	// Add yellow dot logic for fragment area - dynamic based on key
 	function shouldShowYellowDot(stringIdx: number, fretIdx: number): boolean {
+		if (!showFragmentDots) return false; // NEW: respect toggle
 		if (
 			!fragmentModeEnabled &&
 			!betaFragmentModeEnabled &&
 			!deltaFragmentModeEnabled &&
-			!epsilonFragmentModeEnabled &&
-			!geminiFragmentModeEnabled
+				!epsilonFragmentModeEnabled &&
+				!geminiFragmentModeEnabled
 		)
 			return false;
 
@@ -1144,6 +1146,13 @@
 		<label class="flex cursor-pointer select-none items-center gap-2">
 			<input type="checkbox" bind:checked={showDegreeOnRedDots} class="accent-red-500" />
 			<span class="text-sm">Show degree name in red dots</span>
+		</label>
+	</div>
+	<!-- Toggle for yellow fragment dots -->
+	<div class="mb-2 flex justify-center">
+		<label class="flex cursor-pointer select-none items-center gap-2">
+			<input type="checkbox" bind:checked={showFragmentDots} class="accent-yellow-500" />
+			<span class="text-sm">Show yellow fragment dots</span>
 		</label>
 	</div>
 
