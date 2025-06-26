@@ -1046,6 +1046,63 @@
 		}
 		return '';
 	}
+
+	// Auto-next question feature
+	let autoNextEnabled = $state(false);
+	let autoNextDelay = $state(2000); // ms, default 2 seconds
+	let autoNextTimeout: ReturnType<typeof setTimeout> | null = null;
+	let autoNextRunning = $state(false); // NEW: running state
+
+	function clearAutoNextTimer() {
+		if (autoNextTimeout) {
+			clearTimeout(autoNextTimeout);
+			autoNextTimeout = null;
+		}
+	}
+
+	function startAutoNextTimer() {
+		clearAutoNextTimer();
+		if (autoNextEnabled && autoNextRunning) {
+			autoNextTimeout = setTimeout(() => {
+				autoNextPlayAndNext();
+			}, autoNextDelay) as unknown as ReturnType<typeof setTimeout>;
+		}
+	}
+
+	function handleAutoNextStartStop() {
+		autoNextRunning = !autoNextRunning;
+		if (autoNextRunning) {
+			startAutoNextTimer();
+		} else {
+			clearAutoNextTimer();
+		}
+	}
+
+	// Clear timer on destroy
+	import { onDestroy } from 'svelte';
+	onDestroy(() => {
+		clearAutoNextTimer();
+	});
+
+	// Patch generateNewQuestion and playAndNext to use timer
+	function autoNextGenerateNewQuestion() {
+		clearAutoNextTimer();
+		generateNewQuestion();
+		startAutoNextTimer();
+	}
+
+	function autoNextPlayAndNext() {
+		clearAutoNextTimer();
+		playAndNext();
+		startAutoNextTimer();
+	}
+
+	$effect(() => {
+		if (!autoNextEnabled && autoNextRunning) {
+			autoNextRunning = false;
+			clearAutoNextTimer();
+		}
+	});
 </script>
 
 <div class="flex flex-col items-center">
@@ -1157,7 +1214,7 @@
 			onclick={async () => {
 				await initAudio();
 				questionCount = 0; // Reset question count for new session
-				generateNewQuestion();
+				autoNextGenerateNewQuestion();
 			}}
 			disabled={!canGenerateQuestion}
 			class="mt-2 rounded bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-400"
@@ -1168,7 +1225,7 @@
 			<button
 				onclick={async () => {
 					await initAudio();
-					playAndNext();
+					autoNextPlayAndNext();
 				}}
 				class="ml-2 mt-2 rounded bg-green-500 px-4 py-2 text-white transition-colors hover:bg-green-600"
 			>
@@ -1237,6 +1294,25 @@
 			<input type="checkbox" bind:checked={showFragmentDegrees} class="accent-yellow-500" />
 			<span class="text-sm">Show yellow fragment Degrees</span>
 		</label>
+	</div>
+	<!-- Auto-next question toggle and delay -->
+	<div class="mb-2 flex justify-center gap-4 items-center">
+		<label class="flex cursor-pointer select-none items-center gap-2">
+			<input type="checkbox" bind:checked={autoNextEnabled} class="accent-blue-500" />
+			<span class="text-sm">Auto Next Question</span>
+		</label>
+		<label class="flex items-center gap-1">
+			<span class="text-sm">Delay:</span>
+			<input type="number" min="500" max="10000" step="100" bind:value={autoNextDelay} class="w-20 rounded border border-gray-300 px-2 py-1 text-sm dark:bg-gray-800 dark:text-white" />
+			<span class="text-sm">ms</span>
+		</label>
+		<button
+			onclick={handleAutoNextStartStop}
+			disabled={!autoNextEnabled}
+			class="rounded bg-blue-500 px-3 py-1 text-white hover:bg-blue-600 disabled:bg-gray-400"
+		>
+			{autoNextRunning ? 'Stop' : 'Start'}
+		</button>
 	</div>
 
 	<!-- Anchor Mode Controls -->
@@ -1310,7 +1386,7 @@
 				onclick={async () => {
 					await initAudio();
 					gameMode = 'find-degree';
-					generateNewQuestion();
+					autoNextGenerateNewQuestion();
 				}}
 				class="rounded px-3 py-1 text-sm transition-colors"
 				class:bg-blue-500={gameMode === 'find-degree'}
@@ -1324,7 +1400,7 @@
 				onclick={async () => {
 					await initAudio();
 					gameMode = 'find-note';
-					generateNewQuestion();
+					autoNextGenerateNewQuestion();
 				}}
 				class="rounded px-3 py-1 text-sm transition-colors"
 				class:bg-blue-500={gameMode === 'find-note'}
@@ -1352,7 +1428,7 @@
 			style:height="{(numStrings - 1) * 30}px"
 			onclick={gameMode === 'find-degree'
 				? () => {
-						if (canGenerateQuestion) playAndNext();
+						if (canGenerateQuestion) autoNextPlayAndNext();
 					}
 				: undefined}
 		>
