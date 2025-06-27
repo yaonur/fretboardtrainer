@@ -190,9 +190,22 @@
 	// Major scale intervals (in semitones from root)
 	const majorScaleIntervals = [0, 2, 4, 5, 7, 9, 11];
 
-	// Compute the major scale notes for the selected key
+	// Add flat-to-sharp conversion helper
+	function flatToSharp(note: string): string {
+		const map: Record<string, string> = {
+			'Db': 'C#',
+			'Eb': 'D#',
+			'Gb': 'F#',
+			'Ab': 'G#',
+			'Bb': 'A#',
+		};
+		return map[note] || note;
+	}
+
+	// Update getMajorScale to use flatToSharp
 	function getMajorScale(root: string): string[] {
-		const rootIdx = notes.indexOf(root);
+		const sharpRoot = flatToSharp(root);
+		const rootIdx = notes.indexOf(sharpRoot);
 		if (rootIdx === -1) return [];
 		return majorScaleIntervals.map(i => notes[(rootIdx + i) % 12]);
 	}
@@ -759,6 +772,9 @@
 	</div>
 	<!-- Feedback placeholder -->
 	<div class="h-8 text-2xl font-semibold"></div>
+	<div class="w-full flex justify-center mb-2">
+		<span class="text-lg font-bold">Current Key: <span class="text-blue-700">{selectedTone}</span></span>
+	</div>
 	<div class="w-11/12 lg:w-10/12 h-64 ">
 		<!-- Fretboard main -->
 		<div
