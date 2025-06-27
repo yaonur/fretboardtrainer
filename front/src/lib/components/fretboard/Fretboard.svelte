@@ -1912,7 +1912,15 @@
 				<span class="text-sm">Auto Next Question</span>
 			</label>
 			<button
-				onclick={handleAutoNextStartStop}
+				onclick={async () => {
+					if (!gameStarted) {
+						await initAudio();
+						questionCount = 0;
+						autoNextGenerateNewQuestion();
+						gameStarted = true;
+					}
+					handleAutoNextStartStop();
+				}}
 				disabled={!autoNextEnabled}
 				class="rounded bg-blue-500 px-3 py-1 text-white hover:bg-blue-600 disabled:bg-gray-400"
 			>
