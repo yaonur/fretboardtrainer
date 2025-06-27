@@ -618,7 +618,8 @@
 
 	function shouldShowRedDot(stringIdx: number, fretIdx: number): boolean {
 		if (highlightedDegrees.length === 0) return false;
-		if (showRedDotsOnSelectedStringOnly && !selectedRedDotStrings.includes(stringIdx + 1)) return false;
+		if (showRedDotsOnSelectedStringOnly && !selectedRedDotStrings.includes(stringIdx + 1))
+			return false;
 		const scaleNotes = currentScale;
 		const note = fretboard[stringIdx][fretIdx];
 		const degree = scaleNotes.indexOf(getNoteNameWithAccidental(note)) + 1;
@@ -1776,14 +1777,18 @@
 				<button
 					type="button"
 					class="rounded border px-2 py-1 text-sm font-bold transition-colors"
-					class:bg-red-600={selectedRedDotStrings.includes(i + 1) && showRedDotsOnSelectedStringOnly}
-					class:text-white={selectedRedDotStrings.includes(i + 1) && showRedDotsOnSelectedStringOnly}
-					class:bg-gray-200={!selectedRedDotStrings.includes(i + 1) || !showRedDotsOnSelectedStringOnly}
-					class:text-red-600={!selectedRedDotStrings.includes(i + 1) || !showRedDotsOnSelectedStringOnly}
+					class:bg-red-600={selectedRedDotStrings.includes(i + 1) &&
+						showRedDotsOnSelectedStringOnly}
+					class:text-white={selectedRedDotStrings.includes(i + 1) &&
+						showRedDotsOnSelectedStringOnly}
+					class:bg-gray-200={!selectedRedDotStrings.includes(i + 1) ||
+						!showRedDotsOnSelectedStringOnly}
+					class:text-red-600={!selectedRedDotStrings.includes(i + 1) ||
+						!showRedDotsOnSelectedStringOnly}
 					onclick={() => {
 						if (!showRedDotsOnSelectedStringOnly) return;
 						if (selectedRedDotStrings.includes(i + 1)) {
-							selectedRedDotStrings = selectedRedDotStrings.filter(s => s !== i + 1);
+							selectedRedDotStrings = selectedRedDotStrings.filter((s) => s !== i + 1);
 						} else {
 							selectedRedDotStrings = [...selectedRedDotStrings, i + 1];
 						}
@@ -1800,36 +1805,6 @@
 		<label class="flex cursor-pointer select-none items-center gap-2">
 			<input type="checkbox" bind:checked={showFragmentDegrees} class="accent-yellow-500" />
 			<span class="text-sm">Show yellow fragment Degrees</span>
-		</label>
-	</div>
-	<!-- Auto-next question toggle and delay -->
-	<div class="mb-2 flex flex-col items-center justify-center gap-4">
-		<div class="flex gap-2">
-
-			<label class="flex cursor-pointer select-none items-center gap-2">
-				<input type="checkbox" bind:checked={autoNextEnabled} class="accent-blue-500" />
-				<span class="text-sm">Auto Next Question</span>
-			</label>
-			<button
-				onclick={handleAutoNextStartStop}
-				disabled={!autoNextEnabled}
-				class="rounded bg-blue-500 px-3 py-1 text-white hover:bg-blue-600 disabled:bg-gray-400"
-			>
-				{autoNextRunning ? 'Stop' : 'Start'}
-			</button>
-		</div>
-		<label class="flex items-center gap-1">
-			<span class="text-sm">Delay:</span>
-			<input
-				type="range"
-				min="300"
-				max="2000"
-				step="50"
-				bind:value={autoNextDelay}
-				class="w-72 accent-blue-500"
-			/>
-			<span class="w-8 text-center text-sm font-medium">{autoNextDelay}</span>
-			<span class="text-sm">ms</span>
 		</label>
 	</div>
 
@@ -1926,6 +1901,35 @@
 			</button>
 		{/each}
 	</div>
+	<!-- Auto-next question toggle and delay -->
+	<div class="mb-2 flex flex-col items-center justify-center gap-4">
+		<div class="flex gap-2">
+			<label class="flex cursor-pointer select-none items-center gap-2">
+				<input type="checkbox" bind:checked={autoNextEnabled} class="accent-blue-500" />
+				<span class="text-sm">Auto Next Question</span>
+			</label>
+			<button
+				onclick={handleAutoNextStartStop}
+				disabled={!autoNextEnabled}
+				class="rounded bg-blue-500 px-3 py-1 text-white hover:bg-blue-600 disabled:bg-gray-400"
+			>
+				{autoNextRunning ? 'Stop' : 'Start'}
+			</button>
+		</div>
+		<label class="flex items-center gap-1">
+			<span class="text-sm">Delay:</span>
+			<input
+				type="range"
+				min="300"
+				max="2000"
+				step="50"
+				bind:value={autoNextDelay}
+				class="w-72 accent-blue-500"
+			/>
+			<span class="w-8 text-center text-sm font-medium">{autoNextDelay}</span>
+			<span class="text-sm">ms</span>
+		</label>
+	</div>
 	<div>
 		<div class="mt-2 flex justify-center gap-2">
 			<button
@@ -1964,13 +1968,15 @@
 		</h2>
 	</div>
 	<!-- Feedback -->
+	{#if gameMode === 'find-note'}
 	<div class=" h-8 text-2xl font-semibold">{feedback}</div>
+	{/if}
 
 	<div class="w-11/12 lg:w-10/12">
 		<!-- fretboard main -->
 		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (because of reasons) -->
 		<div
-			class="relative mt-12 border-l-[5px] border-r-[5px] border-gray-400"
+			class="relative mt-2 border-l-[5px] border-r-[5px] border-gray-400"
 			style:height="{(numStrings - 1) * 30}px"
 			onclick={gameMode === 'find-degree'
 				? () => {
