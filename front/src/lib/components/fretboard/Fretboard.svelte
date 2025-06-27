@@ -112,7 +112,7 @@
 	// --- Game State ---
 	let activeString = $state<number>(0);
 	let activeFret = $state<number>(1);
-	let selectedKey = $state('C');
+	let selectedKey = $state('A');
 	let correctAnswer = $state<number | null>(null);
 	let feedback = $state('');
 	let lowestNote = $state<string>('G3'); // User's lowest note as reference
@@ -133,7 +133,7 @@
 	let shapeFretRanges: Array<{ start: number; end: number }> = [];
 
 	// Store user's last known settings
-	let lastUserStringStart = $state<number>(1);
+	let lastUserStringStart = $state<number>(6);
 	let lastUserStringEnd = $state<number>(6);
 	let lastUserFretStart = $state<number>(1);
 	let lastUserFretEnd = $state<number>(12);
@@ -145,7 +145,7 @@
 	let questionCount = $state<number>(0); // Track question count for anchor logic
 
 	// --- Practice Range Settings ---
-	let stringRangeStart = $state<number>(1);
+	let stringRangeStart = $state<number>(6);
 	let stringRangeEnd = $state<number>(6);
 	let fretRangeStart = $state<number>(1);
 	let fretRangeEnd = $state<number>(12);
@@ -601,7 +601,7 @@
 
 	let showNoteNameOnDot = $state(false);
 	let highlightedDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7]);
-	let redDotDisplayMode = $state<'degrees' | 'notes' | 'empty'>('degrees');
+	let redDotDisplayMode = $state<'degrees' | 'notes' | 'empty'>('empty');
 	let showFragmentDots = $state(true); // NEW: toggle for yellow fragment dots
 	let showFragmentDegrees = $state(false);
 
@@ -613,8 +613,12 @@
 		}
 	}
 
+	let showRedDotsOnSelectedStringOnly = $state(true);
+	let selectedRedDotString = $state(6); // 1-based string number
+
 	function shouldShowRedDot(stringIdx: number, fretIdx: number): boolean {
 		if (highlightedDegrees.length === 0) return false;
+		if (showRedDotsOnSelectedStringOnly && stringIdx !== selectedRedDotString - 1) return false;
 		const scaleNotes = currentScale;
 		const note = fretboard[stringIdx][fretIdx];
 		const degree = scaleNotes.indexOf(getNoteNameWithAccidental(note)) + 1;
@@ -1343,14 +1347,10 @@
 		const keyName = selectedKey.includes('/') ? selectedKey.split('/')[0] : selectedKey;
 		if (shapeName === 'e') {
 			// Special case: E shape in C major should be 12-15
-			if (
-				keyName === 'C'
-			) {
+			if (keyName === 'C') {
 				return { start: 12, end: 15 };
 			}
-			if (
-				keyName === 'B'
-			) {
+			if (keyName === 'B') {
 				return { start: 11, end: 14 };
 			}
 			// Default: contiguous
@@ -1361,14 +1361,10 @@
 		}
 		if (shapeName === 'a') {
 			// Alpha + Beta
-			if (
-				keyName === 'Ab'
-			) {
+			if (keyName === 'Ab') {
 				return { start: 1, end: 4 };
 			}
-			if (
-				keyName === 'G'
-			) {
+			if (keyName === 'G') {
 				return { start: 12, end: 15 };
 			}
 			return {
@@ -1377,14 +1373,10 @@
 			};
 		} else if (shapeName === 'c') {
 			// Beta + Delta
-			if (
-				keyName === 'F'
-			) {
+			if (keyName === 'F') {
 				return { start: 12, end: 15 };
 			}
-			if (
-				keyName === 'F#'
-			) {
+			if (keyName === 'F#') {
 				return { start: 1, end: 4 };
 			}
 			return {
@@ -1393,24 +1385,16 @@
 			};
 		} else if (shapeName === 'd') {
 			// Delta + Epsilon
-			if (
-				keyName === 'Db'
-			) {
+			if (keyName === 'Db') {
 				return { start: 10, end: 14 };
 			}
-			if (
-				keyName === 'D'
-			) {
+			if (keyName === 'D') {
 				return { start: 11, end: 15 };
 			}
-			if (
-				keyName === 'Eb'
-			) {
+			if (keyName === 'Eb') {
 				return { start: 12, end: 16 };
 			}
-			if (
-				keyName === 'E'
-			) {
+			if (keyName === 'E') {
 				return { start: 1, end: 5 };
 			}
 			return {
@@ -1419,14 +1403,10 @@
 			};
 		} else if (shapeName === 'g') {
 			// Gemini + Alpha
-			if (
-				keyName === 'A'
-			) {
+			if (keyName === 'A') {
 				return { start: 11, end: 15 };
 			}
-			if (
-				keyName === 'Bb'
-			) {
+			if (keyName === 'Bb') {
 				return { start: 12, end: 16 };
 			}
 			return {
@@ -1781,6 +1761,27 @@
 			<span class="text-sm">Show empty</span>
 		</label>
 	</div>
+	<!-- Toggle for red dots on selected string only -->
+	<div class="mb-2 flex items-center justify-center gap-4">
+		<label class="flex cursor-pointer select-none items-center gap-2">
+			<input
+				type="checkbox"
+				bind:checked={showRedDotsOnSelectedStringOnly}
+				class="accent-red-500"
+			/>
+			<span class="text-sm">Red dots only on string:</span>
+		</label>
+		<input
+			type="range"
+			min="1"
+			max={numStrings}
+			step="1"
+			bind:value={selectedRedDotString}
+			disabled={!showRedDotsOnSelectedStringOnly}
+			class="w-32 accent-red-500"
+		/>
+		<span class="w-8 text-center text-sm">{selectedRedDotString}</span>
+	</div>
 	<!-- Toggle for yellow fragment dots -->
 	<div class="mb-2 flex justify-center">
 		<label class="flex cursor-pointer select-none items-center gap-2">
@@ -1789,31 +1790,34 @@
 		</label>
 	</div>
 	<!-- Auto-next question toggle and delay -->
-	<div class="mb-2 flex items-center justify-center gap-4">
-		<label class="flex cursor-pointer select-none items-center gap-2">
-			<input type="checkbox" bind:checked={autoNextEnabled} class="accent-blue-500" />
-			<span class="text-sm">Auto Next Question</span>
-		</label>
-		<label class="flex items-center gap-2">
+	<div class="mb-2 flex flex-col items-center justify-center gap-4">
+		<div class="flex gap-2">
+
+			<label class="flex cursor-pointer select-none items-center gap-2">
+				<input type="checkbox" bind:checked={autoNextEnabled} class="accent-blue-500" />
+				<span class="text-sm">Auto Next Question</span>
+			</label>
+			<button
+				onclick={handleAutoNextStartStop}
+				disabled={!autoNextEnabled}
+				class="rounded bg-blue-500 px-3 py-1 text-white hover:bg-blue-600 disabled:bg-gray-400"
+			>
+				{autoNextRunning ? 'Stop' : 'Start'}
+			</button>
+		</div>
+		<label class="flex items-center gap-1">
 			<span class="text-sm">Delay:</span>
 			<input
 				type="range"
 				min="300"
 				max="2000"
-				step="100"
+				step="50"
 				bind:value={autoNextDelay}
-				class="w-32 accent-blue-500"
+				class="w-72 accent-blue-500"
 			/>
-			<span class="w-12 text-center text-sm font-medium">{autoNextDelay}</span>
+			<span class="w-8 text-center text-sm font-medium">{autoNextDelay}</span>
 			<span class="text-sm">ms</span>
 		</label>
-		<button
-			onclick={handleAutoNextStartStop}
-			disabled={!autoNextEnabled}
-			class="rounded bg-blue-500 px-3 py-1 text-white hover:bg-blue-600 disabled:bg-gray-400"
-		>
-			{autoNextRunning ? 'Stop' : 'Start'}
-		</button>
 	</div>
 
 	<!-- Anchor Mode Controls -->
@@ -1882,11 +1886,11 @@
 		{/each}
 	</div>
 	<!-- Add fragment degree toggles below the fragment buttons -->
-	<div class="mb-2 flex justify-center items-center gap-2">
+	<div class="mb-2 flex items-center justify-center gap-2">
 		<span class="text-sm font-semibold text-yellow-700">Fragment Degrees:</span>
 		<button
 			onclick={toggleAllFragmentDegrees}
-			class="rounded border-2 h-8 border-yellow-400 bg-yellow-100 px-2 py-0 text-sm font-bold text-yellow-700 transition-colors hover:bg-yellow-200"
+			class="h-8 rounded border-2 border-yellow-400 bg-yellow-100 px-2 py-0 text-sm font-bold text-yellow-700 transition-colors hover:bg-yellow-200"
 		>
 			{highlightedFragmentDegrees.length === degreeButtons.length ? 'None' : 'All'}
 		</button>
@@ -2004,7 +2008,7 @@
 						{#if shouldShowYellowDot(stringIdx, fretIdx)}
 							{@const fragmentType = getFragmentType(stringIdx, fretIdx)}
 							<div
-								class="absolute flex h-[16px] w-[16px] items-center justify-center rounded-full border-2 sm:h-[20px] sm:w-[20px] md:h-[24px] bg-blue-600 md:w-[24px] lg:h-[28px] lg:w-[28px]"
+								class="absolute flex h-[16px] w-[16px] items-center justify-center rounded-full border-2 bg-blue-600 sm:h-[20px] sm:w-[20px] md:h-[24px] md:w-[24px] lg:h-[28px] lg:w-[28px]"
 								class:border-yellow-600={fragmentType === 'alpha'}
 								class:bg-yellow-500={fragmentType === 'alpha'}
 								class:border-orange-400={fragmentType === 'beta'}
