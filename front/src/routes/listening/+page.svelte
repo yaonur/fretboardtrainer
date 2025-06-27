@@ -15,6 +15,9 @@
 	let gameStarted = $state(false);
 	let isAudioInitialized = $state(false);
 	let sampler: Tone.Sampler;
+	let lastDegree = $state<number | null>(null); // Track last asked degree to avoid repetition
+	let questionTimeout: ReturnType<typeof setTimeout> | null = null;
+	let showAnswerDelay = $state(3000); // 3 seconds default delay
 
 	// Audio setup
 	async function initAudio() {
@@ -35,6 +38,14 @@
 			isAudioInitialized = true;
 		}
 	}
+
+	// Clear timeout when component is destroyed
+	import { onDestroy } from 'svelte';
+	onDestroy(() => {
+		if (questionTimeout) {
+			clearTimeout(questionTimeout);
+		}
+	});
 
 	// Generate major scale for any key
 	function generateMajorScale(rootNote: string): string[] {
@@ -106,6 +117,18 @@
 		}
 	}
 
+	// Show the correct answer
+	function showCorrectAnswer() {
+		if (correctAnswer !== null) {
+			feedback = `The correct answer is: ${degreeButtons[correctAnswer - 1]} degree in ${selectedKey} Major.`;
+			
+			// Generate new question after a delay
+			questionTimeout = setTimeout(() => {
+				generateNewQuestion();
+			}, 2000);
+		}
+	}
+
 	// Generate a new question
 	function generateNewQuestion() {
 		if (selectedDegrees.length === 0) {
@@ -113,13 +136,26 @@
 			return;
 		}
 
+		// Clear any existing timeout
+		if (questionTimeout) {
+			clearTimeout(questionTimeout);
+			questionTimeout = null;
+		}
+
 		feedback = '';
 		questionCount++;
 
-		// Select a random degree from the selected degrees
-		const randomDegreeIndex = Math.floor(Math.random() * selectedDegrees.length);
-		const targetDegree = selectedDegrees[randomDegreeIndex];
+		// Select a random degree from the selected degrees, avoiding the last one
+		let availableDegrees = selectedDegrees.filter(degree => degree !== lastDegree);
+		if (availableDegrees.length === 0) {
+			// If all degrees have been used, reset and use all selected degrees
+			availableDegrees = [...selectedDegrees];
+		}
+		
+		const randomDegreeIndex = Math.floor(Math.random() * availableDegrees.length);
+		const targetDegree = availableDegrees[randomDegreeIndex];
 		correctAnswer = targetDegree;
+		lastDegree = targetDegree;
 
 		// Get the note for this degree
 		const targetNote = currentScale[targetDegree - 1];
@@ -130,31 +166,11 @@
 		}, 500);
 
 		feedback = `Question ${questionCount}: Listen to the note and identify its degree in ${selectedKey} Major...`;
-	}
 
-	// Handle answer
-	function handleAnswer(selectedDegree: number) {
-		if (correctAnswer === null) {
-			feedback = 'Start the game first.';
-			return;
-		}
-
-		if (selectedDegree === correctAnswer) {
-			feedback = `Correct! That was the ${degreeButtons[correctAnswer - 1]} degree (${currentScale[correctAnswer - 1]}) in ${selectedKey} Major.`;
-		} else {
-			feedback = `Incorrect. That was the ${degreeButtons[correctAnswer - 1]} degree (${currentScale[correctAnswer - 1]}) in ${selectedKey} Major.`;
-		}
-
-		// Play the correct note again
-		const correctNote = currentScale[correctAnswer - 1];
-		setTimeout(() => {
-			playNote(correctNote);
-		}, 1000);
-
-		// Generate new question after a delay
-		setTimeout(() => {
-			generateNewQuestion();
-		}, 3000);
+		// Set timeout to show answer automatically
+		questionTimeout = setTimeout(() => {
+			showCorrectAnswer();
+		}, showAnswerDelay);
 	}
 
 	// Toggle all degrees
@@ -181,17 +197,22 @@
 	async function startGame() {
 		await initAudio();
 		questionCount = 0;
+		lastDegree = null;
 		generateNewQuestion();
 		gameStarted = true;
 	}
 
-	// Replay the current note
-	async function replayNote() {
-		if (correctAnswer !== null) {
-			await initAudio();
-			const correctNote = currentScale[correctAnswer - 1];
-			playNote(correctNote);
+	// Stop the game
+	function stopGame() {
+		if (questionTimeout) {
+			clearTimeout(questionTimeout);
+			questionTimeout = null;
 		}
+		gameStarted = false;
+		correctAnswer = null;
+		feedback = '';
+		questionCount = 0;
+		lastDegree = null;
 	}
 </script>
 
@@ -249,6 +270,20 @@
 				<option value="B3">B3 (Tenor)</option>
 				<option value="C4">C4 (Tenor/Alto)</option>
 			</select>
+		</div>
+
+		<!-- Answer Delay Control -->
+		<div class="mb-4 flex items-center gap-4">
+			<label class="text-sm font-medium">Answer Delay:</label>
+			<input
+				type="range"
+				min="1000"
+				max="10000"
+				step="500"
+				bind:value={showAnswerDelay}
+				class="w-32 accent-blue-500"
+			/>
+			<span class="text-sm">{(showAnswerDelay / 1000).toFixed(1)}s</span>
 		</div>
 
 		<!-- Degree Selection -->
@@ -309,26 +344,12 @@
 				Start Listening Practice
 			</button>
 		{:else}
-			<div class="flex gap-4">
-				<button
-					onclick={replayNote}
-					disabled={correctAnswer === null}
-					class="rounded bg-green-500 px-4 py-2 text-white transition-colors hover:bg-green-600 disabled:cursor-not-allowed disabled:bg-gray-400"
-				>
-					🔊 Replay Note
-				</button>
-				<button
-					onclick={() => {
-						gameStarted = false;
-						correctAnswer = null;
-						feedback = '';
-						questionCount = 0;
-					}}
-					class="rounded bg-red-500 px-4 py-2 text-white transition-colors hover:bg-red-600"
-				>
-					Stop Game
-				</button>
-			</div>
+			<button
+				onclick={stopGame}
+				class="rounded bg-red-500 px-4 py-2 text-white transition-colors hover:bg-red-600"
+			>
+				Stop Game
+			</button>
 		{/if}
 	</div>
 
@@ -344,46 +365,23 @@
 				</div>
 			{/if}
 		</div>
-
-		<!-- Answer Buttons -->
-		<div class="mb-8 flex flex-col gap-4">
-			<!-- First row: I to VII -->
-			<div class="flex justify-center gap-3">
-				{#each degreeButtons as degree, i}
-					<button
-						onclick={() => handleAnswer(i + 1)}
-						class="w-16 rounded-lg bg-gray-200 px-4 py-3 text-2xl font-bold transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
-					>
-						{degree}
-					</button>
-				{/each}
-			</div>
-
-			<!-- Second row: VII to I (reverse order) -->
-			<div class="flex justify-center gap-3">
-				{#each degreeButtons.slice().reverse() as degree, i}
-					<button
-						onclick={() => handleAnswer(degreeButtons.length - i)}
-						class="w-16 rounded-lg bg-gray-200 px-4 py-3 text-2xl font-bold transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
-					>
-						{degree}
-					</button>
-				{/each}
-			</div>
-		</div>
 	{/if}
 
 	<!-- Instructions -->
 	<div class="max-w-2xl text-center text-gray-600 dark:text-gray-400">
-		<h3 class="mb-2 text-lg font-semibold">How to Play:</h3>
+		<h3 class="mb-2 text-lg font-semibold">How to Use:</h3>
 		<ol class="list-decimal list-inside space-y-1 text-sm">
 			<li>Select your preferred key and lowest note</li>
 			<li>Choose which degrees you want to practice</li>
+			<li>Set the answer delay (how long to wait before showing the answer)</li>
 			<li>Click "Start Listening Practice"</li>
 			<li>Listen to the note that plays</li>
-			<li>Identify which degree of the scale it is</li>
-			<li>Click the corresponding degree button</li>
-			<li>The correct answer will be shown and the note will play again</li>
+			<li>Think about which degree it is</li>
+			<li>The correct degree will be shown automatically after the delay</li>
+			<li>A new question will be asked (different degree)</li>
 		</ol>
+		<p class="mt-2 text-xs text-gray-500">
+			🎸 Perfect for practicing with your guitar - just listen and learn the sound of each degree!
+		</p>
 	</div>
 </div> 
