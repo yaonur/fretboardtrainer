@@ -1487,30 +1487,32 @@
 					{/each}
 				</select>
 				<button title="Next Key" class="rounded border px-2 py-1 text-sm font-bold hover:bg-gray-200 dark:hover:bg-gray-700" onclick={nextKey}>&gt;</button>
-				<!-- Key Auto Cycle Controls -->
-				<button
-					onclick={() => {
-						if (!keyCycleEnabled) startKeyCycle();
-						else stopKeyCycle();
-					}}
-					class="rounded bg-blue-500 px-2 py-1 text-sm text-white hover:bg-blue-600 ml-2"
-				>
-					{keyCycleEnabled ? 'Stop Cycle' : 'Auto Cycle'}
-				</button>
-				<select bind:value={keyCycleDirection} class="rounded border px-1 py-1 text-xs ml-1">
-					<option value={'forward'}>→</option>
-					<option value={'backward'}>←</option>
-				</select>
-				<input
-					type="range"
-					min="5"
-					max="120"
-					step="1"
-					bind:value={keyCycleDelaySec}
-					class="w-28 accent-blue-500 ml-2"
-				/>
-				<span class="text-xs w-16 text-center">{keyCycleDelaySec}s</span>
 			</div>
+		</div>
+		<div class="flex my-2">
+							<!-- Key Auto Cycle Controls -->
+							<button
+							onclick={() => {
+								if (!keyCycleEnabled) startKeyCycle();
+								else stopKeyCycle();
+							}}
+							class="rounded bg-blue-500 px-2 py-1 text-sm text-white hover:bg-blue-600 ml-2"
+						>
+							{keyCycleEnabled ? 'Stop Cycle' : 'Auto Cycle'}
+						</button>
+						<select bind:value={keyCycleDirection} class="rounded border w-10 dark:text-slate-800 px-1 py-1 text-xs ml-1">
+							<option value={'forward'}>→</option>
+							<option value={'backward'}>←</option>
+						</select>
+						<input
+							type="range"
+							min="5"
+							max="120"
+							step="1"
+							bind:value={keyCycleDelaySec}
+							class="w-28 accent-blue-500 ml-2"
+						/>
+						<span class="text-xs w-16 text-center">{keyCycleDelaySec}s</span>
 		</div>
 		<div class="mt-2 flex items-center gap-2">
 			<p class="text-sm font-medium">Lowest Note:</p>
