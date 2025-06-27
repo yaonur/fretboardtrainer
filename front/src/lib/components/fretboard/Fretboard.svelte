@@ -1531,6 +1531,8 @@
 	$effect(() => {
 		if (!keyCycleEnabled) clearKeyCycleTimer();
 	});
+
+	let gameStarted = $state(false);
 </script>
 
 <div class="flex flex-col items-center">
@@ -1681,6 +1683,7 @@
 				await initAudio();
 				questionCount = 0; // Reset question count for new session
 				autoNextGenerateNewQuestion();
+				gameStarted = true;
 			}}
 			disabled={!canGenerateQuestion}
 			class="mt-2 rounded bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-400"
@@ -1978,11 +1981,16 @@
 		<div
 			class="relative mt-2 border-l-[5px] border-r-[5px] border-gray-400"
 			style:height="{(numStrings - 1) * 30}px"
-			onclick={gameMode === 'find-degree'
-				? () => {
-						if (canGenerateQuestion) autoNextPlayAndNext();
-					}
-				: undefined}
+			onclick={async () => {
+				if (!gameStarted) {
+					await initAudio();
+					questionCount = 0;
+					autoNextGenerateNewQuestion();
+					gameStarted = true;
+				} else if (canGenerateQuestion) {
+					autoNextPlayAndNext();
+				}
+			}}
 		>
 			<!-- Fret Markers -->
 			<div
@@ -2317,7 +2325,15 @@
 					placeholder="Cycle N"
 				/>
 				<button
-					onclick={handleAutoCycle}
+					onclick={async () => {
+						if (!gameStarted) {
+							await initAudio();
+							questionCount = 0;
+							autoNextGenerateNewQuestion();
+							gameStarted = true;
+						}
+						handleAutoCycle();
+					}}
 					disabled={fragmentCycleEnabled || shapeCycleEnabled}
 					class="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
 				>
