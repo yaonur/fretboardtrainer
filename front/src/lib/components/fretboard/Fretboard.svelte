@@ -1341,19 +1341,12 @@
 			gemini: calculateFragmentFretRange('gemini')
 		};
 		if (shapeName === 'e') {
-			// Special case: E shape in C major (epsilon: 12-13, gemini: 2-3)
+			// Special case: E shape in C major should be 12-15
 			const keyName = selectedKey.includes('/') ? selectedKey.split('/')[0] : selectedKey;
 			if (
-				keyName === 'C' &&
-				frag.epsilon.start === 12 &&
-				frag.epsilon.end === 13 &&
-				frag.gemini.start === 2 &&
-				frag.gemini.end === 3
+				keyName === 'C'
 			) {
-				return [
-					{ start: frag.epsilon.start, end: frag.epsilon.end },
-					{ start: frag.gemini.start, end: frag.gemini.end }
-				];
+				return { start: 12, end: 15 };
 			}
 			// Default: contiguous
 			return {
