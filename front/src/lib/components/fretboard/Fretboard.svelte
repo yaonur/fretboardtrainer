@@ -614,11 +614,11 @@
 	}
 
 	let showRedDotsOnSelectedStringOnly = $state(true);
-	let selectedRedDotString = $state(6); // 1-based string number
+	let selectedRedDotStrings = $state<number[]>([6]); // 1-based string numbers, default to 6
 
 	function shouldShowRedDot(stringIdx: number, fretIdx: number): boolean {
 		if (highlightedDegrees.length === 0) return false;
-		if (showRedDotsOnSelectedStringOnly && stringIdx !== selectedRedDotString - 1) return false;
+		if (showRedDotsOnSelectedStringOnly && !selectedRedDotStrings.includes(stringIdx + 1)) return false;
 		const scaleNotes = currentScale;
 		const note = fretboard[stringIdx][fretIdx];
 		const degree = scaleNotes.indexOf(getNoteNameWithAccidental(note)) + 1;
@@ -1769,18 +1769,31 @@
 				bind:checked={showRedDotsOnSelectedStringOnly}
 				class="accent-red-500"
 			/>
-			<span class="text-sm">Red dots only on string:</span>
+			<span class="text-sm">Red dots only on string(s):</span>
 		</label>
-		<input
-			type="range"
-			min="1"
-			max={numStrings}
-			step="1"
-			bind:value={selectedRedDotString}
-			disabled={!showRedDotsOnSelectedStringOnly}
-			class="w-32 accent-red-500"
-		/>
-		<span class="w-8 text-center text-sm">{selectedRedDotString}</span>
+		<div class="flex gap-1">
+			{#each Array(numStrings) as _, i}
+				<button
+					type="button"
+					class="rounded border px-2 py-1 text-sm font-bold transition-colors"
+					class:bg-red-600={selectedRedDotStrings.includes(i + 1) && showRedDotsOnSelectedStringOnly}
+					class:text-white={selectedRedDotStrings.includes(i + 1) && showRedDotsOnSelectedStringOnly}
+					class:bg-gray-200={!selectedRedDotStrings.includes(i + 1) || !showRedDotsOnSelectedStringOnly}
+					class:text-red-600={!selectedRedDotStrings.includes(i + 1) || !showRedDotsOnSelectedStringOnly}
+					onclick={() => {
+						if (!showRedDotsOnSelectedStringOnly) return;
+						if (selectedRedDotStrings.includes(i + 1)) {
+							selectedRedDotStrings = selectedRedDotStrings.filter(s => s !== i + 1);
+						} else {
+							selectedRedDotStrings = [...selectedRedDotStrings, i + 1];
+						}
+					}}
+					disabled={!showRedDotsOnSelectedStringOnly}
+				>
+					{i + 1}
+				</button>
+			{/each}
+		</div>
 	</div>
 	<!-- Toggle for yellow fragment dots -->
 	<div class="mb-2 flex justify-center">
