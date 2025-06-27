@@ -25,6 +25,10 @@
 	let anchorDegree = $state<number>(1); // Default to I degree
 	let anchorFrequency = $state<number>(2); // How many questions to skip before anchor (default: every 2nd question)
 
+	// --- Voice Settings ---
+	let voiceEnabled = $state(true);
+	let voiceAudio: HTMLAudioElement | null = null;
+
 	// Audio setup
 	async function initAudio() {
 		if (!isAudioInitialized) {
@@ -129,7 +133,11 @@
 			// Check if this was an anchor question
 			const isAnchorQuestion = anchorModeEnabled && questionCount % anchorFrequency === 0;
 			const anchorIndicator = isAnchorQuestion ? ' (Anchor)' : '';
-			feedback = `${degreeButtons[correctAnswer - 1]}${anchorIndicator}`;
+			const degreeText = degreeButtons[correctAnswer - 1];
+			feedback = `${degreeText}${anchorIndicator}`;
+			
+			// Speak the degree
+			speakDegree(degreeText);
 			
 			// Generate new question after the answer display time
 			questionTimeout = setTimeout(() => {
@@ -236,11 +244,38 @@
 			clearTimeout(questionTimeout);
 			questionTimeout = null;
 		}
+		
 		gameStarted = false;
 		correctAnswer = null;
 		feedback = '';
 		questionCount = 0;
 		lastDegree = null;
+	}
+
+	// Speak the degree
+	function speakDegree(degree: string) {
+		if (!voiceEnabled) return;
+
+		// Use actual voice samples from static folder
+		const voiceSamples = {
+			'I': '/sounds/count/1.mp3',
+			'II': '/sounds/count/2.mp3', 
+			'III': '/sounds/count/3.mp3',
+			'IV': '/sounds/count/4.mp3',
+			'V': '/sounds/count/5.mp3',
+			'VI': '/sounds/count/6.mp3',
+			'VII': '/sounds/count/7.mp3'
+		};
+
+		const audioPath = voiceSamples[degree as keyof typeof voiceSamples];
+		if (audioPath) {
+			// Create and play audio element
+			const audio = new Audio(audioPath);
+			audio.volume = 0.8;
+			audio.play().catch(error => {
+				console.log('Error playing voice sample:', error);
+			});
+		}
 	}
 </script>
 
@@ -326,6 +361,15 @@
 				class="w-32 accent-blue-500"
 			/>
 			<span class="text-sm">{(answerDisplayTime / 1000).toFixed(1)}s</span>
+		</div>
+
+		<!-- Voice Control -->
+		<div class="mb-4 flex items-center gap-4">
+			<span class="text-sm font-medium">Voice:</span>
+			<label class="flex cursor-pointer select-none items-center gap-2">
+				<input type="checkbox" bind:checked={voiceEnabled} class="accent-blue-500" />
+				<span class="text-sm">Announce degrees</span>
+			</label>
 		</div>
 
 		<!-- Anchor Mode Controls -->
