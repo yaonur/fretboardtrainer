@@ -580,7 +580,7 @@
 
 	let showNoteNameOnDot = $state(false);
 	let highlightedDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7]);
-	let showDegreeOnRedDots = $state(true);
+	let redDotDisplayMode = $state<'degrees' | 'notes' | 'empty'>('degrees');
 	let showFragmentDots = $state(true); // NEW: toggle for yellow fragment dots
 	let showFragmentDegrees = $state(false);
 
@@ -604,10 +604,14 @@
 	}
 
 	function getRedDotDegreeLabel(stringIdx: number, fretIdx: number): string {
-		const scaleNotes = currentScale;
-		const note = fretboard[stringIdx][fretIdx];
-		const degree = scaleNotes.indexOf(getNoteNameWithAccidental(note)) + 1;
-		return degree > 0 ? degreeButtons[degree - 1] : '';
+		if (redDotDisplayMode === 'empty') return '';
+		if (redDotDisplayMode === 'degrees') {
+			const scaleNotes = currentScale;
+			const note = fretboard[stringIdx][fretIdx];
+			const degree = scaleNotes.indexOf(getNoteNameWithAccidental(note)) + 1;
+			return degree > 0 ? degreeButtons[degree - 1] : '';
+		}
+		return '';
 	}
 
 	let presets = $state<FretboardPreset[]>([]);
@@ -822,7 +826,7 @@
 			G: { start: 2, end: 3 },
 			Ab: { start: 3, end: 4 },
 			A: { start: 4, end: 5 },
-			Bb: { start: 6, end: 6 },
+			Bb: { start: 5, end: 6 },
 			B: { start: 6, end: 7 }
 		};
 
@@ -1281,11 +1285,19 @@
 		</label>
 	</div>
 
-	<!-- Toggle for degree name on red dots -->
-	<div class="mb-2 flex justify-center">
+	<!-- Red dot display options -->
+	<div class="mb-2 flex justify-center gap-4">
 		<label class="flex cursor-pointer select-none items-center gap-2">
-			<input type="checkbox" bind:checked={showDegreeOnRedDots} class="accent-red-500" />
-			<span class="text-sm">Show degree name in red dots</span>
+			<input type="radio" bind:group={redDotDisplayMode} value="degrees" class="accent-red-500" />
+			<span class="text-sm">Show degrees</span>
+		</label>
+		<label class="flex cursor-pointer select-none items-center gap-2">
+			<input type="radio" bind:group={redDotDisplayMode} value="notes" class="accent-red-500" />
+			<span class="text-sm">Show notes</span>
+		</label>
+		<label class="flex cursor-pointer select-none items-center gap-2">
+			<input type="radio" bind:group={redDotDisplayMode} value="empty" class="accent-red-500" />
+			<span class="text-sm">Show empty</span>
 		</label>
 	</div>
 	<!-- Toggle for yellow fragment dots -->
@@ -1460,9 +1472,11 @@
 								style:top="calc({stringIdx} * 30px - 10px)"
 								style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
 							>
-								{showDegreeOnRedDots
-									? getRedDotDegreeLabel(stringIdx, fretIdx)
-									: getNoteNameWithAccidental(fretboard[stringIdx][fretIdx])}
+								{#if redDotDisplayMode === 'degrees'}
+									{getRedDotDegreeLabel(stringIdx, fretIdx)}
+								{:else if redDotDisplayMode === 'notes'}
+									{getNoteNameWithAccidental(fretboard[stringIdx][fretIdx])}
+								{/if}
 							</div>
 						{/if}
 					{/each}
