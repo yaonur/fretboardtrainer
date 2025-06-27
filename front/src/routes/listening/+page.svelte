@@ -17,7 +17,7 @@
 	let sampler: Tone.Sampler;
 	let lastDegree = $state<number | null>(null); // Track last asked degree to avoid repetition
 	let questionTimeout: ReturnType<typeof setTimeout> | null = null;
-	let showAnswerDelay = $state(3000); // 3 seconds default delay
+	let showAnswerDelay = $state(1500); // 3 seconds default delay
 
 	// Audio setup
 	async function initAudio() {
@@ -120,7 +120,7 @@
 	// Show the correct answer
 	function showCorrectAnswer() {
 		if (correctAnswer !== null) {
-			feedback = `The correct answer is: ${degreeButtons[correctAnswer - 1]} degree in ${selectedKey} Major.`;
+			feedback = `${degreeButtons[correctAnswer - 1]}`;
 			
 			// Generate new question after a delay
 			questionTimeout = setTimeout(() => {
@@ -277,9 +277,9 @@
 			<label class="text-sm font-medium">Answer Delay:</label>
 			<input
 				type="range"
-				min="1000"
-				max="10000"
-				step="500"
+				min="400"
+				max="3000"
+				step="50"
 				bind:value={showAnswerDelay}
 				class="w-32 accent-blue-500"
 			/>
@@ -317,20 +317,7 @@
 			</div>
 		</div>
 
-		<!-- Scale Display -->
-		<div class="mb-4">
-			<label class="mb-2 block text-sm font-medium">{selectedKey} Major Scale:</label>
-			<div class="flex gap-2">
-				{#each currentScale as note, i}
-					<div class="flex flex-col items-center">
-						<div class="rounded bg-blue-100 px-2 py-1 text-sm font-bold text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-							{degreeButtons[i]}
-						</div>
-						<div class="text-xs text-gray-600 dark:text-gray-400">{note}</div>
-					</div>
-				{/each}
-			</div>
-		</div>
+		
 	</div>
 
 	<!-- Game Controls -->
