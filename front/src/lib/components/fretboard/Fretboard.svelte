@@ -1956,7 +1956,7 @@
 						{#if shouldShowYellowDot(stringIdx, fretIdx)}
 							{@const fragmentType = getFragmentType(stringIdx, fretIdx)}
 							<div
-								class="absolute flex h-[16px] w-[16px] items-center justify-center rounded-full border-2 sm:h-[20px] sm:w-[20px] md:h-[24px] md:w-[24px] lg:h-[28px] lg:w-[28px]"
+								class="absolute flex h-[16px] w-[16px] items-center justify-center rounded-full border-2 sm:h-[20px] sm:w-[20px] md:h-[24px] bg-blue-600 md:w-[24px] lg:h-[28px] lg:w-[28px]"
 								class:border-yellow-600={fragmentType === 'alpha'}
 								class:bg-yellow-500={fragmentType === 'alpha'}
 								class:border-orange-400={fragmentType === 'beta'}
