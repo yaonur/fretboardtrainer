@@ -123,6 +123,12 @@
 	let deltaFragmentModeEnabled = $state(false); // Track if delta fragment mode is enabled
 	let epsilonFragmentModeEnabled = $state(false); // Track if epsilon fragment mode is enabled
 	let geminiFragmentModeEnabled = $state(false); // Track if gemini fragment mode is enabled
+	// --- Shape Mode State ---
+	let aShapeModeEnabled = $state(false);
+	let cShapeModeEnabled = $state(false);
+	let dShapeModeEnabled = $state(false);
+	let eShapeModeEnabled = $state(false);
+	let gShapeModeEnabled = $state(false);
 
 	// Store user's last known settings
 	let lastUserStringStart = $state<number>(1);
@@ -298,6 +304,13 @@
 	const fragmentCycleOrder = $derived(getCurrentFragmentCycleOrder());
 
 	function startFragmentCycle() {
+		// Disable shape cycle and all shape modes
+		shapeCycleEnabled = false;
+		aShapeModeEnabled = false;
+		cShapeModeEnabled = false;
+		dShapeModeEnabled = false;
+		eShapeModeEnabled = false;
+		gShapeModeEnabled = false;
 		fragmentCycleEnabled = true;
 		fragmentCycleCurrent = 0;
 		fragmentCycleIndex = 0;
@@ -331,6 +344,12 @@
 			fragmentCycleCurrent++;
 			if (fragmentCycleCurrent > fragmentCycleCount) {
 				nextFragmentCycle();
+			}
+		}
+		if (shapeCycleEnabled) {
+			shapeCycleCurrent++;
+			if (shapeCycleCurrent > shapeCycleCount) {
+				nextShapeCycle();
 			}
 		}
 
@@ -747,6 +766,13 @@
 
 	// Add fragment drill activation
 	function activateFragmentDrill(fragmentName: 'alpha' | 'beta' | 'delta' | 'epsilon' | 'gemini') {
+		// Disable all shape modes and shape cycle
+		shapeCycleEnabled = false;
+		aShapeModeEnabled = false;
+		cShapeModeEnabled = false;
+		dShapeModeEnabled = false;
+		eShapeModeEnabled = false;
+		gShapeModeEnabled = false;
 		const isAlpha = fragmentName === 'alpha';
 		const isBeta = fragmentName === 'beta';
 		const isdelta = fragmentName === 'delta';
@@ -906,17 +932,21 @@
 	function getFragmentType(
 		stringIdx: number,
 		fretIdx: number
-	): 'alpha' | 'beta' | 'delta' | 'epsilon' | 'gemini' | null {
+	): 'alpha' | 'beta' | 'delta' | 'epsilon' | 'gemini' | 'a' | 'c' | 'd' | 'e' | 'g' | null {
 		if (
 			!fragmentModeEnabled &&
 			!betaFragmentModeEnabled &&
 			!deltaFragmentModeEnabled &&
 			!epsilonFragmentModeEnabled &&
-			!geminiFragmentModeEnabled
+			!geminiFragmentModeEnabled &&
+			!aShapeModeEnabled &&
+			!cShapeModeEnabled &&
+			!dShapeModeEnabled &&
+			!eShapeModeEnabled &&
+			!gShapeModeEnabled
 		)
 			return null;
 
-		// Check if position is within the current drill area
 		const inDrillArea =
 			stringIdx + 1 >= stringRangeStart &&
 			stringIdx + 1 <= stringRangeEnd &&
@@ -924,12 +954,15 @@
 			fretIdx <= fretRangeEnd;
 		if (!inDrillArea) return null;
 
-		const fragmentDegrees = [6, 2, 5, 7, 1, 3, 4, 6]; // Alpha Fragment degrees
-		const betaFragmentDegrees = [7, 3, 6, 1, 2, 4, 5, 7]; // Beta Fragment degrees
-		const deltaFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1]; // delta Fragment degrees
-		const epsilonFragmentDegrees = [2, 3, 4, 5, 6, 7, 1, 2]; // epsilon Fragment degrees
-		const geminiFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1]; // gemini Fragment degrees
 		const scaleNotes = currentScale;
+		const note = fretboard[stringIdx][fretIdx];
+		const displayNote = getNoteNameWithAccidental(note);
+
+		const fragmentDegrees = [6, 2, 5, 7, 1, 3, 4, 6];
+		const betaFragmentDegrees = [7, 3, 6, 1, 2, 4, 5, 7];
+		const deltaFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1];
+		const epsilonFragmentDegrees = [2, 3, 4, 5, 6, 7, 1, 2];
+		const geminiFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1];
 
 		const fragmentNotes = fragmentDegrees.map((degree) => scaleNotes[degree - 1]);
 		const betaFragmentNotes = betaFragmentDegrees.map((degree) => scaleNotes[degree - 1]);
@@ -937,15 +970,19 @@
 		const epsilonFragmentNotes = epsilonFragmentDegrees.map((degree) => scaleNotes[degree - 1]);
 		const geminiFragmentNotes = geminiFragmentDegrees.map((degree) => scaleNotes[degree - 1]);
 
-		const note = fretboard[stringIdx][fretIdx];
-		const displayNote = getNoteNameWithAccidental(note);
-
-		// Only check for the currently active fragment mode
 		if (fragmentModeEnabled && fragmentNotes.includes(displayNote)) return 'alpha';
 		if (betaFragmentModeEnabled && betaFragmentNotes.includes(displayNote)) return 'beta';
 		if (deltaFragmentModeEnabled && deltaFragmentNotes.includes(displayNote)) return 'delta';
 		if (epsilonFragmentModeEnabled && epsilonFragmentNotes.includes(displayNote)) return 'epsilon';
 		if (geminiFragmentModeEnabled && geminiFragmentNotes.includes(displayNote)) return 'gemini';
+
+		// Shape logic: highlight if in either fragment's notes
+		if (aShapeModeEnabled && (fragmentNotes.includes(displayNote) || betaFragmentNotes.includes(displayNote))) return 'a';
+		if (cShapeModeEnabled && (betaFragmentNotes.includes(displayNote) || deltaFragmentNotes.includes(displayNote))) return 'c';
+		if (dShapeModeEnabled && (deltaFragmentNotes.includes(displayNote) || epsilonFragmentNotes.includes(displayNote))) return 'd';
+		if (eShapeModeEnabled && (epsilonFragmentNotes.includes(displayNote) || geminiFragmentNotes.includes(displayNote))) return 'e';
+		if (gShapeModeEnabled && (geminiFragmentNotes.includes(displayNote) || fragmentNotes.includes(displayNote))) return 'g';
+
 		return null;
 	}
 
@@ -968,7 +1005,12 @@
 			!betaFragmentModeEnabled &&
 			!deltaFragmentModeEnabled &&
 			!epsilonFragmentModeEnabled &&
-			!geminiFragmentModeEnabled
+			!geminiFragmentModeEnabled &&
+			!aShapeModeEnabled &&
+			!cShapeModeEnabled &&
+			!dShapeModeEnabled &&
+			!eShapeModeEnabled &&
+			!gShapeModeEnabled
 		)
 			return false;
 		const inDrillArea =
@@ -980,10 +1022,17 @@
 		const scaleNotes = currentScale;
 		const note = fretboard[stringIdx][fretIdx];
 		const displayNote = getNoteNameWithAccidental(note);
-		// For each fragment type, only show if the degree is in highlightedFragmentDegrees
+		const fragmentDegrees = [6, 2, 5, 7, 1, 3, 4, 6];
+		const betaFragmentDegrees = [7, 3, 6, 1, 2, 4, 5, 7];
+		const deltaFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1];
+		const epsilonFragmentDegrees = [2, 3, 4, 5, 6, 7, 1, 2];
+		const geminiFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1];
+		const fragmentNotes = fragmentDegrees.map((degree) => scaleNotes[degree - 1]);
+		const betaFragmentNotes = betaFragmentDegrees.map((degree) => scaleNotes[degree - 1]);
+		const deltaFragmentNotes = deltaFragmentDegrees.map((degree) => scaleNotes[degree - 1]);
+		const epsilonFragmentNotes = epsilonFragmentDegrees.map((degree) => scaleNotes[degree - 1]);
+		const geminiFragmentNotes = geminiFragmentDegrees.map((degree) => scaleNotes[degree - 1]);
 		if (fragmentModeEnabled) {
-			const fragmentDegrees = [6, 2, 5, 7, 1, 3, 4, 6];
-			const fragmentNotes = fragmentDegrees.map((degree) => scaleNotes[degree - 1]);
 			return fragmentNotes.some(
 				(n, i) =>
 					displayNote === n &&
@@ -991,8 +1040,6 @@
 			);
 		}
 		if (betaFragmentModeEnabled) {
-			const betaFragmentDegrees = [7, 3, 6, 1, 2, 4, 5, 7];
-			const betaFragmentNotes = betaFragmentDegrees.map((degree) => scaleNotes[degree - 1]);
 			return betaFragmentNotes.some(
 				(n, i) =>
 					displayNote === n &&
@@ -1000,8 +1047,6 @@
 			);
 		}
 		if (deltaFragmentModeEnabled) {
-			const deltaFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1];
-			const deltaFragmentNotes = deltaFragmentDegrees.map((degree) => scaleNotes[degree - 1]);
 			return deltaFragmentNotes.some(
 				(n, i) =>
 					displayNote === n &&
@@ -1009,8 +1054,6 @@
 			);
 		}
 		if (epsilonFragmentModeEnabled) {
-			const epsilonFragmentDegrees = [2, 3, 4, 5, 6, 7, 1, 2];
-			const epsilonFragmentNotes = epsilonFragmentDegrees.map((degree) => scaleNotes[degree - 1]);
 			return epsilonFragmentNotes.some(
 				(n, i) =>
 					displayNote === n &&
@@ -1018,12 +1061,41 @@
 			);
 		}
 		if (geminiFragmentModeEnabled) {
-			const geminiFragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1];
-			const geminiFragmentNotes = geminiFragmentDegrees.map((degree) => scaleNotes[degree - 1]);
 			return geminiFragmentNotes.some(
 				(n, i) =>
 					displayNote === n &&
 					highlightedFragmentDegrees.includes(((geminiFragmentDegrees[i] - 1 + 7) % 7) + 1)
+			);
+		}
+		// Shape logic: highlight if in either fragment's notes
+		if (aShapeModeEnabled) {
+			return (
+				fragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((fragmentDegrees[i] - 1 + 7) % 7) + 1)) ||
+				betaFragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((betaFragmentDegrees[i] - 1 + 7) % 7) + 1))
+			);
+		}
+		if (cShapeModeEnabled) {
+			return (
+				betaFragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((betaFragmentDegrees[i] - 1 + 7) % 7) + 1)) ||
+				deltaFragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((deltaFragmentDegrees[i] - 1 + 7) % 7) + 1))
+			);
+		}
+		if (dShapeModeEnabled) {
+			return (
+				deltaFragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((deltaFragmentDegrees[i] - 1 + 7) % 7) + 1)) ||
+				epsilonFragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((epsilonFragmentDegrees[i] - 1 + 7) % 7) + 1))
+			);
+		}
+		if (eShapeModeEnabled) {
+			return (
+				epsilonFragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((epsilonFragmentDegrees[i] - 1 + 7) % 7) + 1)) ||
+				geminiFragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((geminiFragmentDegrees[i] - 1 + 7) % 7) + 1))
+			);
+		}
+		if (gShapeModeEnabled) {
+			return (
+				geminiFragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((geminiFragmentDegrees[i] - 1 + 7) % 7) + 1)) ||
+				fragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((fragmentDegrees[i] - 1 + 7) % 7) + 1))
 			);
 		}
 		return false;
@@ -1031,7 +1103,7 @@
 
 	// Add a getFragmentDotDegreeLabel function:
 	function getFragmentDotDegreeLabel(stringIdx: number, fretIdx: number): string {
-		if (!showFragmentDegrees) return '' 
+		if (!showFragmentDegrees) return '';
 		const scaleNotes = currentScale;
 		const note = fretboard[stringIdx][fretIdx];
 		const displayNote = getNoteNameWithAccidental(note);
@@ -1041,6 +1113,11 @@
 		else if (deltaFragmentModeEnabled) fragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1];
 		else if (epsilonFragmentModeEnabled) fragmentDegrees = [2, 3, 4, 5, 6, 7, 1, 2];
 		else if (geminiFragmentModeEnabled) fragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1];
+		else if (aShapeModeEnabled) fragmentDegrees = [6, 2, 5, 7, 1, 3, 4, 6, 7, 3, 6, 1, 2, 4, 5, 7];
+		else if (cShapeModeEnabled) fragmentDegrees = [7, 3, 6, 1, 2, 4, 5, 7, 1, 2, 3, 4, 5, 6, 7, 1];
+		else if (dShapeModeEnabled) fragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7, 1, 2];
+		else if (eShapeModeEnabled) fragmentDegrees = [2, 3, 4, 5, 6, 7, 1, 2, 1, 2, 3, 4, 5, 6, 7, 1];
+		else if (gShapeModeEnabled) fragmentDegrees = [1, 2, 3, 4, 5, 6, 7, 1, 6, 2, 5, 7, 1, 3, 4, 6];
 		const fragmentNotes = fragmentDegrees.map((degree) => scaleNotes[degree - 1]);
 		for (let i = 0; i < fragmentNotes.length; i++) {
 			if (displayNote === fragmentNotes[i]) {
@@ -1107,6 +1184,148 @@
 			clearAutoNextTimer();
 		}
 	});
+
+	// Add shape drill activation
+	function activateShapeDrill(shapeName: 'a' | 'c' | 'd' | 'e' | 'g') {
+		// Disable all fragment modes and fragment cycle
+		fragmentCycleEnabled = false;
+		fragmentModeEnabled = false;
+		betaFragmentModeEnabled = false;
+		deltaFragmentModeEnabled = false;
+		epsilonFragmentModeEnabled = false;
+		geminiFragmentModeEnabled = false;
+		const isA = shapeName === 'a';
+		const isC = shapeName === 'c';
+		const isD = shapeName === 'd';
+		const isE = shapeName === 'e';
+		const isG = shapeName === 'g';
+
+		if (
+			(isA && aShapeModeEnabled) ||
+			(isC && cShapeModeEnabled) ||
+			(isD && dShapeModeEnabled) ||
+			(isE && eShapeModeEnabled) ||
+			(isG && gShapeModeEnabled)
+		) {
+			// Disable shape mode - restore user's last known settings
+			aShapeModeEnabled = false;
+			cShapeModeEnabled = false;
+			dShapeModeEnabled = false;
+			eShapeModeEnabled = false;
+			gShapeModeEnabled = false;
+			stringRangeStart = lastUserStringStart;
+			stringRangeEnd = lastUserStringEnd;
+			fretRangeStart = lastUserFretStart;
+			fretRangeEnd = lastUserFretEnd;
+		} else {
+			// Enable shape mode - save current settings and set to shape area
+			aShapeModeEnabled = isA;
+			cShapeModeEnabled = isC;
+			dShapeModeEnabled = isD;
+			eShapeModeEnabled = isE;
+			gShapeModeEnabled = isG;
+			lastUserStringStart = stringRangeStart;
+			lastUserStringEnd = stringRangeEnd;
+			lastUserFretStart = fretRangeStart;
+			lastUserFretEnd = fretRangeEnd;
+
+			// Shapes always use all 6 strings
+			stringRangeStart = 1;
+			stringRangeEnd = 6;
+
+			// Calculate the fret range for the shape
+			const shapeFretRange = calculateShapeFretRange(shapeName);
+			fretRangeStart = shapeFretRange.start;
+			fretRangeEnd = shapeFretRange.end;
+		}
+	}
+
+	// Calculate the fret range for a shape (union of two fragments)
+	function calculateShapeFretRange(shapeName: 'a' | 'c' | 'd' | 'e' | 'g'): { start: number; end: number } {
+		const frag = {
+			alpha: calculateFragmentFretRange('alpha'),
+			beta: calculateFragmentFretRange('beta'),
+			delta: calculateFragmentFretRange('delta'),
+			epsilon: calculateFragmentFretRange('epsilon'),
+			gemini: calculateFragmentFretRange('gemini'),
+		};
+		if (shapeName === 'a') {
+			// Alpha + Beta
+			return { start: Math.min(frag.alpha.start, frag.beta.start), end: Math.max(frag.alpha.end, frag.beta.end) };
+		} else if (shapeName === 'c') {
+			// Beta + Delta
+			return { start: Math.min(frag.beta.start, frag.delta.start), end: Math.max(frag.beta.end, frag.delta.end) };
+		} else if (shapeName === 'd') {
+			// Delta + Epsilon
+			return { start: Math.min(frag.delta.start, frag.epsilon.start), end: Math.max(frag.delta.end, frag.epsilon.end) };
+		} else if (shapeName === 'e') {
+			// Epsilon + Gemini
+			return { start: Math.min(frag.epsilon.start, frag.gemini.start), end: Math.max(frag.epsilon.end, frag.gemini.end) };
+		} else if (shapeName === 'g') {
+			// Gemini + Alpha
+			return { start: Math.min(frag.gemini.start, frag.alpha.start), end: Math.max(frag.gemini.end, frag.alpha.end) };
+		}
+		return { start: 1, end: 3 };
+	}
+
+	// --- Shape Cycle State ---
+	let shapeCycleEnabled = $state(false);
+	let shapeCycleCount = $state(5); // default cycle length
+	let shapeCycleCurrent = $state(0);
+	let shapeCycleIndex = $state(0);
+	const shapeCycleOrder = ['a', 'c', 'd', 'e', 'g'];
+
+	function startShapeCycle() {
+		// Disable fragment cycle and all fragment modes
+		fragmentCycleEnabled = false;
+		fragmentModeEnabled = false;
+		betaFragmentModeEnabled = false;
+		deltaFragmentModeEnabled = false;
+		epsilonFragmentModeEnabled = false;
+		geminiFragmentModeEnabled = false;
+		shapeCycleEnabled = true;
+		shapeCycleCurrent = 0;
+		shapeCycleIndex = 0;
+		activateShapeDrill(shapeCycleOrder[shapeCycleIndex] as 'a' | 'c' | 'd' | 'e' | 'g');
+	}
+
+	function stopShapeCycle() {
+		shapeCycleEnabled = false;
+		aShapeModeEnabled = false;
+		cShapeModeEnabled = false;
+		dShapeModeEnabled = false;
+		eShapeModeEnabled = false;
+		gShapeModeEnabled = false;
+	}
+
+	function nextShapeCycle() {
+		shapeCycleCurrent = 0;
+		shapeCycleIndex = (shapeCycleIndex + 1) % shapeCycleOrder.length;
+		activateShapeDrill(shapeCycleOrder[shapeCycleIndex] as 'a' | 'c' | 'd' | 'e' | 'g');
+	}
+
+	// Helper to determine current mode
+	function getCurrentMode() {
+		if (aShapeModeEnabled || cShapeModeEnabled || dShapeModeEnabled || eShapeModeEnabled || gShapeModeEnabled) return 'shape';
+		if (fragmentModeEnabled || betaFragmentModeEnabled || deltaFragmentModeEnabled || epsilonFragmentModeEnabled || geminiFragmentModeEnabled) return 'fragment';
+		return 'none';
+	}
+
+	function handleAutoCycle() {
+		const mode = getCurrentMode();
+		if (mode === 'shape') {
+			startShapeCycle();
+		} else {
+			startFragmentCycle();
+		}
+	}
+
+	// Add derived variable and setter for cycle count input
+	let autoCycleCount = $derived(fragmentCycleEnabled ? fragmentCycleCount : shapeCycleCount);
+	function setAutoCycleCount(val: number) {
+		if (fragmentCycleEnabled) fragmentCycleCount = val;
+		else shapeCycleCount = val;
+	}
 </script>
 
 <div class="flex flex-col items-center">
@@ -1628,7 +1847,7 @@
 		</div>
 	{/if}
 
-	<div class="flex h-36 w-full flex-col items-center">
+	<div class="flex h-56 w-full flex-col items-center">
 		<p>Quick Fragments</p>
 
 		{#if gameMode === 'find-degree'}
@@ -1693,68 +1912,104 @@
 				>
 					Gemini
 				</button>
-				<!-- Fragment cycle controls -->
 			</div>
-				<div class="mt-2 flex flex-wrap justify-center gap-1">
-					<button
-						onclick={toggleAllFragmentDegrees}
-						class="rounded border-2 border-yellow-400 bg-yellow-100 px-2 py-0 text-xs font-bold text-yellow-700"
-						>{highlightedFragmentDegrees.length === degreeButtons.length ? 'None' : 'All'}</button
-					>
-					{#each degreeButtons as degree, i}
-						<button
-							onclick={() => {
-								highlightedFragmentDegrees = highlightedFragmentDegrees.includes(i + 1)
-									? highlightedFragmentDegrees.filter((d) => d !== i + 1)
-									: [...highlightedFragmentDegrees, i + 1];
-							}}
-							class="rounded border-2 px-2 py-0 text-xs font-bold transition-colors"
-							class:bg-yellow-500={highlightedFragmentDegrees.includes(i + 1)}
-							class:text-white={highlightedFragmentDegrees.includes(i + 1)}
-							class:border-yellow-600={highlightedFragmentDegrees.includes(i + 1)}
-							class:bg-yellow-100={!highlightedFragmentDegrees.includes(i + 1)}
-							class:text-yellow-700={!highlightedFragmentDegrees.includes(i + 1)}
-							class:border-yellow-300={!highlightedFragmentDegrees.includes(i + 1)}
-						>
-							{degree}
-						</button>
-					{/each}
-				</div>
-			<div class="mt-2">
+			<!-- Shape buttons -->
+			<div class="mt-2 flex justify-center gap-2">
+				<button
+					onclick={() => activateShapeDrill('a')}
+					class="rounded px-3 py-1 text-sm transition-colors"
+					class:bg-pink-500={aShapeModeEnabled}
+					class:text-white={aShapeModeEnabled}
+					class:bg-gray-200={!aShapeModeEnabled}
+					class:text-gray-700={!aShapeModeEnabled}
+					class:hover:bg-pink-600={aShapeModeEnabled}
+					class:hover:bg-gray-300={!aShapeModeEnabled}
+				>
+					A Shape
+				</button>
+				<button
+					onclick={() => activateShapeDrill('c')}
+					class="rounded px-3 py-1 text-sm transition-colors"
+					class:bg-cyan-500={cShapeModeEnabled}
+					class:text-white={cShapeModeEnabled}
+					class:bg-gray-200={!cShapeModeEnabled}
+					class:text-gray-700={!cShapeModeEnabled}
+					class:hover:bg-cyan-600={cShapeModeEnabled}
+					class:hover:bg-gray-300={!cShapeModeEnabled}
+				>
+					C Shape
+				</button>
+				<button
+					onclick={() => activateShapeDrill('d')}
+					class="rounded px-3 py-1 text-sm transition-colors"
+					class:bg-lime-500={dShapeModeEnabled}
+					class:text-white={dShapeModeEnabled}
+					class:bg-gray-200={!dShapeModeEnabled}
+					class:text-gray-700={!dShapeModeEnabled}
+					class:hover:bg-lime-600={dShapeModeEnabled}
+					class:hover:bg-gray-300={!dShapeModeEnabled}
+				>
+					D Shape
+				</button>
+				<button
+					onclick={() => activateShapeDrill('e')}
+					class="rounded px-3 py-1 text-sm transition-colors"
+					class:bg-fuchsia-500={eShapeModeEnabled}
+					class:text-white={eShapeModeEnabled}
+					class:bg-gray-200={!eShapeModeEnabled}
+					class:text-gray-700={!eShapeModeEnabled}
+					class:hover:bg-fuchsia-600={eShapeModeEnabled}
+					class:hover:bg-gray-300={!eShapeModeEnabled}
+				>
+					E Shape
+				</button>
+				<button
+					onclick={() => activateShapeDrill('g')}
+					class="rounded px-3 py-1 text-sm transition-colors"
+					class:bg-indigo-500={gShapeModeEnabled}
+					class:text-white={gShapeModeEnabled}
+					class:bg-gray-200={!gShapeModeEnabled}
+					class:text-gray-700={!gShapeModeEnabled}
+					class:hover:bg-indigo-600={gShapeModeEnabled}
+					class:hover:bg-gray-300={!gShapeModeEnabled}
+				>
+					G Shape
+				</button>
+			</div>
+			<!-- Shape cycle controls -->
+			<div class="mt-2 flex flex-wrap justify-center gap-2">
+				<label class="flex items-center gap-2">
+					<input type="checkbox" checked={fragmentCycleEnabled || shapeCycleEnabled} onchange={() => { if (!fragmentCycleEnabled && !shapeCycleEnabled) { handleAutoCycle(); } else { stopFragmentCycle(); stopShapeCycle(); } }} />
+					<span class="text-sm">Auto Cycle</span>
+				</label>
 				<input
 					type="number"
 					min="1"
-					bind:value={fragmentCycleCount}
+					bind:value={autoCycleCount}
+					oninput={(e: Event) => setAutoCycleCount(Number((e.target as HTMLInputElement).value))}
 					class="w-16 rounded border border-gray-400 px-2 py-1 text-sm dark:text-black"
 					placeholder="Cycle N"
 				/>
-				<select
-					bind:value={fragmentCycleOrderType}
-					class=" w-36 rounded border border-gray-400 px-2 py-1 text-sm dark:text-black"
-				>
-					<option value="default">Default Order</option>
-					<option value="custom">A→D→G→B→E</option>
-				</select>
 				<button
-					onclick={startFragmentCycle}
-					class="ml-1 rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
-					disabled={fragmentCycleEnabled}
+					onclick={handleAutoCycle}
+					disabled={fragmentCycleEnabled || shapeCycleEnabled}
+					class="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
 				>
 					Auto Cycle
 				</button>
+				{#if shapeCycleEnabled}
+					<div class="ml-2 text-sm text-indigo-700 dark:text-indigo-300">
+						Cycling: {shapeCycleOrder[shapeCycleIndex].toUpperCase()} Shape
+						(shape {shapeCycleIndex + 1} of {shapeCycleOrder.length}), {shapeCycleCurrent}/{shapeCycleCount} questions
+						<button
+							onclick={stopShapeCycle}
+							class="ml-2 rounded bg-red-500 px-2 py-1 text-xs text-white"
+						>
+							Stop
+						</button>
+					</div>
+				{/if}
 			</div>
-			{#if fragmentCycleEnabled}
-				<div class="mb-4 mt-2 text-sm text-blue-700 dark:text-blue-300">
-					Cycling: {fragmentCycleOrder[fragmentCycleIndex].charAt(0).toUpperCase() +
-						fragmentCycleOrder[fragmentCycleIndex].slice(1)}
-					(fragment {fragmentCycleIndex + 1} of {fragmentCycleOrder.length}), {fragmentCycleCurrent}/{fragmentCycleCount}
-					questions
-					<button
-						class="ml-2 rounded bg-red-500 px-2 py-1 text-xs text-white"
-						onclick={stopFragmentCycle}>Stop</button
-					>
-				</div>
-			{/if}
 		{/if}
 	</div>
 
