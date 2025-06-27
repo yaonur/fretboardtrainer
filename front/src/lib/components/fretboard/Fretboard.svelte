@@ -808,7 +808,7 @@
 			lastUserStringStart = stringRangeStart;
 			lastUserStringEnd = stringRangeEnd;
 			lastUserFretStart = fretRangeStart;
-			lastUserFretEnd = fretRangeEnd;
+			fretRangeEnd = fretRangeEnd;
 
 			// Calculate fragment area based on current key
 			// The fragment degrees should appear in strings 1-6, but frets vary by key
@@ -952,8 +952,10 @@
 		// For E shape, use shapeFretRanges for split range support
 		let inDrillArea;
 		if (eShapeModeEnabled && shapeFretRanges.length > 1) {
-			inDrillArea = shapeFretRanges.some(r => fretIdx >= r.start && fretIdx <= r.end) &&
-				stringIdx + 1 >= stringRangeStart && stringIdx + 1 <= stringRangeEnd;
+			inDrillArea =
+				shapeFretRanges.some((r) => fretIdx >= r.start && fretIdx <= r.end) &&
+				stringIdx + 1 >= stringRangeStart &&
+				stringIdx + 1 <= stringRangeEnd;
 		} else {
 			inDrillArea =
 				stringIdx + 1 >= stringRangeStart &&
@@ -986,11 +988,31 @@
 		if (geminiFragmentModeEnabled && geminiFragmentNotes.includes(displayNote)) return 'gemini';
 
 		// Shape logic: highlight if in either fragment's notes
-		if (aShapeModeEnabled && (fragmentNotes.includes(displayNote) || betaFragmentNotes.includes(displayNote))) return 'a';
-		if (cShapeModeEnabled && (betaFragmentNotes.includes(displayNote) || deltaFragmentNotes.includes(displayNote))) return 'c';
-		if (dShapeModeEnabled && (deltaFragmentNotes.includes(displayNote) || epsilonFragmentNotes.includes(displayNote))) return 'd';
-		if (eShapeModeEnabled && (epsilonFragmentNotes.includes(displayNote) || geminiFragmentNotes.includes(displayNote))) return 'e';
-		if (gShapeModeEnabled && (geminiFragmentNotes.includes(displayNote) || fragmentNotes.includes(displayNote))) return 'g';
+		if (
+			aShapeModeEnabled &&
+			(fragmentNotes.includes(displayNote) || betaFragmentNotes.includes(displayNote))
+		)
+			return 'a';
+		if (
+			cShapeModeEnabled &&
+			(betaFragmentNotes.includes(displayNote) || deltaFragmentNotes.includes(displayNote))
+		)
+			return 'c';
+		if (
+			dShapeModeEnabled &&
+			(deltaFragmentNotes.includes(displayNote) || epsilonFragmentNotes.includes(displayNote))
+		)
+			return 'd';
+		if (
+			eShapeModeEnabled &&
+			(epsilonFragmentNotes.includes(displayNote) || geminiFragmentNotes.includes(displayNote))
+		)
+			return 'e';
+		if (
+			gShapeModeEnabled &&
+			(geminiFragmentNotes.includes(displayNote) || fragmentNotes.includes(displayNote))
+		)
+			return 'g';
 
 		return null;
 	}
@@ -1024,8 +1046,10 @@
 			return false;
 		let inDrillArea;
 		if (eShapeModeEnabled && shapeFretRanges.length > 1) {
-			inDrillArea = shapeFretRanges.some(r => fretIdx >= r.start && fretIdx <= r.end) &&
-				stringIdx + 1 >= stringRangeStart && stringIdx + 1 <= stringRangeEnd;
+			inDrillArea =
+				shapeFretRanges.some((r) => fretIdx >= r.start && fretIdx <= r.end) &&
+				stringIdx + 1 >= stringRangeStart &&
+				stringIdx + 1 <= stringRangeEnd;
 		} else {
 			inDrillArea =
 				stringIdx + 1 >= stringRangeStart &&
@@ -1085,32 +1109,72 @@
 		// Shape logic: highlight if in either fragment's notes
 		if (aShapeModeEnabled) {
 			return (
-				fragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((fragmentDegrees[i] - 1 + 7) % 7) + 1)) ||
-				betaFragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((betaFragmentDegrees[i] - 1 + 7) % 7) + 1))
+				fragmentNotes.some(
+					(n, i) =>
+						displayNote === n &&
+						highlightedFragmentDegrees.includes(((fragmentDegrees[i] - 1 + 7) % 7) + 1)
+				) ||
+				betaFragmentNotes.some(
+					(n, i) =>
+						displayNote === n &&
+						highlightedFragmentDegrees.includes(((betaFragmentDegrees[i] - 1 + 7) % 7) + 1)
+				)
 			);
 		}
 		if (cShapeModeEnabled) {
 			return (
-				betaFragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((betaFragmentDegrees[i] - 1 + 7) % 7) + 1)) ||
-				deltaFragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((deltaFragmentDegrees[i] - 1 + 7) % 7) + 1))
+				betaFragmentNotes.some(
+					(n, i) =>
+						displayNote === n &&
+						highlightedFragmentDegrees.includes(((betaFragmentDegrees[i] - 1 + 7) % 7) + 1)
+				) ||
+				deltaFragmentNotes.some(
+					(n, i) =>
+						displayNote === n &&
+						highlightedFragmentDegrees.includes(((deltaFragmentDegrees[i] - 1 + 7) % 7) + 1)
+				)
 			);
 		}
 		if (dShapeModeEnabled) {
 			return (
-				deltaFragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((deltaFragmentDegrees[i] - 1 + 7) % 7) + 1)) ||
-				epsilonFragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((epsilonFragmentDegrees[i] - 1 + 7) % 7) + 1))
+				deltaFragmentNotes.some(
+					(n, i) =>
+						displayNote === n &&
+						highlightedFragmentDegrees.includes(((deltaFragmentDegrees[i] - 1 + 7) % 7) + 1)
+				) ||
+				epsilonFragmentNotes.some(
+					(n, i) =>
+						displayNote === n &&
+						highlightedFragmentDegrees.includes(((epsilonFragmentDegrees[i] - 1 + 7) % 7) + 1)
+				)
 			);
 		}
 		if (eShapeModeEnabled) {
 			return (
-				epsilonFragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((epsilonFragmentDegrees[i] - 1 + 7) % 7) + 1)) ||
-				geminiFragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((geminiFragmentDegrees[i] - 1 + 7) % 7) + 1))
+				epsilonFragmentNotes.some(
+					(n, i) =>
+						displayNote === n &&
+						highlightedFragmentDegrees.includes(((epsilonFragmentDegrees[i] - 1 + 7) % 7) + 1)
+				) ||
+				geminiFragmentNotes.some(
+					(n, i) =>
+						displayNote === n &&
+						highlightedFragmentDegrees.includes(((geminiFragmentDegrees[i] - 1 + 7) % 7) + 1)
+				)
 			);
 		}
 		if (gShapeModeEnabled) {
 			return (
-				geminiFragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((geminiFragmentDegrees[i] - 1 + 7) % 7) + 1)) ||
-				fragmentNotes.some((n, i) => displayNote === n && highlightedFragmentDegrees.includes(((fragmentDegrees[i] - 1 + 7) % 7) + 1))
+				geminiFragmentNotes.some(
+					(n, i) =>
+						displayNote === n &&
+						highlightedFragmentDegrees.includes(((geminiFragmentDegrees[i] - 1 + 7) % 7) + 1)
+				) ||
+				fragmentNotes.some(
+					(n, i) =>
+						displayNote === n &&
+						highlightedFragmentDegrees.includes(((fragmentDegrees[i] - 1 + 7) % 7) + 1)
+				)
 			);
 		}
 		return false;
@@ -1136,7 +1200,7 @@
 		const fragmentNotes = fragmentDegrees.map((degree) => scaleNotes[degree - 1]);
 		for (let i = 0; i < fragmentNotes.length; i++) {
 			if (displayNote === fragmentNotes[i]) {
-				const degreeIdx = ((fragmentDegrees[i] - 1 + 7) % 7);
+				const degreeIdx = (fragmentDegrees[i] - 1 + 7) % 7;
 				return degreeButtons[degreeIdx];
 			}
 		}
@@ -1266,44 +1330,61 @@
 	}
 
 	// Calculate the fret range for a shape (union of two fragments)
-	function calculateShapeFretRange(shapeName: 'a' | 'c' | 'd' | 'e' | 'g'):
-		| { start: number; end: number }
-		| Array<{ start: number; end: number }> {
+	function calculateShapeFretRange(
+		shapeName: 'a' | 'c' | 'd' | 'e' | 'g'
+	): { start: number; end: number } | Array<{ start: number; end: number }> {
 		const frag = {
 			alpha: calculateFragmentFretRange('alpha'),
 			beta: calculateFragmentFretRange('beta'),
 			delta: calculateFragmentFretRange('delta'),
 			epsilon: calculateFragmentFretRange('epsilon'),
-			gemini: calculateFragmentFretRange('gemini'),
+			gemini: calculateFragmentFretRange('gemini')
 		};
 		if (shapeName === 'e') {
 			// Special case: E shape in C major (epsilon: 12-13, gemini: 2-3)
 			const keyName = selectedKey.includes('/') ? selectedKey.split('/')[0] : selectedKey;
 			if (
 				keyName === 'C' &&
-				frag.epsilon.start === 12 && frag.epsilon.end === 13 &&
-				frag.gemini.start === 2 && frag.gemini.end === 3
+				frag.epsilon.start === 12 &&
+				frag.epsilon.end === 13 &&
+				frag.gemini.start === 2 &&
+				frag.gemini.end === 3
 			) {
 				return [
 					{ start: frag.epsilon.start, end: frag.epsilon.end },
-					{ start: frag.gemini.start, end: frag.gemini.end },
+					{ start: frag.gemini.start, end: frag.gemini.end }
 				];
 			}
 			// Default: contiguous
-			return { start: Math.min(frag.epsilon.start, frag.gemini.start), end: Math.max(frag.epsilon.end, frag.gemini.end) };
+			return {
+				start: Math.min(frag.epsilon.start, frag.gemini.start),
+				end: Math.max(frag.epsilon.end, frag.gemini.end)
+			};
 		}
 		if (shapeName === 'a') {
 			// Alpha + Beta
-			return { start: Math.min(frag.alpha.start, frag.beta.start), end: Math.max(frag.alpha.end, frag.beta.end) };
+			return {
+				start: Math.min(frag.alpha.start, frag.beta.start),
+				end: Math.max(frag.alpha.end, frag.beta.end)
+			};
 		} else if (shapeName === 'c') {
 			// Beta + Delta
-			return { start: Math.min(frag.beta.start, frag.delta.start), end: Math.max(frag.beta.end, frag.delta.end) };
+			return {
+				start: Math.min(frag.beta.start, frag.delta.start),
+				end: Math.max(frag.beta.end, frag.delta.end)
+			};
 		} else if (shapeName === 'd') {
 			// Delta + Epsilon
-			return { start: Math.min(frag.delta.start, frag.epsilon.start), end: Math.max(frag.delta.end, frag.epsilon.end) };
+			return {
+				start: Math.min(frag.delta.start, frag.epsilon.start),
+				end: Math.max(frag.delta.end, frag.epsilon.end)
+			};
 		} else if (shapeName === 'g') {
 			// Gemini + Alpha
-			return { start: Math.min(frag.gemini.start, frag.alpha.start), end: Math.max(frag.gemini.end, frag.alpha.end) };
+			return {
+				start: Math.min(frag.gemini.start, frag.alpha.start),
+				end: Math.max(frag.gemini.end, frag.alpha.end)
+			};
 		}
 		return { start: 1, end: 3 };
 	}
@@ -1346,8 +1427,22 @@
 
 	// Helper to determine current mode
 	function getCurrentMode() {
-		if (aShapeModeEnabled || cShapeModeEnabled || dShapeModeEnabled || eShapeModeEnabled || gShapeModeEnabled) return 'shape';
-		if (fragmentModeEnabled || betaFragmentModeEnabled || deltaFragmentModeEnabled || epsilonFragmentModeEnabled || geminiFragmentModeEnabled) return 'fragment';
+		if (
+			aShapeModeEnabled ||
+			cShapeModeEnabled ||
+			dShapeModeEnabled ||
+			eShapeModeEnabled ||
+			gShapeModeEnabled
+		)
+			return 'shape';
+		if (
+			fragmentModeEnabled ||
+			betaFragmentModeEnabled ||
+			deltaFragmentModeEnabled ||
+			epsilonFragmentModeEnabled ||
+			geminiFragmentModeEnabled
+		)
+			return 'fragment';
 		return 'none';
 	}
 
@@ -1477,7 +1572,11 @@
 			</div>
 			<div class="flex items-center gap-2">
 				<p class="text-sm font-medium">Key:</p>
-				<button title="Previous Key" class="rounded border px-2 py-1 text-sm font-bold hover:bg-gray-200 dark:hover:bg-gray-700" onclick={prevKey}>&lt;</button>
+				<button
+					title="Previous Key"
+					class="rounded border px-2 py-1 text-sm font-bold hover:bg-gray-200 dark:hover:bg-gray-700"
+					onclick={prevKey}>&lt;</button
+				>
 				<select
 					bind:value={selectedKey}
 					class="ease w-full cursor-pointer appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none dark:text-slate-100"
@@ -1486,33 +1585,40 @@
 						<option class="px-2 dark:bg-slate-700" value={note}>{note}</option>
 					{/each}
 				</select>
-				<button title="Next Key" class="rounded border px-2 py-1 text-sm font-bold hover:bg-gray-200 dark:hover:bg-gray-700" onclick={nextKey}>&gt;</button>
+				<button
+					title="Next Key"
+					class="rounded border px-2 py-1 text-sm font-bold hover:bg-gray-200 dark:hover:bg-gray-700"
+					onclick={nextKey}>&gt;</button
+				>
 			</div>
 		</div>
-		<div class="flex my-2">
-							<!-- Key Auto Cycle Controls -->
-							<button
-							onclick={() => {
-								if (!keyCycleEnabled) startKeyCycle();
-								else stopKeyCycle();
-							}}
-							class="rounded bg-blue-500 px-2 py-1 text-sm text-white hover:bg-blue-600 ml-2"
-						>
-							{keyCycleEnabled ? 'Stop Cycle' : 'Auto Cycle'}
-						</button>
-						<select bind:value={keyCycleDirection} class="rounded border w-10 dark:text-slate-800 px-1 py-1 text-xs ml-1">
-							<option value={'forward'}>→</option>
-							<option value={'backward'}>←</option>
-						</select>
-						<input
-							type="range"
-							min="5"
-							max="120"
-							step="1"
-							bind:value={keyCycleDelaySec}
-							class="w-28 accent-blue-500 ml-2"
-						/>
-						<span class="text-xs w-16 text-center">{keyCycleDelaySec}s</span>
+		<div class="my-2 flex">
+			<!-- Key Auto Cycle Controls -->
+			<button
+				onclick={() => {
+					if (!keyCycleEnabled) startKeyCycle();
+					else stopKeyCycle();
+				}}
+				class="ml-2 rounded bg-blue-500 px-2 py-1 text-sm text-white hover:bg-blue-600"
+			>
+				{keyCycleEnabled ? 'Stop Cycle' : 'Auto Cycle'}
+			</button>
+			<select
+				bind:value={keyCycleDirection}
+				class="ml-1 w-10 rounded border px-1 py-1 text-xs dark:text-slate-800"
+			>
+				<option value={'forward'}>→</option>
+				<option value={'backward'}>←</option>
+			</select>
+			<input
+				type="range"
+				min="5"
+				max="120"
+				step="1"
+				bind:value={keyCycleDelaySec}
+				class="ml-2 w-28 accent-blue-500"
+			/>
+			<span class="w-16 text-center text-xs">{keyCycleDelaySec}s</span>
 		</div>
 		<div class="mt-2 flex items-center gap-2">
 			<p class="text-sm font-medium">Lowest Note:</p>
@@ -1635,22 +1741,22 @@
 		</label>
 	</div>
 	<!-- Auto-next question toggle and delay -->
-	<div class="mb-2 flex justify-center gap-4 items-center">
+	<div class="mb-2 flex items-center justify-center gap-4">
 		<label class="flex cursor-pointer select-none items-center gap-2">
 			<input type="checkbox" bind:checked={autoNextEnabled} class="accent-blue-500" />
 			<span class="text-sm">Auto Next Question</span>
 		</label>
 		<label class="flex items-center gap-2">
 			<span class="text-sm">Delay:</span>
-			<input 
-				type="range" 
-				min="300" 
-				max="2000" 
-				step="100" 
-				bind:value={autoNextDelay} 
+			<input
+				type="range"
+				min="300"
+				max="2000"
+				step="100"
+				bind:value={autoNextDelay}
 				class="w-32 accent-blue-500"
 			/>
-			<span class="text-sm font-medium w-12 text-center">{autoNextDelay}</span>
+			<span class="w-12 text-center text-sm font-medium">{autoNextDelay}</span>
 			<span class="text-sm">ms</span>
 		</label>
 		<button
@@ -1722,6 +1828,34 @@
 				class:bg-gray-200={!highlightedDegrees.includes(i + 1)}
 				class:text-red-600={!highlightedDegrees.includes(i + 1)}
 				class:border-gray-300={!highlightedDegrees.includes(i + 1)}
+			>
+				{degree}
+			</button>
+		{/each}
+	</div>
+	<!-- Add fragment degree toggles below the fragment buttons -->
+	<div class="mb-2 flex justify-center items-center gap-2">
+		<span class="text-sm font-semibold text-yellow-700">Fragment Degrees:</span>
+		<button
+			onclick={toggleAllFragmentDegrees}
+			class="rounded border-2 h-8 border-yellow-400 bg-yellow-100 px-2 py-0 text-sm font-bold text-yellow-700 transition-colors hover:bg-yellow-200"
+		>
+			{highlightedFragmentDegrees.length === degreeButtons.length ? 'None' : 'All'}
+		</button>
+		{#each degreeButtons as degree, i}
+			<button
+				onclick={() => {
+					highlightedFragmentDegrees = highlightedFragmentDegrees.includes(i + 1)
+						? highlightedFragmentDegrees.filter((d) => d !== i + 1)
+						: [...highlightedFragmentDegrees, i + 1];
+				}}
+				class="rounded border-2 px-2 py-0 text-lg font-bold transition-colors"
+				class:bg-yellow-500={highlightedFragmentDegrees.includes(i + 1)}
+				class:text-white={highlightedFragmentDegrees.includes(i + 1)}
+				class:border-yellow-600={highlightedFragmentDegrees.includes(i + 1)}
+				class:bg-gray-200={!highlightedFragmentDegrees.includes(i + 1)}
+				class:text-yellow-700={!highlightedFragmentDegrees.includes(i + 1)}
+				class:border-gray-300={!highlightedFragmentDegrees.includes(i + 1)}
 			>
 				{degree}
 			</button>
@@ -1836,7 +1970,9 @@
 								style:top="calc({stringIdx} * 30px - 10px)"
 								style:left="calc(({fretIdx} - 0.5) * (100% / {numFrets}) - 8px)"
 							>
-								<span class="text-[12px] text-black">{getFragmentDotDegreeLabel(stringIdx, fretIdx)}</span>
+								<span class="text-[12px] text-black"
+									>{getFragmentDotDegreeLabel(stringIdx, fretIdx)}</span
+								>
 							</div>
 						{/if}
 					{/each}
@@ -2087,7 +2223,18 @@
 			<!-- Shape cycle controls -->
 			<div class="mt-2 flex flex-wrap justify-center gap-2">
 				<label class="flex items-center gap-2">
-					<input type="checkbox" checked={fragmentCycleEnabled || shapeCycleEnabled} onchange={() => { if (!fragmentCycleEnabled && !shapeCycleEnabled) { handleAutoCycle(); } else { stopFragmentCycle(); stopShapeCycle(); } }} />
+					<input
+						type="checkbox"
+						checked={fragmentCycleEnabled || shapeCycleEnabled}
+						onchange={() => {
+							if (!fragmentCycleEnabled && !shapeCycleEnabled) {
+								handleAutoCycle();
+							} else {
+								stopFragmentCycle();
+								stopShapeCycle();
+							}
+						}}
+					/>
 					<span class="text-sm">Auto Cycle</span>
 				</label>
 				<input
@@ -2107,8 +2254,8 @@
 				</button>
 				{#if shapeCycleEnabled}
 					<div class="ml-2 text-sm text-indigo-700 dark:text-indigo-300">
-						Cycling: {shapeCycleOrder[shapeCycleIndex].toUpperCase()} Shape
-						(shape {shapeCycleIndex + 1} of {shapeCycleOrder.length}), {shapeCycleCurrent}/{shapeCycleCount} questions
+						Cycling: {shapeCycleOrder[shapeCycleIndex].toUpperCase()} Shape (shape {shapeCycleIndex +
+							1} of {shapeCycleOrder.length}), {shapeCycleCurrent}/{shapeCycleCount} questions
 						<button
 							onclick={stopShapeCycle}
 							class="ml-2 rounded bg-red-500 px-2 py-1 text-xs text-white"
@@ -2120,6 +2267,4 @@
 			</div>
 		{/if}
 	</div>
-
-	<!-- Add fragment degree toggles below the fragment buttons -->
 </div>
