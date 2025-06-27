@@ -1243,7 +1243,7 @@
 			lastUserStringStart = stringRangeStart;
 			lastUserStringEnd = stringRangeEnd;
 			lastUserFretStart = fretRangeStart;
-			lastUserFretEnd = fretRangeEnd;
+			fretRangeEnd = fretRangeEnd;
 
 			// Shapes always use all 6 strings
 			stringRangeStart = 1;
@@ -1366,6 +1366,47 @@
 		if (fragmentCycleEnabled) fragmentCycleCount = val;
 		else shapeCycleCount = val;
 	}
+
+	// --- Key Cycle State ---
+	let keyCycleEnabled = $state(false);
+	let keyCycleDelaySec = $state(5); // seconds, default 5
+	type KeyCycleDirection = 'forward' | 'backward';
+	let keyCycleDirection = $state<KeyCycleDirection>('forward');
+	let keyCycleTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	function getCurrentKeyIndex() {
+		return circleOfFifths.indexOf(selectedKey);
+	}
+	function nextKey() {
+		const idx = getCurrentKeyIndex();
+		selectedKey = circleOfFifths[(idx + 1) % circleOfFifths.length];
+	}
+	function prevKey() {
+		const idx = getCurrentKeyIndex();
+		selectedKey = circleOfFifths[(idx - 1 + circleOfFifths.length) % circleOfFifths.length];
+	}
+	function clearKeyCycleTimer() {
+		if (keyCycleTimeout) {
+			clearTimeout(keyCycleTimeout);
+			keyCycleTimeout = null;
+		}
+	}
+	function startKeyCycle() {
+		clearKeyCycleTimer();
+		keyCycleEnabled = true;
+		keyCycleTimeout = setTimeout(() => {
+			if (keyCycleDirection === 'forward') nextKey();
+			else prevKey();
+			startKeyCycle();
+		}, keyCycleDelaySec * 1000) as unknown as ReturnType<typeof setTimeout>;
+	}
+	function stopKeyCycle() {
+		keyCycleEnabled = false;
+		clearKeyCycleTimer();
+	}
+	$effect(() => {
+		if (!keyCycleEnabled) clearKeyCycleTimer();
+	});
 </script>
 
 <div class="flex flex-col items-center">
@@ -1436,6 +1477,7 @@
 			</div>
 			<div class="flex items-center gap-2">
 				<p class="text-sm font-medium">Key:</p>
+				<button title="Previous Key" class="rounded border px-2 py-1 text-sm font-bold hover:bg-gray-200 dark:hover:bg-gray-700" onclick={prevKey}>&lt;</button>
 				<select
 					bind:value={selectedKey}
 					class="ease w-full cursor-pointer appearance-none rounded border border-slate-200 bg-transparent py-2 pl-3 pr-8 text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none dark:text-slate-100"
@@ -1444,6 +1486,30 @@
 						<option class="px-2 dark:bg-slate-700" value={note}>{note}</option>
 					{/each}
 				</select>
+				<button title="Next Key" class="rounded border px-2 py-1 text-sm font-bold hover:bg-gray-200 dark:hover:bg-gray-700" onclick={nextKey}>&gt;</button>
+				<!-- Key Auto Cycle Controls -->
+				<button
+					onclick={() => {
+						if (!keyCycleEnabled) startKeyCycle();
+						else stopKeyCycle();
+					}}
+					class="rounded bg-blue-500 px-2 py-1 text-sm text-white hover:bg-blue-600 ml-2"
+				>
+					{keyCycleEnabled ? 'Stop Cycle' : 'Auto Cycle'}
+				</button>
+				<select bind:value={keyCycleDirection} class="rounded border px-1 py-1 text-xs ml-1">
+					<option value={'forward'}>→</option>
+					<option value={'backward'}>←</option>
+				</select>
+				<input
+					type="range"
+					min="5"
+					max="120"
+					step="1"
+					bind:value={keyCycleDelaySec}
+					class="w-28 accent-blue-500 ml-2"
+				/>
+				<span class="text-xs w-16 text-center">{keyCycleDelaySec}s</span>
 			</div>
 		</div>
 		<div class="mt-2 flex items-center gap-2">
