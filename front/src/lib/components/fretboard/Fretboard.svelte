@@ -35,7 +35,7 @@
 	const numStrings = $derived(
 		instruments[selectedInstrument as keyof typeof instruments].numStrings
 	);
-	const numFrets = 15;
+	const numFrets = 16;
 	const degreeButtons = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
 	// Audio setup
@@ -1340,13 +1340,18 @@
 			epsilon: calculateFragmentFretRange('epsilon'),
 			gemini: calculateFragmentFretRange('gemini')
 		};
+		const keyName = selectedKey.includes('/') ? selectedKey.split('/')[0] : selectedKey;
 		if (shapeName === 'e') {
 			// Special case: E shape in C major should be 12-15
-			const keyName = selectedKey.includes('/') ? selectedKey.split('/')[0] : selectedKey;
 			if (
 				keyName === 'C'
 			) {
 				return { start: 12, end: 15 };
+			}
+			if (
+				keyName === 'B'
+			) {
+				return { start: 11, end: 14 };
 			}
 			// Default: contiguous
 			return {
@@ -1356,24 +1361,74 @@
 		}
 		if (shapeName === 'a') {
 			// Alpha + Beta
+			if (
+				keyName === 'Ab'
+			) {
+				return { start: 1, end: 4 };
+			}
+			if (
+				keyName === 'G'
+			) {
+				return { start: 12, end: 15 };
+			}
 			return {
 				start: Math.min(frag.alpha.start, frag.beta.start),
 				end: Math.max(frag.alpha.end, frag.beta.end)
 			};
 		} else if (shapeName === 'c') {
 			// Beta + Delta
+			if (
+				keyName === 'F'
+			) {
+				return { start: 12, end: 15 };
+			}
+			if (
+				keyName === 'F#'
+			) {
+				return { start: 1, end: 4 };
+			}
 			return {
 				start: Math.min(frag.beta.start, frag.delta.start),
 				end: Math.max(frag.beta.end, frag.delta.end)
 			};
 		} else if (shapeName === 'd') {
 			// Delta + Epsilon
+			if (
+				keyName === 'Db'
+			) {
+				return { start: 10, end: 14 };
+			}
+			if (
+				keyName === 'D'
+			) {
+				return { start: 11, end: 15 };
+			}
+			if (
+				keyName === 'Eb'
+			) {
+				return { start: 12, end: 16 };
+			}
+			if (
+				keyName === 'E'
+			) {
+				return { start: 1, end: 5 };
+			}
 			return {
 				start: Math.min(frag.delta.start, frag.epsilon.start),
 				end: Math.max(frag.delta.end, frag.epsilon.end)
 			};
 		} else if (shapeName === 'g') {
 			// Gemini + Alpha
+			if (
+				keyName === 'A'
+			) {
+				return { start: 11, end: 15 };
+			}
+			if (
+				keyName === 'Bb'
+			) {
+				return { start: 12, end: 16 };
+			}
 			return {
 				start: Math.min(frag.gemini.start, frag.alpha.start),
 				end: Math.max(frag.gemini.end, frag.alpha.end)
