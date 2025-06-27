@@ -73,6 +73,9 @@
 			<a href="/gpractice" class="font-medium transition-colors duration-200 hover:text-blue-400"
 			>Practice</a
 		>
+			<a href="/listening" class="font-medium transition-colors duration-200 hover:text-blue-400"
+			>Listening</a
+		>
 			<!-- <a href="/setlist" class="font-medium transition-colors duration-200 hover:text-blue-400"
 				>{m.setlist()}</a
 			> -->
@@ -111,6 +114,9 @@
 				>
 				<a href="/gpractice" class="font-medium transition-colors duration-200 hover:text-blue-400"
 				>Practice</a
+			>
+				<a href="/listening" class="font-medium transition-colors duration-200 hover:text-blue-400"
+				>Listening</a
 			>
 			</div>
 		</div>
