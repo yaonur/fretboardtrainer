@@ -17,7 +17,8 @@
 	let sampler: Tone.Sampler;
 	let lastDegree = $state<number | null>(null); // Track last asked degree to avoid repetition
 	let questionTimeout: ReturnType<typeof setTimeout> | null = null;
-	let showAnswerDelay = $state(1500); // 3 seconds default delay
+	let showAnswerDelay = $state(1500); // Time to wait before showing answer
+	let answerDisplayTime = $state(1000); // Time to show answer before next question
 
 	// Audio setup
 	async function initAudio() {
@@ -122,10 +123,10 @@
 		if (correctAnswer !== null) {
 			feedback = `${degreeButtons[correctAnswer - 1]}`;
 			
-			// Generate new question after a delay
+			// Generate new question after the answer display time
 			questionTimeout = setTimeout(() => {
 				generateNewQuestion();
-			}, 2000);
+			}, answerDisplayTime);
 		}
 	}
 
@@ -163,9 +164,9 @@
 		// Play the note
 		setTimeout(() => {
 			playNote(targetNote);
-		}, 500);
+		}, 100);
 
-		feedback = `Question ${questionCount}: Listen to the note and identify its degree in ${selectedKey} Major...`;
+		feedback = `?...`;
 
 		// Set timeout to show answer automatically
 		questionTimeout = setTimeout(() => {
@@ -274,7 +275,7 @@
 
 		<!-- Answer Delay Control -->
 		<div class="mb-4 flex items-center gap-4">
-			<label class="text-sm font-medium">Answer Delay:</label>
+			<label class="text-sm font-medium">Question Time:</label>
 			<input
 				type="range"
 				min="400"
@@ -284,6 +285,20 @@
 				class="w-32 accent-blue-500"
 			/>
 			<span class="text-sm">{(showAnswerDelay / 1000).toFixed(1)}s</span>
+		</div>
+
+		<!-- Answer Display Time Control -->
+		<div class="mb-4 flex items-center gap-4">
+			<label class="text-sm font-medium">Answer Time:</label>
+			<input
+				type="range"
+				min="400"
+				max="3000"
+				step="50"
+				bind:value={answerDisplayTime}
+				class="w-32 accent-blue-500"
+			/>
+			<span class="text-sm">{(answerDisplayTime / 1000).toFixed(1)}s</span>
 		</div>
 
 		<!-- Degree Selection -->
@@ -360,12 +375,13 @@
 		<ol class="list-decimal list-inside space-y-1 text-sm">
 			<li>Select your preferred key and lowest note</li>
 			<li>Choose which degrees you want to practice</li>
-			<li>Set the answer delay (how long to wait before showing the answer)</li>
+			<li>Set Question Time (how long to wait before showing the answer)</li>
+			<li>Set Answer Time (how long to show the answer before next question)</li>
 			<li>Click "Start Listening Practice"</li>
 			<li>Listen to the note that plays</li>
 			<li>Think about which degree it is</li>
-			<li>The correct degree will be shown automatically after the delay</li>
-			<li>A new question will be asked (different degree)</li>
+			<li>The correct degree will be shown automatically after Question Time</li>
+			<li>A new question will be asked after Answer Time</li>
 		</ol>
 		<p class="mt-2 text-xs text-gray-500">
 			🎸 Perfect for practicing with your guitar - just listen and learn the sound of each degree!
