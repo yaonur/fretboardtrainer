@@ -1313,9 +1313,17 @@
 			<input type="checkbox" bind:checked={autoNextEnabled} class="accent-blue-500" />
 			<span class="text-sm">Auto Next Question</span>
 		</label>
-		<label class="flex items-center gap-1">
+		<label class="flex items-center gap-2">
 			<span class="text-sm">Delay:</span>
-			<input type="number" min="500" max="10000" step="100" bind:value={autoNextDelay} class="w-20 rounded border border-gray-300 px-2 py-1 text-sm dark:bg-gray-800 dark:text-white" />
+			<input 
+				type="range" 
+				min="300" 
+				max="2000" 
+				step="100" 
+				bind:value={autoNextDelay} 
+				class="w-32 accent-blue-500"
+			/>
+			<span class="text-sm font-medium w-12 text-center">{autoNextDelay}</span>
 			<span class="text-sm">ms</span>
 		</label>
 		<button
