@@ -20,6 +20,11 @@
 	let showAnswerDelay = $state(1500); // Time to wait before showing answer
 	let answerDisplayTime = $state(1000); // Time to show answer before next question
 
+	// --- Anchor Mode Settings ---
+	let anchorModeEnabled = $state(false);
+	let anchorDegree = $state<number>(1); // Default to I degree
+	let anchorFrequency = $state<number>(2); // How many questions to skip before anchor (default: every 2nd question)
+
 	// Audio setup
 	async function initAudio() {
 		if (!isAudioInitialized) {
@@ -121,7 +126,10 @@
 	// Show the correct answer
 	function showCorrectAnswer() {
 		if (correctAnswer !== null) {
-			feedback = `${degreeButtons[correctAnswer - 1]}`;
+			// Check if this was an anchor question
+			const isAnchorQuestion = anchorModeEnabled && questionCount % anchorFrequency === 0;
+			const anchorIndicator = isAnchorQuestion ? ' (Anchor)' : '';
+			feedback = `${degreeButtons[correctAnswer - 1]}${anchorIndicator}`;
 			
 			// Generate new question after the answer display time
 			questionTimeout = setTimeout(() => {
@@ -146,15 +154,34 @@
 		feedback = '';
 		questionCount++;
 
-		// Select a random degree from the selected degrees, avoiding the last one
-		let availableDegrees = selectedDegrees.filter(degree => degree !== lastDegree);
-		if (availableDegrees.length === 0) {
-			// If all degrees have been used, reset and use all selected degrees
-			availableDegrees = [...selectedDegrees];
+		// Determine which degree to ask
+		let targetDegree: number;
+		
+		if (anchorModeEnabled && questionCount % anchorFrequency === 0) {
+			// This should be an anchor question
+			targetDegree = anchorDegree;
+		} else {
+			// This should be a random question (excluding anchor degree if anchor mode is enabled)
+			let availableDegrees = selectedDegrees;
+			if (anchorModeEnabled) {
+				// Remove the anchor degree from available options for random questions
+				availableDegrees = availableDegrees.filter(degree => degree !== anchorDegree);
+			}
+			
+			// Also avoid the last asked degree
+			availableDegrees = availableDegrees.filter(degree => degree !== lastDegree);
+			
+			if (availableDegrees.length === 0) {
+				// If all degrees have been used, reset and use all selected degrees (except anchor if anchor mode is enabled)
+				availableDegrees = anchorModeEnabled 
+					? selectedDegrees.filter(degree => degree !== anchorDegree)
+					: [...selectedDegrees];
+			}
+			
+			const randomDegreeIndex = Math.floor(Math.random() * availableDegrees.length);
+			targetDegree = availableDegrees[randomDegreeIndex];
 		}
 		
-		const randomDegreeIndex = Math.floor(Math.random() * availableDegrees.length);
-		const targetDegree = availableDegrees[randomDegreeIndex];
 		correctAnswer = targetDegree;
 		lastDegree = targetDegree;
 
@@ -226,7 +253,7 @@
 		
 		<!-- Key Selection -->
 		<div class="mb-4 flex items-center gap-4">
-			<label class="text-sm font-medium">Key:</label>
+			<span class="text-sm font-medium">Key:</span>
 			<button
 				title="Previous Key"
 				class="rounded border px-2 py-1 text-sm font-bold hover:bg-gray-200 dark:hover:bg-gray-700"
@@ -234,7 +261,7 @@
 			>
 			<select
 				bind:value={selectedKey}
-				class="rounded border border-gray-300 bg-white px-3 py-1 text-sm dark:bg-gray-700 dark:text-white"
+				class="rounded border w-14 border-gray-300 bg-white px-3 py-1 text-sm dark:bg-gray-700 dark:text-white"
 			>
 				{#each circleOfFifths as note}
 					<option value={note}>{note}</option>
@@ -249,7 +276,7 @@
 
 		<!-- Lowest Note Selection -->
 		<div class="mb-4 flex items-center gap-4">
-			<label class="text-sm font-medium">Lowest Note:</label>
+			<span class="text-sm font-medium">Lowest Note:</span>
 			<select
 				bind:value={lowestNote}
 				class="rounded border border-gray-300 bg-white px-3 py-1 text-sm dark:bg-gray-700 dark:text-white"
@@ -275,7 +302,7 @@
 
 		<!-- Answer Delay Control -->
 		<div class="mb-4 flex items-center gap-4">
-			<label class="text-sm font-medium">Question Time:</label>
+			<span class="text-sm font-medium">Question Time:</span>
 			<input
 				type="range"
 				min="400"
@@ -289,7 +316,7 @@
 
 		<!-- Answer Display Time Control -->
 		<div class="mb-4 flex items-center gap-4">
-			<label class="text-sm font-medium">Answer Time:</label>
+			<span class="text-sm font-medium">Answer Time:</span>
 			<input
 				type="range"
 				min="400"
@@ -301,9 +328,46 @@
 			<span class="text-sm">{(answerDisplayTime / 1000).toFixed(1)}s</span>
 		</div>
 
+		<!-- Anchor Mode Controls -->
+		<div class="mb-4 flex flex-col items-center gap-2 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
+			<div class="flex items-center gap-2">
+				<span class="flex cursor-pointer select-none items-center gap-2">
+					<input type="checkbox" bind:checked={anchorModeEnabled} class="accent-blue-500" />
+					<span class="text-sm font-medium">Enable Anchor Mode</span>
+				</span>
+			</div>
+			{#if anchorModeEnabled}
+				<div class="flex items-center gap-2">
+					<span class="text-sm">Anchor Degree:</span>
+					<select
+						bind:value={anchorDegree}
+						class="rounded border border-gray-300 bg-white px-2 py-1 text-sm dark:bg-gray-700 dark:text-white"
+					>
+						{#each degreeButtons as degree, i}
+							<option value={i + 1}>{degree}</option>
+						{/each}
+					</select>
+				</div>
+				<div class="flex items-center gap-2">
+					<span class="text-sm">Every</span>
+					<input
+						type="number"
+						bind:value={anchorFrequency}
+						min="1"
+						max="10"
+						class="w-16 rounded border border-gray-300 bg-white px-2 py-1 text-center text-sm dark:bg-gray-700 dark:text-white"
+					/>
+					<span class="text-sm">questions</span>
+				</div>
+				<div class="text-xs text-gray-600 dark:text-gray-400">
+					Every {anchorFrequency} question{anchorFrequency !== 1 ? 's' : ''} will be {degreeButtons[anchorDegree - 1]} degree
+				</div>
+			{/if}
+		</div>
+
 		<!-- Degree Selection -->
 		<div class="mb-4">
-			<label class="mb-2 block text-sm font-medium">Degrees to Practice:</label>
+			<span class="mb-2 block text-sm font-medium">Degrees to Practice:</span>
 			<div class="flex flex-wrap gap-2">
 				<button
 					onclick={toggleAllDegrees}
