@@ -129,6 +129,8 @@
 	let dShapeModeEnabled = $state(false);
 	let eShapeModeEnabled = $state(false);
 	let gShapeModeEnabled = $state(false);
+	// Add for split shape ranges
+	let shapeFretRanges: Array<{ start: number; end: number }> = [];
 
 	// Store user's last known settings
 	let lastUserStringStart = $state<number>(1);
@@ -947,11 +949,18 @@
 		)
 			return null;
 
-		const inDrillArea =
-			stringIdx + 1 >= stringRangeStart &&
-			stringIdx + 1 <= stringRangeEnd &&
-			fretIdx >= fretRangeStart &&
-			fretIdx <= fretRangeEnd;
+		// For E shape, use shapeFretRanges for split range support
+		let inDrillArea;
+		if (eShapeModeEnabled && shapeFretRanges.length > 1) {
+			inDrillArea = shapeFretRanges.some(r => fretIdx >= r.start && fretIdx <= r.end) &&
+				stringIdx + 1 >= stringRangeStart && stringIdx + 1 <= stringRangeEnd;
+		} else {
+			inDrillArea =
+				stringIdx + 1 >= stringRangeStart &&
+				stringIdx + 1 <= stringRangeEnd &&
+				fretIdx >= fretRangeStart &&
+				fretIdx <= fretRangeEnd;
+		}
 		if (!inDrillArea) return null;
 
 		const scaleNotes = currentScale;
@@ -997,7 +1006,7 @@
 		}
 	}
 
-	// Update shouldShowYellowDot to use highlightedFragmentDegrees
+	// Update shouldShowYellowDot to use shapeFretRanges for E shape
 	function shouldShowYellowDot(stringIdx: number, fretIdx: number): boolean {
 		if (!showFragmentDots) return false;
 		if (
@@ -1013,11 +1022,17 @@
 			!gShapeModeEnabled
 		)
 			return false;
-		const inDrillArea =
-			stringIdx + 1 >= stringRangeStart &&
-			stringIdx + 1 <= stringRangeEnd &&
-			fretIdx >= fretRangeStart &&
-			fretIdx <= fretRangeEnd;
+		let inDrillArea;
+		if (eShapeModeEnabled && shapeFretRanges.length > 1) {
+			inDrillArea = shapeFretRanges.some(r => fretIdx >= r.start && fretIdx <= r.end) &&
+				stringIdx + 1 >= stringRangeStart && stringIdx + 1 <= stringRangeEnd;
+		} else {
+			inDrillArea =
+				stringIdx + 1 >= stringRangeStart &&
+				stringIdx + 1 <= stringRangeEnd &&
+				fretIdx >= fretRangeStart &&
+				fretIdx <= fretRangeEnd;
+		}
 		if (!inDrillArea) return false;
 		const scaleNotes = currentScale;
 		const note = fretboard[stringIdx][fretIdx];
@@ -1217,6 +1232,7 @@
 			stringRangeEnd = lastUserStringEnd;
 			fretRangeStart = lastUserFretStart;
 			fretRangeEnd = lastUserFretEnd;
+			shapeFretRanges = [];
 		} else {
 			// Enable shape mode - save current settings and set to shape area
 			aShapeModeEnabled = isA;
@@ -1235,13 +1251,24 @@
 
 			// Calculate the fret range for the shape
 			const shapeFretRange = calculateShapeFretRange(shapeName);
-			fretRangeStart = shapeFretRange.start;
-			fretRangeEnd = shapeFretRange.end;
+			if (Array.isArray(shapeFretRange)) {
+				// Split range (e.g. E shape in C major)
+				shapeFretRanges = shapeFretRange;
+				// Use the first range for legacy variables
+				fretRangeStart = shapeFretRange[0].start;
+				fretRangeEnd = shapeFretRange[0].end;
+			} else {
+				shapeFretRanges = [shapeFretRange];
+				fretRangeStart = shapeFretRange.start;
+				fretRangeEnd = shapeFretRange.end;
+			}
 		}
 	}
 
 	// Calculate the fret range for a shape (union of two fragments)
-	function calculateShapeFretRange(shapeName: 'a' | 'c' | 'd' | 'e' | 'g'): { start: number; end: number } {
+	function calculateShapeFretRange(shapeName: 'a' | 'c' | 'd' | 'e' | 'g'):
+		| { start: number; end: number }
+		| Array<{ start: number; end: number }> {
 		const frag = {
 			alpha: calculateFragmentFretRange('alpha'),
 			beta: calculateFragmentFretRange('beta'),
@@ -1249,6 +1276,22 @@
 			epsilon: calculateFragmentFretRange('epsilon'),
 			gemini: calculateFragmentFretRange('gemini'),
 		};
+		if (shapeName === 'e') {
+			// Special case: E shape in C major (epsilon: 12-13, gemini: 2-3)
+			const keyName = selectedKey.includes('/') ? selectedKey.split('/')[0] : selectedKey;
+			if (
+				keyName === 'C' &&
+				frag.epsilon.start === 12 && frag.epsilon.end === 13 &&
+				frag.gemini.start === 2 && frag.gemini.end === 3
+			) {
+				return [
+					{ start: frag.epsilon.start, end: frag.epsilon.end },
+					{ start: frag.gemini.start, end: frag.gemini.end },
+				];
+			}
+			// Default: contiguous
+			return { start: Math.min(frag.epsilon.start, frag.gemini.start), end: Math.max(frag.epsilon.end, frag.gemini.end) };
+		}
 		if (shapeName === 'a') {
 			// Alpha + Beta
 			return { start: Math.min(frag.alpha.start, frag.beta.start), end: Math.max(frag.alpha.end, frag.beta.end) };
@@ -1258,9 +1301,6 @@
 		} else if (shapeName === 'd') {
 			// Delta + Epsilon
 			return { start: Math.min(frag.delta.start, frag.epsilon.start), end: Math.max(frag.delta.end, frag.epsilon.end) };
-		} else if (shapeName === 'e') {
-			// Epsilon + Gemini
-			return { start: Math.min(frag.epsilon.start, frag.gemini.start), end: Math.max(frag.epsilon.end, frag.gemini.end) };
 		} else if (shapeName === 'g') {
 			// Gemini + Alpha
 			return { start: Math.min(frag.gemini.start, frag.alpha.start), end: Math.max(frag.gemini.end, frag.alpha.end) };
