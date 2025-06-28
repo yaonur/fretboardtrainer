@@ -1213,8 +1213,8 @@
 	}
 
 	// Auto-next question feature
-	let autoNextEnabled = $state(false);
-	let autoNextDelay = $state(2000); // ms, default 2 seconds
+	let autoNextEnabled = $state(true);
+	let autoNextDelay = $state(1000); // ms, default 2 seconds
 	let autoNextTimeout: ReturnType<typeof setTimeout> | null = null;
 	let autoNextRunning = $state(false); // NEW: running state
 
@@ -1533,6 +1533,7 @@
 	});
 
 	let gameStarted = $state(false);
+	let showAnswerButtons = $state(false); // NEW: track answer buttons visibility
 </script>
 
 <div class="flex flex-col items-center">
@@ -1904,47 +1905,10 @@
 			</button>
 		{/each}
 	</div>
-	<!-- Auto-next question toggle and delay -->
-	<div class="mb-2 flex flex-col items-center justify-center gap-4">
-		<div class="flex gap-2">
-			<label class="flex cursor-pointer select-none items-center gap-2">
-				<input type="checkbox" bind:checked={autoNextEnabled} class="accent-blue-500" />
-				<span class="text-sm">Auto Next Question</span>
-			</label>
-			<button
-				onclick={async () => {
-					if (!gameStarted) {
-						await initAudio();
-						questionCount = 0;
-						autoNextGenerateNewQuestion();
-						gameStarted = true;
-					}
-					handleAutoNextStartStop();
-				}}
-				disabled={!autoNextEnabled}
-				class="rounded bg-blue-500 px-3 py-1 text-white hover:bg-blue-600 disabled:bg-gray-400"
-			>
-				{autoNextRunning ? 'Stop' : 'Start'}
-			</button>
-		</div>
-		<label class="flex items-center gap-1">
-			<span class="text-sm">Delay:</span>
-			<input
-				type="range"
-				min="300"
-				max="2000"
-				step="50"
-				bind:value={autoNextDelay}
-				class="w-72 accent-blue-500"
-			/>
-			<span class="w-8 text-center text-sm font-medium">{autoNextDelay}</span>
-			<span class="text-sm">ms</span>
-		</label>
-	</div>
 	<div>
 		<div class="mt-2 flex justify-center gap-2">
 			<button
-				onclick={async () => {
+			onclick={async () => {
 					await initAudio();
 					gameMode = 'find-degree';
 					autoNextGenerateNewQuestion();
@@ -1954,23 +1918,59 @@
 				class:text-white={gameMode === 'find-degree'}
 				class:bg-gray-200={gameMode !== 'find-degree'}
 				class:text-gray-700={gameMode !== 'find-degree'}
-			>
+				>
 				Note → Degree
 			</button>
 			<button
-				onclick={async () => {
-					await initAudio();
-					gameMode = 'find-note';
-					autoNextGenerateNewQuestion();
-				}}
+			onclick={async () => {
+				await initAudio();
+				gameMode = 'find-note';
+				autoNextGenerateNewQuestion();
+			}}
 				class="rounded px-3 py-1 text-sm transition-colors"
 				class:bg-blue-500={gameMode === 'find-note'}
 				class:text-white={gameMode === 'find-note'}
 				class:bg-gray-200={gameMode !== 'find-note'}
 				class:text-gray-700={gameMode !== 'find-note'}
-			>
+				>
 				Degree → Note
 			</button>
+		</div>
+		<!-- Auto-next question toggle and delay -->
+		<div class="my-2 flex flex-col items-center justify-center gap-4">
+			<div class="flex gap-2">
+				<label class="flex cursor-pointer select-none items-center gap-2">
+					<input type="checkbox" bind:checked={autoNextEnabled} class="accent-blue-500" />
+					<span class="text-sm">Auto Next Question</span>
+				</label>
+				<button
+					onclick={async () => {
+						if (!gameStarted) {
+							await initAudio();
+							questionCount = 0;
+							autoNextGenerateNewQuestion();
+							gameStarted = true;
+						}
+						handleAutoNextStartStop();
+					}}
+					disabled={!autoNextEnabled}
+					class="rounded bg-blue-500 px-3 py-1 text-white hover:bg-blue-600 disabled:bg-gray-400"
+				>
+					{autoNextRunning ? 'Stop' : 'Start'}
+				</button>
+			</div>
+			<label class="flex items-center gap-1">
+				<span class="text-sm">Delay:</span>
+				<input
+					type="range"
+					min="300"
+					max="2000"
+					step="50"
+					bind:value={autoNextDelay}
+					class="w-96  accent-blue-500"
+				/>
+				<span class="text-sm">{autoNextDelay/1000} s</span>
+			</label>
 		</div>
 		<h2 class="text-2xl font-semibold">
 			{gameMode === 'find-degree'
@@ -2074,7 +2074,7 @@
 						class:bg-white={!(anchorModeEnabled && questionCount % anchorFrequency === 0)}
 						style:top="calc({activeString} * 30px - 12.5px)"
 						style:left="calc(({activeFret} - 0.5) * (100% / {numFrets}) - 12.5px)"
-						style:transition="all 0.3s"
+						style:transition="ease-in 0.11s"
 					>
 						{#if showNoteNameOnDot}
 							<span class="mb-[1px] text-sm sm:text-lg md:text-xl lg:text-2xl">
@@ -2147,8 +2147,22 @@
 
 	<!-- Answer buttons -->
 	{#if gameMode === 'find-degree'}
+		<div class="flex mt-9 items-center justify-center gap-2">
+			<button
+				onclick={() => showAnswerButtons = !showAnswerButtons}
+				class="rounded bg-gray-300 px-1 py-[1px] text-sm font-bold transition-all hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500"
+				class:rotate-90={!showAnswerButtons}
+			>
+				{">"}
+			</button>
+			<span class="text-sm text-gray-600 dark:text-gray-400">
+				{showAnswerButtons ? 'Hide' : 'Show'} Answer Buttons
+			</span>
+		</div>
+		
+		{#if showAnswerButtons}
 		<div
-			class="ml-6 mt-10 flex w-11/12 flex-col gap-2 place-self-start md:place-self-center lg:ml-0 lg:w-10/12"
+			class="ml-6 mt-1 flex w-11/12 flex-col gap-2 place-self-start md:place-self-center lg:ml-0 lg:w-10/12"
 		>
 			<!-- First row: I to VII -->
 			<div class="flex justify-start gap-2 lg:justify-center">
@@ -2176,10 +2190,11 @@
 				{/each}
 			</div>
 		</div>
+		{/if}
 	{/if}
 
 	<div class="flex h-56 w-full flex-col items-center">
-		<p>Quick Fragments</p>
+		<!-- <p>Quick Fragments</p> -->
 
 		{#if gameMode === 'find-degree'}
 			<div class="mt-2 flex justify-center gap-2">
