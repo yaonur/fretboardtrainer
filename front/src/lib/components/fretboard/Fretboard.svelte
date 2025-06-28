@@ -1959,18 +1959,34 @@
 					{autoNextRunning ? 'Stop' : 'Start'}
 				</button>
 			</div>
-			<label class="flex items-center gap-1">
-				<span class="text-sm">Delay:</span>
-				<input
-					type="range"
-					min="300"
-					max="2000"
-					step="50"
-					bind:value={autoNextDelay}
-					class="w-96  accent-blue-500"
-				/>
-				<span class="text-sm">{autoNextDelay/1000} s</span>
-			</label>
+			<div class="flex items-center gap-2">
+				<button
+					onclick={() => autoNextDelay = Math.max(300, autoNextDelay - 50)}
+					disabled={!autoNextEnabled}
+					class="rounded bg-gray-300 px-2 py-1 text-sm font-bold hover:bg-gray-400 disabled:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500"
+				>
+					-
+				</button>
+				<label class="flex items-center gap-1">
+					<span class="text-sm">Delay:</span>
+					<input
+						type="range"
+						min="300"
+						max="2000"
+						step="50"
+						bind:value={autoNextDelay}
+						class="w-96  accent-blue-500"
+					/>
+					<span class="text-sm">{autoNextDelay/1000} s</span>
+				</label>
+				<button
+					onclick={() => autoNextDelay = Math.min(2000, autoNextDelay + 50)}
+					disabled={!autoNextEnabled}
+					class="rounded bg-gray-300 px-2 py-1 text-sm font-bold hover:bg-gray-400 disabled:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500"
+				>
+					+
+				</button>
+			</div>
 		</div>
 		<h2 class="text-2xl font-semibold">
 			{gameMode === 'find-degree'
@@ -2339,6 +2355,13 @@
 					/>
 					<span class="text-sm">Auto Cycle</span>
 				</label>
+				<button
+					onclick={() => setAutoCycleCount(Math.max(1, autoCycleCount - 1))}
+					disabled={fragmentCycleEnabled || shapeCycleEnabled}
+					class="rounded bg-gray-300 px-2 py-1 text-sm font-bold hover:bg-gray-400 disabled:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500"
+				>
+					-
+				</button>
 				<input
 					type="number"
 					min="1"
@@ -2348,12 +2371,19 @@
 					placeholder="Cycle N"
 				/>
 				<button
+					onclick={() => setAutoCycleCount(autoCycleCount + 1)}
+					disabled={fragmentCycleEnabled || shapeCycleEnabled}
+					class="rounded bg-gray-300 px-2 py-1 text-sm font-bold hover:bg-gray-400 disabled:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500"
+				>
+					+
+				</button>
+				<button
 					onclick={async () => {
 						if (!gameStarted) {
 							await initAudio();
 							questionCount = 0;
 							autoNextGenerateNewQuestion();
-							gameStarted = true;
+								gameStarted = true;
 						}
 						handleAutoCycle();
 					}}
