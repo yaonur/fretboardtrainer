@@ -290,7 +290,6 @@
 
 	// Fragment cycling state
 	let fragmentCycleEnabled = $state(false);
-	let fragmentCycleCount = $state(5); // default cycle length
 	let fragmentCycleCurrent = $state(0);
 	let fragmentCycleIndex = $state(0);
 	let fragmentCycleOrderType = $state<'default' | 'custom'>('default');
@@ -344,13 +343,13 @@
 
 		if (fragmentCycleEnabled) {
 			fragmentCycleCurrent++;
-			if (fragmentCycleCurrent > fragmentCycleCount) {
+			if (fragmentCycleCurrent > cycleCount) {
 				nextFragmentCycle();
 			}
 		}
 		if (shapeCycleEnabled) {
 			shapeCycleCurrent++;
-			if (shapeCycleCurrent > shapeCycleCount) {
+			if (shapeCycleCurrent > cycleCount) {
 				nextShapeCycle();
 			}
 		}
@@ -1420,7 +1419,6 @@
 
 	// --- Shape Cycle State ---
 	let shapeCycleEnabled = $state(false);
-	let shapeCycleCount = $state(5); // default cycle length
 	let shapeCycleCurrent = $state(0);
 	let shapeCycleIndex = $state(0);
 	const shapeCycleOrder = ['a', 'c', 'd', 'e', 'g'];
@@ -1484,13 +1482,6 @@
 		}
 	}
 
-	// Add derived variable and setter for cycle count input
-	let autoCycleCount = $derived(fragmentCycleEnabled ? fragmentCycleCount : shapeCycleCount);
-	function setAutoCycleCount(val: number) {
-		if (fragmentCycleEnabled) fragmentCycleCount = val;
-		else shapeCycleCount = val;
-	}
-
 	// --- Key Cycle State ---
 	let keyCycleEnabled = $state(false);
 	let keyCycleDelaySec = $state(5); // seconds, default 5
@@ -1534,6 +1525,9 @@
 
 	let gameStarted = $state(false);
 	let showAnswerButtons = $state(false); // NEW: track answer buttons visibility
+
+	// --- Unified Cycle Count ---
+	let cycleCount = $state(5); // default cycle length for both shape and fragment
 </script>
 
 <div class="flex flex-col items-center">
@@ -2356,8 +2350,7 @@
 					<span class="text-sm">Auto Cycle</span>
 				</label>
 				<button
-					onclick={() => setAutoCycleCount(Math.max(1, autoCycleCount - 1))}
-					disabled={fragmentCycleEnabled || shapeCycleEnabled}
+					onclick={() => cycleCount = Math.max(1, cycleCount - 1)}
 					class="rounded bg-gray-300 px-2 py-1 text-sm font-bold hover:bg-gray-400 disabled:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500"
 				>
 					-
@@ -2365,14 +2358,13 @@
 				<input
 					type="number"
 					min="1"
-					bind:value={autoCycleCount}
-					oninput={(e: Event) => setAutoCycleCount(Number((e.target as HTMLInputElement).value))}
+					value={cycleCount}
+					oninput={(e) => { const target = e.target as HTMLInputElement; if (target) cycleCount = Math.max(1, Number(target.value)); }}
 					class="w-16 rounded border border-gray-400 px-2 py-1 text-sm dark:text-black"
 					placeholder="Cycle N"
 				/>
 				<button
-					onclick={() => setAutoCycleCount(autoCycleCount + 1)}
-					disabled={fragmentCycleEnabled || shapeCycleEnabled}
+					onclick={() => cycleCount = cycleCount + 1}
 					class="rounded bg-gray-300 px-2 py-1 text-sm font-bold hover:bg-gray-400 disabled:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500"
 				>
 					+
@@ -2392,18 +2384,6 @@
 				>
 					Auto Cycle
 				</button>
-				{#if shapeCycleEnabled}
-					<div class="ml-2 text-sm text-indigo-700 dark:text-indigo-300">
-						Cycling: {shapeCycleOrder[shapeCycleIndex].toUpperCase()} Shape (shape {shapeCycleIndex +
-							1} of {shapeCycleOrder.length}), {shapeCycleCurrent}/{shapeCycleCount} questions
-						<button
-							onclick={stopShapeCycle}
-							class="ml-2 rounded bg-red-500 px-2 py-1 text-xs text-white"
-						>
-							Stop
-						</button>
-					</div>
-				{/if}
 			</div>
 		{/if}
 	</div>

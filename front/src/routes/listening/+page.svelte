@@ -1,5 +1,7 @@
 <script lang="ts">
 	import * as Tone from 'tone';
+	import { onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 
 	const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 	const circleOfFifths = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
@@ -19,6 +21,7 @@
 	let questionTimeout: ReturnType<typeof setTimeout> | null = null;
 	let showAnswerDelay = $state(1500); // Time to wait before showing answer
 	let answerDisplayTime = $state(1000); // Time to show answer before next question
+	let samplerLoaded = $state(false);
 
 	// --- Anchor Mode Settings ---
 	let anchorModeEnabled = $state(false);
@@ -28,6 +31,8 @@
 	// --- Voice Settings ---
 	let voiceEnabled = $state(true);
 	let voiceAudio: HTMLAudioElement | null = null;
+
+	let callDegreeFirst = $state(false);
 
 	// Audio setup
 	async function initAudio() {
@@ -42,7 +47,10 @@
 					'F#4': 'Fs4.mp3'
 				},
 				release: 1,
-				baseUrl: 'https://tonejs.github.io/audio/salamander/'
+				baseUrl: 'https://tonejs.github.io/audio/salamander/',
+				onload: () => {
+					samplerLoaded = true;
+				}
 			}).toDestination();
 
 			isAudioInitialized = true;
@@ -50,7 +58,6 @@
 	}
 
 	// Clear timeout when component is destroyed
-	import { onDestroy } from 'svelte';
 	onDestroy(() => {
 		if (questionTimeout) {
 			clearTimeout(questionTimeout);
@@ -121,14 +128,14 @@
 
 	// Play a note
 	function playNote(note: string) {
-		if (isAudioInitialized && sampler) {
+		if (isAudioInitialized && sampler && samplerLoaded) {
 			const bestOctave = getBestOctave(note);
 			sampler.triggerAttackRelease(note + bestOctave, '2n');
 		}
 	}
 
 	// Show the correct answer
-	function showCorrectAnswer() {
+	function showCorrectAnswer(targetNote: null | string = null) {
 		if (correctAnswer !== null) {
 			// Check if this was an anchor question
 			const isAnchorQuestion = anchorModeEnabled && questionCount % anchorFrequency === 0;
@@ -137,7 +144,13 @@
 			feedback = `${degreeText}${anchorIndicator}`;
 			
 			// Speak the degree
-			speakDegree(degreeText);
+			if(targetNote){
+				setTimeout(() => {
+				playNote(targetNote);
+			}, 100); // 800ms delay after speaking
+			} else {
+				speakDegree(degreeText);
+			}
 			
 			// Generate new question after the answer display time
 			questionTimeout = setTimeout(() => {
@@ -195,17 +208,27 @@
 
 		// Get the note for this degree
 		const targetNote = currentScale[targetDegree - 1];
-		
-		// Play the note
-		setTimeout(() => {
-			playNote(targetNote);
-		}, 100);
+
+		if (callDegreeFirst) {
+			// Announce the degree, then play the note after a short delay
+			speakDegree(degreeButtons[targetDegree - 1]);
+		} else {
+			// Play the note immediately
+			setTimeout(() => {
+				playNote(targetNote);
+			}, 100);
+		}
 
 		feedback = `?...`;
 
 		// Set timeout to show answer automatically
 		questionTimeout = setTimeout(() => {
-			showCorrectAnswer();
+			
+			if(callDegreeFirst){
+				showCorrectAnswer(targetNote);
+			} else {
+				showCorrectAnswer()
+			}
 		}, showAnswerDelay);
 	}
 
@@ -277,6 +300,10 @@
 			});
 		}
 	}
+
+	onMount(() => {
+		initAudio();
+	});
 </script>
 
 <div class="flex flex-col items-center p-6">
@@ -355,10 +382,10 @@
 			<input
 				type="range"
 				min="400"
-				max="3000"
+				max="15000"
 				step="50"
 				bind:value={answerDisplayTime}
-				class="w-32 accent-blue-500"
+				class="w-64 accent-blue-500"
 			/>
 			<span class="text-sm">{(answerDisplayTime / 1000).toFixed(1)}s</span>
 		</div>
@@ -369,6 +396,15 @@
 			<label class="flex cursor-pointer select-none items-center gap-2">
 				<input type="checkbox" bind:checked={voiceEnabled} class="accent-blue-500" />
 				<span class="text-sm">Announce degrees</span>
+			</label>
+		</div>
+
+		<!-- Call Degree First Control -->
+		<div class="mb-4 flex items-center gap-4">
+			<span class="text-sm font-medium">Call Degree First:</span>
+			<label class="flex cursor-pointer select-none items-center gap-2">
+				<input type="checkbox" bind:checked={callDegreeFirst} class="accent-blue-500" />
+				<span class="text-sm">Announce degree before playing note</span>
 			</label>
 		</div>
 
@@ -448,11 +484,14 @@
 		{#if !gameStarted}
 			<button
 				onclick={startGame}
-				disabled={selectedDegrees.length === 0}
+				disabled={selectedDegrees.length === 0 || !samplerLoaded}
 				class="rounded bg-blue-500 px-6 py-3 text-lg font-semibold text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-400"
 			>
 				Start Listening Practice
 			</button>
+			{#if !samplerLoaded}
+				<div class="text-xs text-gray-500 mt-2">Loading piano sounds...</div>
+			{/if}
 		{:else}
 			<button
 				onclick={stopGame}
