@@ -42,10 +42,9 @@
 	// --- Click Volume ---
 	let clickVolume = $state(1); // 0.0 to 1.0
 
-	// Calculate beat duration in ms
-	let beatDuration = 60000 / bpm;
-	let showAnswerDelay = questionClicks * beatDuration;
-	let answerDisplayTime = answerClicks * beatDuration;
+	let beatDuration: number;
+	let showAnswerDelay: number;
+	let answerDisplayTime: number;
 
 	$effect(() => {
 		beatDuration = 60000 / bpm;
@@ -80,7 +79,6 @@
 				release: 1,
 				baseUrl: 'https://tonejs.github.io/audio/salamander/',
 				onload: () => {
-					console.log("sampler loaded")
 					samplerLoaded = true;
 				}
 			}).toDestination();
@@ -91,7 +89,6 @@
 				},
 				onload: () => {
 					// Optionally set a flag if you want to track click sample loading
-					console.log("clickSampler loded")
 				// 	clickSampler.context.lookAhead = 1500
 				}
 			}).toDestination();
@@ -108,7 +105,6 @@
 					'B4': '/sounds/count/7.mp3'
 				},
 				onload: () => {
-					console.log("voiceSampler loaded");
 					voiceSamplerLoaded = true;
 					voiceSampler.context.lookAhead = 0
 				}
@@ -231,8 +227,6 @@
 		if (isAudioInitialized && clickSampler) {
 			// Set volume for click
 			clickSampler.volume.value = Tone.gainToDb(clickVolume); // clickVolume is 0.0-1.0
-			
-			console.log("-----",Tone.Time("16n").toSeconds())
 			clickSampler.triggerAttackRelease('C4', '16n');
 		}
 	}
