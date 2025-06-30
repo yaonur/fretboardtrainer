@@ -93,7 +93,7 @@
 					// Optionally set a flag if you want to track click sample loading
 					console.log("clickSampler loded")
 				// 	clickSampler.context.lookAhead = 1500
-				// }
+				}
 			}).toDestination();
 
 			// Setup voiceSampler for degree announcements
