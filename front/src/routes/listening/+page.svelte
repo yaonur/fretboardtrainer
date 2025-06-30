@@ -604,6 +604,17 @@
 			</button>
 		{/if}
 	</div>
+	{#if !gameStarted && !samplerLoaded}
+		 <!-- content here -->
+		 <div class="mb-8 flex flex-col items-center gap-4">
+			 <button
+			 onclick={initAudio}
+			 class="rounded bg-blue-500 px-6 py-3 text-lg font-semibold text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-400"
+		 >
+			 Force init
+		 </button>
+		 </div>
+	{/if}
 
 	<!-- Question Display -->
 	{#if gameStarted}
