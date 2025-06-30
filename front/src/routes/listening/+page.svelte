@@ -18,9 +18,11 @@
 	let isAudioInitialized = $state(false);
 	let sampler: Tone.Sampler;
 	let clickSampler: Tone.Sampler;
+	let voiceSampler: Tone.Sampler;
 	let lastDegree = $state<number | null>(null); // Track last asked degree to avoid repetition
 	let questionTimeout: ReturnType<typeof setTimeout> | null = null;
 	let samplerLoaded = $state(false);
+	let voiceSamplerLoaded = $state(false);
 
 	// --- Anchor Mode Settings ---
 	let anchorModeEnabled = $state(false);
@@ -29,7 +31,6 @@
 
 	// --- Voice Settings ---
 	let voiceEnabled = $state(true);
-	let voiceAudio: HTMLAudioElement | null = null;
 
 	let callDegreeFirst = $state(false);
 
@@ -52,11 +53,22 @@
 		answerDisplayTime = answerClicks * beatDuration;
 	});
 
+	// Map degrees to note names for the sampler
+	const degreeToNote: Record<string, string> = {
+		'I': 'C4',
+		'II': 'D4',
+		'III': 'E4',
+		'IV': 'F4',
+		'V': 'G4',
+		'VI': 'A4',
+		'VII': 'B4'
+	};
+
 	// Audio setup
 	async function initAudio() {
 		if (!isAudioInitialized) {
-			console.log("init audio")
 			await Tone.start();
+			// Tone.Contet
 			
 			// Create a sampler with piano-like samples
 			sampler = new Tone.Sampler({
@@ -80,8 +92,28 @@
 				onload: () => {
 					// Optionally set a flag if you want to track click sample loading
 					console.log("clickSampler loded")
+				// 	clickSampler.context.lookAhead = 1500
+				// }
+			}).toDestination();
+
+			// Setup voiceSampler for degree announcements
+			voiceSampler = new Tone.Sampler({
+				urls: {
+					'C4': '/sounds/count/1.mp3',
+					'D4': '/sounds/count/2.mp3',
+					'E4': '/sounds/count/3.mp3',
+					'F4': '/sounds/count/4.mp3',
+					'G4': '/sounds/count/5.mp3',
+					'A4': '/sounds/count/6.mp3',
+					'B4': '/sounds/count/7.mp3'
+				},
+				onload: () => {
+					console.log("voiceSampler loaded");
+					voiceSamplerLoaded = true;
+					voiceSampler.context.lookAhead = 0
 				}
 			}).toDestination();
+			
 
 			isAudioInitialized = true;
 		}
@@ -199,6 +231,8 @@
 		if (isAudioInitialized && clickSampler) {
 			// Set volume for click
 			clickSampler.volume.value = Tone.gainToDb(clickVolume); // clickVolume is 0.0-1.0
+			
+			console.log("-----",Tone.Time("16n").toSeconds())
 			clickSampler.triggerAttackRelease('C4', '16n');
 		}
 	}
@@ -343,42 +377,12 @@
 		lastDegree = null;
 	}
 
-	// Voice sample paths
-	const voiceSamplePaths = {
-		'I': '/sounds/count/1.mp3',
-		'II': '/sounds/count/2.mp3', 
-		'III': '/sounds/count/3.mp3',
-		'IV': '/sounds/count/4.mp3',
-		'V': '/sounds/count/5.mp3',
-		'VI': '/sounds/count/6.mp3',
-		'VII': '/sounds/count/7.mp3'
-	};
-
-	// Cache for preloaded Audio objects
-	let voiceSamplesCache: Record<string, HTMLAudioElement> = {};
-
-	// Speak the degree
+	// Speak the degree using Tone.js Sampler
 	function speakDegree(degree: string) {
-		if (!voiceEnabled) return;
-
-		const cachedAudio = voiceSamplesCache[degree];
-		if (cachedAudio) {
-			try {
-				cachedAudio.currentTime = 0;
-				cachedAudio.play();
-			} catch (error) {
-				console.log('Error playing cached voice sample:', error);
-			}
-		} else {
-			// Fallback: create and play audio element if not cached
-			const audioPath = voiceSamplePaths[degree as keyof typeof voiceSamplePaths];
-			if (audioPath) {
-				const audio = new Audio(audioPath);
-				audio.volume = 1;
-				audio.play().catch(error => {
-					console.log('Error playing voice sample:', error);
-				});
-			}
+		if (!voiceEnabled || !voiceSamplerLoaded) return;
+		const note = degreeToNote[degree];
+		if (voiceSampler && note) {
+			voiceSampler.triggerAttackRelease(note, '1n');
 		}
 	}
 </script>
