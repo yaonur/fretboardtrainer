@@ -37,6 +37,9 @@
 	let questionClicks = $state(2); // Number of clicks before answer
 	let answerClicks = $state(2); // Number of clicks to show answer
 
+	// --- Click Volume ---
+	let clickVolume = $state(1); // 0.0 to 1.0
+
 	// Calculate beat duration in ms
 	let beatDuration = 60000 / bpm;
 	let showAnswerDelay = questionClicks * beatDuration;
@@ -184,7 +187,7 @@
 		}
 		// Preload click sound
 		clickAudio = new Audio('/sounds/Click.wav');
-		clickAudio.volume = 1;
+		clickAudio.volume = clickVolume;
 	});
 
 	// Metronome interval
@@ -194,6 +197,7 @@
 		if (clickAudio) {
 			try {
 				clickAudio.currentTime = 0;
+				clickAudio.volume = clickVolume; // Set volume before playing
 				clickAudio.play();
 			} catch (error) {
 				console.log('Error playing click sound:', error);
@@ -275,7 +279,7 @@
 		let answerShown = false;
 		feedback = `?...`;
 
-		const totalClicks = questionClicks + answerClicks;
+		const totalClicks = questionClicks + answerClicks+1;
 		startMetronome(totalClicks, (clickNum) => {
 			if (!notePlayed && clickNum === 1) {
 				if (callDegreeFirst) {
@@ -449,6 +453,20 @@
 				class="w-32 accent-blue-500"
 			/>
 			<span class="text-sm">{bpm} BPM</span>
+		</div>
+
+		<!-- Click Volume Control -->
+		<div class="mb-4 flex items-center gap-4">
+			<span class="text-sm font-medium">Click Volume:</span>
+			<input
+				type="range"
+				min="0"
+				max="1"
+				step="0.01"
+				bind:value={clickVolume}
+				class="w-32 accent-blue-500"
+			/>
+			<span class="text-sm">{Math.round(clickVolume * 100)}%</span>
 		</div>
 
 		<!-- Question Clicks Control -->
