@@ -191,7 +191,7 @@
 	function playNote(note: string) {
 		if (isAudioInitialized && sampler && samplerLoaded) {
 			const bestOctave = getBestOctave(note);
-			sampler.triggerAttackRelease(note + bestOctave, '4n');
+			sampler.triggerAttackRelease(note + bestOctave, '4n',Tone.now() + 0.19);
 		}
 	}
 
@@ -225,9 +225,9 @@
 
 	function playClick() {
 		if (isAudioInitialized && clickSampler) {
-			// Set volume for click
 			clickSampler.volume.value = Tone.gainToDb(clickVolume); // clickVolume is 0.0-1.0
-			clickSampler.triggerAttackRelease('C4', '16n');
+			// Schedule the click 0.2 seconds (200ms) in the future
+			clickSampler.triggerAttackRelease('C4', '16n', Tone.now() + 0.20);
 		}
 	}
 
