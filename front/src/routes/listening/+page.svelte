@@ -8,7 +8,7 @@
 	const degreeButtons = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
 	// Game state
-	let selectedKey = $state('C');
+	let selectedKey = $state('A');
 	let lowestNote = $state<string>('G3'); // User's lowest note as reference
 	let selectedDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7]);
 	let correctAnswer = $state<number | null>(null);
@@ -19,8 +19,6 @@
 	let sampler: Tone.Sampler;
 	let lastDegree = $state<number | null>(null); // Track last asked degree to avoid repetition
 	let questionTimeout: ReturnType<typeof setTimeout> | null = null;
-	let showAnswerDelay = $state(1500); // Time to wait before showing answer
-	let answerDisplayTime = $state(1000); // Time to show answer before next question
 	let samplerLoaded = $state(false);
 
 	// --- Anchor Mode Settings ---
@@ -33,6 +31,22 @@
 	let voiceAudio: HTMLAudioElement | null = null;
 
 	let callDegreeFirst = $state(false);
+
+	// --- Timing Settings ---
+	let bpm = $state(120); // Beats per minute
+	let questionClicks = $state(2); // Number of clicks before answer
+	let answerClicks = $state(3); // Number of clicks to show answer
+
+	// Calculate beat duration in ms
+	let beatDuration = 60000 / bpm;
+	let showAnswerDelay = questionClicks * beatDuration;
+	let answerDisplayTime = answerClicks * beatDuration;
+
+	$effect(() => {
+		beatDuration = 60000 / bpm;
+		showAnswerDelay = questionClicks * beatDuration;
+		answerDisplayTime = answerClicks * beatDuration;
+	});
 
 	// Audio setup
 	async function initAudio() {
@@ -147,7 +161,7 @@
 			if(targetNote){
 				setTimeout(() => {
 				playNote(targetNote);
-			}, 100); // 800ms delay after speaking
+			}, 1); // 800ms delay after speaking
 			} else {
 				speakDegree(degreeText);
 			}
@@ -216,18 +230,17 @@
 			// Play the note immediately
 			setTimeout(() => {
 				playNote(targetNote);
-			}, 100);
+			}, 1);
 		}
 
 		feedback = `?...`;
 
-		// Set timeout to show answer automatically
+		// Set timeout to show answer on the Nth click (questionClicks)
 		questionTimeout = setTimeout(() => {
-			
 			if(callDegreeFirst){
 				showCorrectAnswer(targetNote);
 			} else {
-				showCorrectAnswer()
+				showCorrectAnswer();
 			}
 		}, showAnswerDelay);
 	}
@@ -275,35 +288,54 @@
 		lastDegree = null;
 	}
 
+	// Voice sample paths
+	const voiceSamplePaths = {
+		'I': '/sounds/count/1.mp3',
+		'II': '/sounds/count/2.mp3', 
+		'III': '/sounds/count/3.mp3',
+		'IV': '/sounds/count/4.mp3',
+		'V': '/sounds/count/5.mp3',
+		'VI': '/sounds/count/6.mp3',
+		'VII': '/sounds/count/7.mp3'
+	};
+
+	// Cache for preloaded Audio objects
+	let voiceSamplesCache: Record<string, HTMLAudioElement> = {};
+
+	// Preload voice samples on mount
+	onMount(() => {
+		initAudio();
+		for (const [degree, path] of Object.entries(voiceSamplePaths)) {
+			const audio = new Audio(path);
+			audio.volume = 1;
+			voiceSamplesCache[degree] = audio;
+		}
+	});
+
 	// Speak the degree
 	function speakDegree(degree: string) {
 		if (!voiceEnabled) return;
 
-		// Use actual voice samples from static folder
-		const voiceSamples = {
-			'I': '/sounds/count/1.mp3',
-			'II': '/sounds/count/2.mp3', 
-			'III': '/sounds/count/3.mp3',
-			'IV': '/sounds/count/4.mp3',
-			'V': '/sounds/count/5.mp3',
-			'VI': '/sounds/count/6.mp3',
-			'VII': '/sounds/count/7.mp3'
-		};
-
-		const audioPath = voiceSamples[degree as keyof typeof voiceSamples];
-		if (audioPath) {
-			// Create and play audio element
-			const audio = new Audio(audioPath);
-			audio.volume = 0.8;
-			audio.play().catch(error => {
-				console.log('Error playing voice sample:', error);
-			});
+		const cachedAudio = voiceSamplesCache[degree];
+		if (cachedAudio) {
+			try {
+				cachedAudio.currentTime = 0;
+				cachedAudio.play();
+			} catch (error) {
+				console.log('Error playing cached voice sample:', error);
+			}
+		} else {
+			// Fallback: create and play audio element if not cached
+			const audioPath = voiceSamplePaths[degree as keyof typeof voiceSamplePaths];
+			if (audioPath) {
+				const audio = new Audio(audioPath);
+				audio.volume = 1;
+				audio.play().catch(error => {
+					console.log('Error playing voice sample:', error);
+				});
+			}
 		}
 	}
-
-	onMount(() => {
-		initAudio();
-	});
 </script>
 
 <div class="flex flex-col items-center p-6">
@@ -362,32 +394,46 @@
 			</select>
 		</div>
 
-		<!-- Answer Delay Control -->
+		<!-- Tempo Control -->
 		<div class="mb-4 flex items-center gap-4">
-			<span class="text-sm font-medium">Question Time:</span>
+			<span class="text-sm font-medium">Tempo (BPM):</span>
 			<input
 				type="range"
-				min="400"
-				max="3000"
-				step="50"
-				bind:value={showAnswerDelay}
+				min="40"
+				max="240"
+				step="1"
+				bind:value={bpm}
 				class="w-32 accent-blue-500"
 			/>
-			<span class="text-sm">{(showAnswerDelay / 1000).toFixed(1)}s</span>
+			<span class="text-sm">{bpm} BPM</span>
 		</div>
 
-		<!-- Answer Display Time Control -->
+		<!-- Question Clicks Control -->
 		<div class="mb-4 flex items-center gap-4">
-			<span class="text-sm font-medium">Answer Time:</span>
+			<span class="text-sm font-medium">Question Clicks:</span>
 			<input
 				type="range"
-				min="400"
-				max="15000"
-				step="50"
-				bind:value={answerDisplayTime}
-				class="w-64 accent-blue-500"
+				min="1"
+				max="8"
+				step="1"
+				bind:value={questionClicks}
+				class="w-32 accent-blue-500"
 			/>
-			<span class="text-sm">{(answerDisplayTime / 1000).toFixed(1)}s</span>
+			<span class="text-sm">{questionClicks} click{questionClicks > 1 ? 's' : ''}</span>
+		</div>
+
+		<!-- Answer Clicks Control -->
+		<div class="mb-4 flex items-center gap-4">
+			<span class="text-sm font-medium">Answer Clicks:</span>
+			<input
+				type="range"
+				min="1"
+				max="8"
+				step="1"
+				bind:value={answerClicks}
+				class="w-32 accent-blue-500"
+			/>
+			<span class="text-sm">{answerClicks} click{answerClicks > 1 ? 's' : ''}</span>
 		</div>
 
 		<!-- Voice Control -->
@@ -522,13 +568,14 @@
 		<ol class="list-decimal list-inside space-y-1 text-sm">
 			<li>Select your preferred key and lowest note</li>
 			<li>Choose which degrees you want to practice</li>
-			<li>Set Question Time (how long to wait before showing the answer)</li>
-			<li>Set Answer Time (how long to show the answer before next question)</li>
+			<li>Set Tempo (beats per minute)</li>
+			<li>Set Question Clicks (how many clicks before showing the answer)</li>
+			<li>Set Answer Clicks (how many clicks to show the answer before next question)</li>
 			<li>Click "Start Listening Practice"</li>
 			<li>Listen to the note that plays</li>
 			<li>Think about which degree it is</li>
-			<li>The correct degree will be shown automatically after Question Time</li>
-			<li>A new question will be asked after Answer Time</li>
+			<li>The correct degree will be shown automatically after Question Clicks</li>
+			<li>A new question will be asked after Answer Clicks</li>
 		</ol>
 		<p class="mt-2 text-xs text-gray-500">
 			🎸 Perfect for practicing with your guitar - just listen and learn the sound of each degree!
