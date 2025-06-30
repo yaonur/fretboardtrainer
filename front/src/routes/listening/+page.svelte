@@ -17,6 +17,7 @@
 	let gameStarted = $state(false);
 	let isAudioInitialized = $state(false);
 	let sampler: Tone.Sampler;
+	let clickSampler: Tone.Sampler;
 	let lastDegree = $state<number | null>(null); // Track last asked degree to avoid repetition
 	let questionTimeout: ReturnType<typeof setTimeout> | null = null;
 	let samplerLoaded = $state(false);
@@ -54,6 +55,7 @@
 	// Audio setup
 	async function initAudio() {
 		if (!isAudioInitialized) {
+			console.log("init audio")
 			await Tone.start();
 			
 			// Create a sampler with piano-like samples
@@ -66,13 +68,27 @@
 				release: 1,
 				baseUrl: 'https://tonejs.github.io/audio/salamander/',
 				onload: () => {
+					console.log("sampler loaded")
 					samplerLoaded = true;
+				}
+			}).toDestination();
+			// Setup clickSampler for metronome click
+			clickSampler = new Tone.Sampler({
+				urls: {
+					C4: '/sounds/Click.wav'
+				},
+				onload: () => {
+					// Optionally set a flag if you want to track click sample loading
+					console.log("clickSampler loded")
 				}
 			}).toDestination();
 
 			isAudioInitialized = true;
 		}
 	}
+	$effect(()=>{
+		if(!isAudioInitialized) initAudio()
+	})
 
 	// Clear timeout when component is destroyed
 	onDestroy(() => {
@@ -176,32 +192,14 @@
 		}
 	}
 
-	// Preload metronome click sound
-	let clickAudio: HTMLAudioElement | null = null;
-	onMount(() => {
-		initAudio();
-		for (const [degree, path] of Object.entries(voiceSamplePaths)) {
-			const audio = new Audio(path);
-			audio.volume = 1;
-			voiceSamplesCache[degree] = audio;
-		}
-		// Preload click sound
-		clickAudio = new Audio('/sounds/Click.wav');
-		clickAudio.volume = clickVolume;
-	});
-
 	// Metronome interval
 	let metronomeInterval: ReturnType<typeof setInterval> | null = null;
 
 	function playClick() {
-		if (clickAudio) {
-			try {
-				clickAudio.currentTime = 0;
-				clickAudio.volume = clickVolume; // Set volume before playing
-				clickAudio.play();
-			} catch (error) {
-				console.log('Error playing click sound:', error);
-			}
+		if (isAudioInitialized && clickSampler) {
+			// Set volume for click
+			clickSampler.volume.value = Tone.gainToDb(clickVolume); // clickVolume is 0.0-1.0
+			clickSampler.triggerAttackRelease('C4', '16n');
 		}
 	}
 
