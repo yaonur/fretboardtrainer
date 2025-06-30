@@ -35,7 +35,7 @@
 	// --- Timing Settings ---
 	let bpm = $state(120); // Beats per minute
 	let questionClicks = $state(2); // Number of clicks before answer
-	let answerClicks = $state(3); // Number of clicks to show answer
+	let answerClicks = $state(2); // Number of clicks to show answer
 
 	// Calculate beat duration in ms
 	let beatDuration = 60000 / bpm;
@@ -144,7 +144,7 @@
 	function playNote(note: string) {
 		if (isAudioInitialized && sampler && samplerLoaded) {
 			const bestOctave = getBestOctave(note);
-			sampler.triggerAttackRelease(note + bestOctave, '2n');
+			sampler.triggerAttackRelease(note + bestOctave, '4n');
 		}
 	}
 
@@ -173,18 +173,71 @@
 		}
 	}
 
-	// Generate a new question
+	// Preload metronome click sound
+	let clickAudio: HTMLAudioElement | null = null;
+	onMount(() => {
+		initAudio();
+		for (const [degree, path] of Object.entries(voiceSamplePaths)) {
+			const audio = new Audio(path);
+			audio.volume = 1;
+			voiceSamplesCache[degree] = audio;
+		}
+		// Preload click sound
+		clickAudio = new Audio('/sounds/Click.wav');
+		clickAudio.volume = 1;
+	});
+
+	// Metronome interval
+	let metronomeInterval: ReturnType<typeof setInterval> | null = null;
+
+	function playClick() {
+		if (clickAudio) {
+			try {
+				clickAudio.currentTime = 0;
+				clickAudio.play();
+			} catch (error) {
+				console.log('Error playing click sound:', error);
+			}
+		}
+	}
+
+	function startMetronome(totalClicks: number, onEachClick?: (clickNum: number) => void, onDone?: () => void) {
+		let clickCount = 0;
+		playClick();
+		if (onEachClick) onEachClick(1);
+		clickCount++;
+		metronomeInterval = setInterval(() => {
+			playClick();
+			clickCount++;
+			if (onEachClick) onEachClick(clickCount);
+			if (clickCount >= totalClicks) {
+				if (metronomeInterval) clearInterval(metronomeInterval);
+				metronomeInterval = null;
+				if (onDone) onDone();
+			}
+		}, beatDuration);
+	}
+
+	function stopMetronome() {
+		if (metronomeInterval) {
+			clearInterval(metronomeInterval);
+			metronomeInterval = null;
+		}
+	}
+
+	// Update generateNewQuestion to use the metronome
 	function generateNewQuestion() {
 		if (selectedDegrees.length === 0) {
 			feedback = 'Please select at least one degree to practice.';
 			return;
 		}
 
-		// Clear any existing timeout
+		// Clear any existing timeout and metronome
 		if (questionTimeout) {
 			clearTimeout(questionTimeout);
 			questionTimeout = null;
 		}
+		stopMetronome();
 
 		feedback = '';
 		questionCount++;
@@ -202,47 +255,47 @@
 				// Remove the anchor degree from available options for random questions
 				availableDegrees = availableDegrees.filter(degree => degree !== anchorDegree);
 			}
-			
 			// Also avoid the last asked degree
 			availableDegrees = availableDegrees.filter(degree => degree !== lastDegree);
-			
 			if (availableDegrees.length === 0) {
 				// If all degrees have been used, reset and use all selected degrees (except anchor if anchor mode is enabled)
 				availableDegrees = anchorModeEnabled 
 					? selectedDegrees.filter(degree => degree !== anchorDegree)
 					: [...selectedDegrees];
 			}
-			
 			const randomDegreeIndex = Math.floor(Math.random() * availableDegrees.length);
 			targetDegree = availableDegrees[randomDegreeIndex];
 		}
-		
 		correctAnswer = targetDegree;
 		lastDegree = targetDegree;
 
-		// Get the note for this degree
 		const targetNote = currentScale[targetDegree - 1];
 
-		if (callDegreeFirst) {
-			// Announce the degree, then play the note after a short delay
-			speakDegree(degreeButtons[targetDegree - 1]);
-		} else {
-			// Play the note immediately
-			setTimeout(() => {
-				playNote(targetNote);
-			}, 1);
-		}
-
+		let notePlayed = false;
+		let answerShown = false;
 		feedback = `?...`;
 
-		// Set timeout to show answer on the Nth click (questionClicks)
-		questionTimeout = setTimeout(() => {
-			if(callDegreeFirst){
-				showCorrectAnswer(targetNote);
-			} else {
-				showCorrectAnswer();
+		const totalClicks = questionClicks + answerClicks;
+		startMetronome(totalClicks, (clickNum) => {
+			if (!notePlayed && clickNum === 1) {
+				if (callDegreeFirst) {
+					speakDegree(degreeButtons[targetDegree - 1]);
+				} else {
+					playNote(targetNote);
+				}
+				notePlayed = true;
 			}
-		}, showAnswerDelay);
+			if (!answerShown && clickNum === questionClicks + 1) {
+				if (callDegreeFirst) {
+					showCorrectAnswer(targetNote);
+				} else {
+					showCorrectAnswer();
+				}
+				answerShown = true;
+			}
+		}, () => {
+			generateNewQuestion();
+		});
 	}
 
 	// Toggle all degrees
@@ -280,7 +333,7 @@
 			clearTimeout(questionTimeout);
 			questionTimeout = null;
 		}
-		
+		stopMetronome();
 		gameStarted = false;
 		correctAnswer = null;
 		feedback = '';
@@ -301,16 +354,6 @@
 
 	// Cache for preloaded Audio objects
 	let voiceSamplesCache: Record<string, HTMLAudioElement> = {};
-
-	// Preload voice samples on mount
-	onMount(() => {
-		initAudio();
-		for (const [degree, path] of Object.entries(voiceSamplePaths)) {
-			const audio = new Audio(path);
-			audio.volume = 1;
-			voiceSamplesCache[degree] = audio;
-		}
-	});
 
 	// Speak the degree
 	function speakDegree(degree: string) {
