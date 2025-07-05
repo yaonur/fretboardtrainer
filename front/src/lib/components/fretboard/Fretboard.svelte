@@ -146,7 +146,7 @@
 	
 	// --- Sequence Mode Settings ---
 	let sequenceModeEnabled = $state(false);
-	let sequenceInput = $state<string>('4-2-6-1'); // Default sequence
+	let sequenceInput = $state<string>('4-2-1-3'); // Default sequence
 	let sequenceDegrees = $state<number[]>([]); // Parsed sequence degrees
 	let sequenceIndex = $state<number>(0); // Current position in sequence
 	let sequenceFrequency = $state<number>(3); // How many questions to skip before sequence starts
