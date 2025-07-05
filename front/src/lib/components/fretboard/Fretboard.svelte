@@ -143,6 +143,15 @@
 	let anchorDegree = $state<number>(1); // Default to I degree
 	let anchorFrequency = $state<number>(2); // How many questions to skip before anchor (default: every 2nd question)
 	let questionCount = $state<number>(0); // Track question count for anchor logic
+	
+	// --- Sequence Mode Settings ---
+	let sequenceModeEnabled = $state(false);
+	let sequenceInput = $state<string>('4-2-6-1'); // Default sequence
+	let sequenceDegrees = $state<number[]>([]); // Parsed sequence degrees
+	let sequenceIndex = $state<number>(0); // Current position in sequence
+	let sequenceFrequency = $state<number>(3); // How many questions to skip before sequence starts
+	let sequenceQuestionCount = $state<number>(0); // Track how many sequence questions have been asked
+	let inSequenceMode = $state(false); // Track if we're currently in a sequence
 
 	// --- Practice Range Settings ---
 	let stringRangeStart = $state<number>(6);
@@ -281,6 +290,28 @@
 
 	const validNotesCount = $derived(checkValidNotesInRange());
 
+	// Parse sequence input and update sequenceDegrees
+	function parseSequence() {
+		if (!sequenceInput.trim()) {
+			sequenceDegrees = [];
+			return;
+		}
+		
+		const parsed = sequenceInput
+			.split(/[-\s,]+/) // Split by hyphens, spaces, or commas
+			.map(s => s.trim())
+			.filter(s => s.length > 0)
+			.map(s => parseInt(s))
+			.filter(n => !isNaN(n) && n >= 1 && n <= 7);
+		
+		sequenceDegrees = parsed;
+	}
+
+	// Parse sequence when input changes
+	$effect(() => {
+		parseSequence();
+	});
+
 	let lastNote = '';
 	let lastDegree: number | null = null;
 	function getRootIndex() {
@@ -358,13 +389,31 @@
 			let targetDegree: number;
 			const scaleNotes = currentScale;
 
-			if (anchorModeEnabled && questionCount % anchorFrequency === 0) {
+			// Check if we should start a new sequence
+			if (sequenceModeEnabled && sequenceDegrees.length > 0 && !inSequenceMode && questionCount % sequenceFrequency === 0) {
+				inSequenceMode = true;
+				sequenceQuestionCount = 0;
+			}
+
+			// Check if this should be a sequence question
+			if (sequenceModeEnabled && sequenceDegrees.length > 0 && inSequenceMode) {
+				// Use the next degree in the sequence
+				targetDegree = sequenceDegrees[sequenceQuestionCount % sequenceDegrees.length];
+				// Increment sequence question count for next sequence question
+				sequenceQuestionCount++;
+				// Check if sequence is complete
+				if (sequenceQuestionCount >= sequenceDegrees.length) {
+					inSequenceMode = false;
+				}
+			} else if (anchorModeEnabled && questionCount % anchorFrequency === 0) {
 				// Only ask anchor degree on the Nth question
 				targetDegree = anchorDegree;
 			} else {
 				// Only random degrees, excluding anchor degree and lastDegree
 				let availableDegrees = [1, 2, 3, 4, 5, 6, 7].filter(
-					(degree) => degree !== lastDegree && (!anchorModeEnabled || degree !== anchorDegree)
+					(degree) => 
+						degree !== lastDegree && 
+						(!anchorModeEnabled || degree !== anchorDegree)
 				);
 				// Filter out degrees that have no valid positions in the current range
 				availableDegrees = availableDegrees.filter((degree) => {
@@ -432,13 +481,30 @@
 			}
 		} else {
 			// New mode: find the note for a given degree
+			// If sequence mode is enabled, use sequence degrees
 			// If anchor mode is enabled, alternate between anchor degree and random degree
 			let degreeToFind: number;
-			if (anchorModeEnabled && questionCount % anchorFrequency === 0) {
+			
+			// Check if we should start a new sequence
+			if (sequenceModeEnabled && sequenceDegrees.length > 0 && !inSequenceMode && questionCount % sequenceFrequency === 0) {
+				inSequenceMode = true;
+				sequenceQuestionCount = 0;
+			}
+
+			if (sequenceModeEnabled && sequenceDegrees.length > 0 && inSequenceMode) {
+				// This should be a sequence question
+				degreeToFind = sequenceDegrees[sequenceQuestionCount % sequenceDegrees.length];
+				// Increment sequence question count for next sequence question
+				sequenceQuestionCount++;
+				// Check if sequence is complete
+				if (sequenceQuestionCount >= sequenceDegrees.length) {
+					inSequenceMode = false;
+				}
+			} else if (anchorModeEnabled && questionCount % anchorFrequency === 0) {
 				// This should be an anchor question
 				degreeToFind = anchorDegree;
 			} else {
-				// This should be a random question (excluding anchor degree if anchor mode is enabled)
+				// This should be a random question (excluding anchor degree if enabled)
 				let availableDegrees = [1, 2, 3, 4, 5, 6, 7];
 				if (anchorModeEnabled) {
 					// Remove the anchor degree from available options for random questions
@@ -468,9 +534,18 @@
 				}
 			}
 
-			// Check if this was an anchor question
+			// Check if this was an anchor or sequence question
 			const isAnchorQuestion = anchorModeEnabled && questionCount % anchorFrequency === 0;
-			feedback = isAnchorQuestion ? 'Correct! (Anchor question)' : 'Correct!';
+			const isSequenceQuestion = sequenceModeEnabled && sequenceDegrees.length > 0 && inSequenceMode;
+			
+			if (isSequenceQuestion) {
+				const currentDegree = sequenceDegrees[(sequenceQuestionCount - 1 + sequenceDegrees.length) % sequenceDegrees.length];
+				feedback = `Correct! (Sequence: ${degreeButtons[currentDegree - 1]})`;
+			} else if (isAnchorQuestion) {
+				feedback = 'Correct! (Anchor question)';
+			} else {
+				feedback = 'Correct!';
+			}
 
 			setTimeout(() => generateNewQuestion(), 100);
 		} else {
@@ -499,10 +574,18 @@
 				playNote(wrongNote);
 			}
 
-			// Check if this was an anchor question
+			// Check if this was an anchor or sequence question
 			const isAnchorQuestion = anchorModeEnabled && questionCount % anchorFrequency === 0;
-			const anchorIndicator = isAnchorQuestion ? ' (Anchor question)' : '';
-			feedback = `Incorrect. It's ${degreeButtons[correctAnswer! - 1]}.${anchorIndicator}`;
+			const isSequenceQuestion = sequenceModeEnabled && sequenceDegrees.length > 0 && inSequenceMode;
+			
+			let indicator = '';
+			if (isSequenceQuestion) {
+				const currentDegree = sequenceDegrees[(sequenceQuestionCount - 1 + sequenceDegrees.length) % sequenceDegrees.length];
+				indicator = ` (Sequence: ${degreeButtons[currentDegree - 1]})`;
+			} else if (isAnchorQuestion) {
+				indicator = ' (Anchor question)';
+			}
+			feedback = `Incorrect. It's ${degreeButtons[correctAnswer! - 1]}.${indicator}`;
 		}
 	}
 
@@ -661,6 +744,10 @@
 			anchorModeEnabled,
 			anchorDegree,
 			anchorFrequency,
+			sequenceModeEnabled,
+			sequenceInput,
+			sequenceFrequency,
+			sequenceQuestionCount,
 			highlightedDegrees: [...highlightedDegrees]
 		};
 		await fretboardPresetsStore.savePreset(preset);
@@ -679,6 +766,10 @@
 		anchorModeEnabled = preset.anchorModeEnabled;
 		anchorDegree = preset.anchorDegree;
 		anchorFrequency = preset.anchorFrequency;
+		sequenceModeEnabled = preset.sequenceModeEnabled || false;
+		sequenceInput = preset.sequenceInput || '4-2-6-1';
+		sequenceFrequency = preset.sequenceFrequency || 3;
+		sequenceQuestionCount = preset.sequenceQuestionCount || 0;
 		highlightedDegrees = preset.highlightedDegrees || [1, 2, 3, 4, 5, 6, 7];
 		loadedPresetName = preset.name;
 	}
@@ -706,6 +797,10 @@
 			anchorModeEnabled,
 			anchorDegree,
 			anchorFrequency,
+			sequenceModeEnabled,
+			sequenceInput,
+			sequenceFrequency,
+			sequenceQuestionCount,
 			highlightedDegrees: [...highlightedDegrees]
 		};
 		await fretboardPresetsStore.savePreset(preset);
@@ -722,7 +817,16 @@
 			if (clickedDegree === targetDegree) {
 				// Correct! Play the note and provide feedback
 				playNote(clickedNote);
-				feedback = 'Correct!';
+				
+				// Check if this was a sequence question
+				const isSequenceQuestion = sequenceModeEnabled && sequenceDegrees.length > 0 && inSequenceMode;
+				if (isSequenceQuestion) {
+					const currentDegree = sequenceDegrees[(sequenceQuestionCount - 1 + sequenceDegrees.length) % sequenceDegrees.length];
+					feedback = `Correct! (Sequence: ${degreeButtons[currentDegree - 1]})`;
+				} else {
+					feedback = 'Correct!';
+				}
+				
 				setTimeout(() => generateNewQuestion(), 1000);
 			} else {
 				// Incorrect! Play the wrong note and provide feedback
@@ -737,10 +841,11 @@
 		}
 	}
 
-	function countUniqueDegreesInRange(): { count: number; hasAnchor: boolean } {
+	function countUniqueDegreesInRange(): { count: number; hasAnchor: boolean; hasSequence: boolean } {
 		const scaleNotes = currentScale;
 		const foundDegrees = new Set<number>();
 		let hasAnchor = false;
+		let hasSequence = false;
 		for (let string = stringRangeStartIndex; string <= stringRangeEndIndex; string++) {
 			for (let fret = fretRangeStart; fret <= fretRangeEnd; fret++) {
 				if (fretboard[string] && fretboard[string][fret]) {
@@ -749,23 +854,32 @@
 					const degree = scaleNotes.indexOf(getNoteNameWithAccidental(note)) + 1;
 					if (degree > 0) foundDegrees.add(degree);
 					if (degree === anchorDegree) hasAnchor = true;
+					if (sequenceDegrees.includes(degree)) hasSequence = true;
 				}
 			}
 		}
-		return { count: foundDegrees.size, hasAnchor };
+		return { count: foundDegrees.size, hasAnchor, hasSequence };
 	}
 
 	const uniqueDegreesInfo = $derived(countUniqueDegreesInRange());
 	const uniqueDegreesCount = $derived(uniqueDegreesInfo.count);
 	const hasAnchorDegree = $derived(uniqueDegreesInfo.hasAnchor);
+	const hasSequenceDegrees = $derived(uniqueDegreesInfo.hasSequence);
 	const canGenerateQuestion = $derived(
-		uniqueDegreesCount >= 3 && (!anchorModeEnabled || hasAnchorDegree)
+		uniqueDegreesCount >= 3 && 
+		(!anchorModeEnabled || hasAnchorDegree) &&
+		(!sequenceModeEnabled || hasSequenceDegrees)
 	);
 
 	$effect(() => {
 		if (anchorModeEnabled && !hasAnchorDegree) {
 			alert(
 				`Anchor degree (${degreeButtons[anchorDegree - 1]}) is not present in the selected range. Please adjust your range or anchor degree.`
+			);
+		}
+		if (sequenceModeEnabled && !hasSequenceDegrees) {
+			alert(
+				`Sequence degrees (${sequenceDegrees.map(d => degreeButtons[d - 1]).join(', ')}) are not present in the selected range. Please adjust your range or sequence.`
 			);
 		}
 	});
@@ -1571,17 +1685,21 @@
 
 	<!-- Game Info -->
 	<div class="my-4 text-center">
-		{#if anchorModeEnabled && correctAnswer !== null}
+		{#if (anchorModeEnabled || sequenceModeEnabled) && correctAnswer !== null}
 			<div class="mt-2 text-sm">
-				<span
-					class="rounded px-2 py-1 text-white"
-					class:bg-blue-500={questionCount % anchorFrequency === 0}
-					class:bg-gray-500={questionCount % anchorFrequency !== 0}
-				>
-					{questionCount % anchorFrequency === 0
-						? `Anchor: ${degreeButtons[anchorDegree - 1]}`
-						: 'Random'}
-				</span>
+				{#if sequenceModeEnabled && sequenceDegrees.length > 0 && inSequenceMode}
+					<span class="rounded bg-green-500 px-2 py-1 text-white">
+						Sequence: {sequenceDegrees.map(d => degreeButtons[d - 1]).join('-')} ({sequenceQuestionCount}/{sequenceDegrees.length})
+					</span>
+				{:else if anchorModeEnabled && questionCount % anchorFrequency === 0}
+					<span class="rounded bg-blue-500 px-2 py-1 text-white">
+						Anchor: {degreeButtons[anchorDegree - 1]}
+					</span>
+				{:else}
+					<span class="rounded bg-gray-500 px-2 py-1 text-white">
+						Random
+					</span>
+				{/if}
 			</div>
 		{/if}
 		<div class="mt-4 flex justify-center gap-4">
@@ -1677,6 +1795,9 @@
 			onclick={async () => {
 				await initAudio();
 				questionCount = 0; // Reset question count for new session
+				sequenceIndex = 0; // Reset sequence index for new session
+				sequenceQuestionCount = 0; // Reset sequence question count for new session
+				inSequenceMode = false; // Reset sequence mode for new session
 				autoNextGenerateNewQuestion();
 				gameStarted = true;
 			}}
@@ -1705,6 +1826,11 @@
 		{#if anchorModeEnabled && !hasAnchorDegree}
 			<div class="mt-2 text-sm text-red-600 dark:text-red-400">
 				⚠️ Selected range must include the anchor degree ({degreeButtons[anchorDegree - 1]}).
+			</div>
+		{/if}
+		{#if sequenceModeEnabled && !hasSequenceDegrees}
+			<div class="mt-2 text-sm text-red-600 dark:text-red-400">
+				⚠️ Selected range must include all sequence degrees ({sequenceDegrees.map(d => degreeButtons[d - 1]).join(', ')}).
 			</div>
 		{/if}
 	</div>
@@ -1845,6 +1971,53 @@
 		{/if}
 	</div>
 
+	<!-- Sequence Mode Controls -->
+	<div class="mb-4 flex flex-col items-center gap-2 rounded-lg bg-green-50 p-4 dark:bg-green-900/20">
+		<div class="flex items-center gap-2">
+			<label class="flex cursor-pointer select-none items-center gap-2">
+				<input type="checkbox" bind:checked={sequenceModeEnabled} class="accent-green-500" />
+				<span class="text-sm font-medium">Enable Sequence Mode</span>
+			</label>
+		</div>
+		{#if sequenceModeEnabled}
+			<div class="flex items-center gap-2">
+				<span class="text-sm">Sequence:</span>
+				<input
+					type="text"
+					bind:value={sequenceInput}
+					placeholder="4-2-6-1"
+					class="w-32 rounded border border-slate-200 bg-transparent px-2 py-1 text-center text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none dark:text-slate-100"
+				/>
+				<span class="text-xs text-gray-600 dark:text-gray-400">
+					(degrees 1-7, separated by hyphens)
+				</span>
+			</div>
+			<div class="flex items-center gap-2">
+				<span class="text-sm">Every</span>
+				<input
+					type="number"
+					bind:value={sequenceFrequency}
+					min="1"
+					max="10"
+					class="w-16 rounded border border-slate-200 bg-transparent px-2 py-1 text-center text-sm text-slate-700 shadow-sm transition duration-300 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-400 focus:shadow-md focus:outline-none dark:text-slate-100"
+				/>
+				<span class="text-sm">questions</span>
+			</div>
+			{#if sequenceDegrees.length > 0}
+				<div class="text-xs text-gray-600 dark:text-gray-400">
+					Every {sequenceFrequency} question{sequenceFrequency !== 1 ? 's' : ''} will start sequence: {sequenceDegrees.map(d => degreeButtons[d - 1]).join(' → ')}
+				</div>
+				<div class="text-xs text-gray-600 dark:text-gray-400">
+					Current position: {sequenceQuestionCount} of {sequenceDegrees.length}
+				</div>
+			{:else}
+				<div class="text-xs text-red-600 dark:text-red-400">
+					⚠️ Invalid sequence. Please enter degrees 1-7 separated by hyphens (e.g., 4-2-6-1)
+				</div>
+			{/if}
+		{/if}
+	</div>
+
 	<div class="mb-2 flex justify-center gap-2">
 		<button
 			onclick={toggleAllDegrees}
@@ -1942,6 +2115,9 @@
 						if (!gameStarted) {
 							await initAudio();
 							questionCount = 0;
+							sequenceIndex = 0;
+							sequenceQuestionCount = 0;
+							inSequenceMode = false;
 							autoNextGenerateNewQuestion();
 							gameStarted = true;
 						}
@@ -2003,6 +2179,9 @@
 				if (!gameStarted) {
 					await initAudio();
 					questionCount = 0;
+					sequenceIndex = 0;
+					sequenceQuestionCount = 0;
+					inSequenceMode = false;
 					autoNextGenerateNewQuestion();
 					gameStarted = true;
 				} else if (canGenerateQuestion) {
@@ -2078,10 +2257,12 @@
 				{#if correctAnswer !== null}
 					<div
 						class="absolute flex h-[20px] w-[20px] items-center justify-center rounded-full border-2 text-xs font-bold text-black sm:h-[25px] sm:w-[25px] md:h-[30px] md:w-[30px] lg:h-[35px] lg:w-[35px]"
-						class:border-blue-500={anchorModeEnabled && questionCount % anchorFrequency === 0}
-						class:bg-blue-100={anchorModeEnabled && questionCount % anchorFrequency === 0}
-						class:border-black={!(anchorModeEnabled && questionCount % anchorFrequency === 0)}
-						class:bg-white={!(anchorModeEnabled && questionCount % anchorFrequency === 0)}
+						class:border-green-500={sequenceModeEnabled && sequenceDegrees.length > 0 && inSequenceMode}
+						class:bg-green-100={sequenceModeEnabled && sequenceDegrees.length > 0 && inSequenceMode}
+						class:border-blue-500={anchorModeEnabled && questionCount % anchorFrequency === 0 && !(sequenceModeEnabled && sequenceDegrees.length > 0 && inSequenceMode)}
+						class:bg-blue-100={anchorModeEnabled && questionCount % anchorFrequency === 0 && !(sequenceModeEnabled && sequenceDegrees.length > 0 && inSequenceMode)}
+						class:border-black={!(anchorModeEnabled && questionCount % anchorFrequency === 0) && !(sequenceModeEnabled && sequenceDegrees.length > 0 && inSequenceMode)}
+						class:bg-white={!(anchorModeEnabled && questionCount % anchorFrequency === 0) && !(sequenceModeEnabled && sequenceDegrees.length > 0 && inSequenceMode)}
 						style:top="calc({activeString} * 30px - 12.5px)"
 						style:left="calc(({activeFret} - 0.5) * (100% / {numFrets}) - 12.5px)"
 						style:transition="ease-in 0.11s"

@@ -13,6 +13,10 @@ export type FretboardPreset = {
   anchorModeEnabled: boolean;
   anchorDegree: number;
   anchorFrequency: number;
+  sequenceModeEnabled?: boolean;
+  sequenceInput?: string;
+  sequenceFrequency?: number;
+  sequenceQuestionCount?: number;
   highlightedDegrees: number[];
 };
 
