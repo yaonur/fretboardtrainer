@@ -255,40 +255,66 @@
 		}
 	}
 
+	// --- Sequence Mode Settings ---
+	let sequenceModeEnabled = $state(false);
+	let sequenceInput = $state<string>('4-2-1-3'); // Default sequence
+	let sequenceDegrees = $state<number[]>([]); // Parsed sequence degrees
+	let sequenceFrequency = $state<number>(3); // How many questions to skip before sequence starts
+	let sequenceQuestionCount = $state<number>(0); // Track how many sequence questions have been asked
+	let inSequenceMode = $state(false); // Track if we're currently in a sequence
+
+	// Parse sequence input and update sequenceDegrees
+	function parseSequence() {
+		if (!sequenceInput.trim()) {
+			sequenceDegrees = [];
+			return;
+		}
+		const parsed = sequenceInput
+			.split(/[-\s,]+/)
+			.map(s => s.trim())
+			.filter(s => s.length > 0)
+			.map(s => parseInt(s))
+			.filter(n => !isNaN(n) && n >= 1 && n <= 7);
+		sequenceDegrees = parsed;
+	}
+	$effect(() => {
+		parseSequence();
+	});
+
 	// Update generateNewQuestion to use the metronome
 	function generateNewQuestion() {
 		if (selectedDegrees.length === 0) {
 			feedback = 'Please select at least one degree to practice.';
 			return;
 		}
-
-		// Clear any existing timeout and metronome
 		if (questionTimeout) {
 			clearTimeout(questionTimeout);
 			questionTimeout = null;
 		}
 		stopMetronome();
-
 		feedback = '';
 		questionCount++;
-
-		// Determine which degree to ask
 		let targetDegree: number;
-		
-		if (anchorModeEnabled && questionCount % anchorFrequency === 0) {
-			// This should be an anchor question
+		// --- Sequence Mode Logic ---
+		if (sequenceModeEnabled && sequenceDegrees.length > 0 && !inSequenceMode && questionCount % sequenceFrequency === 0) {
+			inSequenceMode = true;
+			sequenceQuestionCount = 0;
+		}
+		if (sequenceModeEnabled && sequenceDegrees.length > 0 && inSequenceMode) {
+			targetDegree = sequenceDegrees[sequenceQuestionCount % sequenceDegrees.length];
+			sequenceQuestionCount++;
+			if (sequenceQuestionCount >= sequenceDegrees.length) {
+				inSequenceMode = false;
+			}
+		} else if (anchorModeEnabled && questionCount % anchorFrequency === 0) {
 			targetDegree = anchorDegree;
 		} else {
-			// This should be a random question (excluding anchor degree if anchor mode is enabled)
 			let availableDegrees = selectedDegrees;
 			if (anchorModeEnabled) {
-				// Remove the anchor degree from available options for random questions
 				availableDegrees = availableDegrees.filter(degree => degree !== anchorDegree);
 			}
-			// Also avoid the last asked degree
 			availableDegrees = availableDegrees.filter(degree => degree !== lastDegree);
 			if (availableDegrees.length === 0) {
-				// If all degrees have been used, reset and use all selected degrees (except anchor if anchor mode is enabled)
 				availableDegrees = anchorModeEnabled 
 					? selectedDegrees.filter(degree => degree !== anchorDegree)
 					: [...selectedDegrees];
@@ -298,13 +324,10 @@
 		}
 		correctAnswer = targetDegree;
 		lastDegree = targetDegree;
-
 		const targetNote = currentScale[targetDegree - 1];
-
 		let notePlayed = false;
 		let answerShown = false;
 		feedback = `?...`;
-
 		const totalClicks = questionClicks + answerClicks+1;
 		startMetronome(totalClicks, (clickNum) => {
 			if (!notePlayed && clickNum === 1) {
@@ -548,6 +571,53 @@
 			{/if}
 		</div>
 
+		<!-- Sequence Mode Controls -->
+		<div class="mb-4 flex flex-col items-center gap-2 rounded-lg bg-green-50 p-4 dark:bg-green-900/20">
+			<div class="flex items-center gap-2">
+				<label class="flex cursor-pointer select-none items-center gap-2">
+					<input type="checkbox" bind:checked={sequenceModeEnabled} class="accent-green-500" />
+					<span class="text-sm font-medium">Enable Sequence Mode</span>
+				</label>
+			</div>
+			{#if sequenceModeEnabled}
+				<div class="flex items-center gap-2">
+					<span class="text-sm">Sequence:</span>
+					<input
+						type="text"
+						bind:value={sequenceInput}
+						placeholder="4-2-6-1"
+						class="w-32 rounded border border-gray-300 bg-white px-2 py-1 text-center text-sm dark:bg-gray-700 dark:text-white"
+					/>
+					<span class="text-xs text-gray-600 dark:text-gray-400">
+						(degrees 1-7, separated by hyphens)
+					</span>
+				</div>
+				<div class="flex items-center gap-2">
+					<span class="text-sm">Every</span>
+					<input
+						type="number"
+						bind:value={sequenceFrequency}
+						min="1"
+						max="10"
+						class="w-16 rounded border border-gray-300 bg-white px-2 py-1 text-center text-sm dark:bg-gray-700 dark:text-white"
+					/>
+					<span class="text-sm">questions</span>
+				</div>
+				{#if sequenceDegrees.length > 0}
+					<div class="text-xs text-gray-600 dark:text-gray-400">
+						Every {sequenceFrequency} question{sequenceFrequency !== 1 ? 's' : ''} will start sequence: {sequenceDegrees.map(d => degreeButtons[d - 1]).join(' → ')}
+					</div>
+					<div class="text-xs text-gray-600 dark:text-gray-400">
+						Current position: {sequenceQuestionCount} of {sequenceDegrees.length}
+					</div>
+				{:else}
+					<div class="text-xs text-red-600 dark:text-red-400">
+						⚠️ Invalid sequence. Please enter degrees 1-7 separated by hyphens (e.g., 4-2-6-1)
+					</div>
+				{/if}
+			{/if}
+		</div>
+
 		<!-- Degree Selection -->
 		<div class="mb-4">
 			<span class="mb-2 block text-sm font-medium">Degrees to Practice:</span>
@@ -649,4 +719,23 @@
 			🎸 Perfect for practicing with your guitar - just listen and learn the sound of each degree!
 		</p>
 	</div>
+
+	<!-- Additional Information -->
+	{#if (anchorModeEnabled || sequenceModeEnabled) && correctAnswer !== null}
+		<div class="mb-4 text-sm">
+			{#if sequenceModeEnabled && sequenceDegrees.length > 0 && inSequenceMode}
+				<span class="rounded bg-green-500 px-2 py-1 text-white">
+					Sequence: {sequenceDegrees.map(d => degreeButtons[d - 1]).join('-')} ({sequenceQuestionCount}/{sequenceDegrees.length})
+				</span>
+			{:else if anchorModeEnabled && questionCount % anchorFrequency === 0}
+				<span class="rounded bg-blue-500 px-2 py-1 text-white">
+					Anchor: {degreeButtons[anchorDegree - 1]}
+				</span>
+			{:else}
+				<span class="rounded bg-gray-500 px-2 py-1 text-white">
+					Random
+				</span>
+			{/if}
+		</div>
+	{/if}
 </div> 
