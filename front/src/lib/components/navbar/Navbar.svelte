@@ -76,9 +76,7 @@
 			<a href="/listening" class="font-medium transition-colors duration-200 hover:text-blue-400"
 			>Listening</a
 		>
-		<a href="/godmode" class="font-medium transition-colors duration-200 hover:text-blue-400"
-		>Godmode</a
-	>
+		
 			<!-- <a href="/setlist" class="font-medium transition-colors duration-200 hover:text-blue-400"
 				>{m.setlist()}</a
 			> -->
@@ -121,9 +119,7 @@
 				<a href="/listening" class="font-medium transition-colors duration-200 hover:text-blue-400"
 				>Listening</a
 			>
-			<a href="/godmode" class="font-medium transition-colors duration-200 hover:text-blue-400"
-			>Godmode</a
-		>
+			
 			</div>
 		</div>
 	{/if}
