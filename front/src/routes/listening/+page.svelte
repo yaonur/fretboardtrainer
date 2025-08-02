@@ -33,6 +33,7 @@
 	let voiceEnabled = $state(true);
 
 	let callDegreeFirst = $state(false);
+	let announceOnly = $state(false);
 
 	// --- Timing Settings ---
 	let bpm = $state(120); // Beats per minute
@@ -207,7 +208,7 @@
 			// Speak the degree
 			if(targetNote){
 				setTimeout(() => {
-				playNote(targetNote);
+					if(!announceOnly) playNote(targetNote);
 			}, 1); // 800ms delay after speaking
 			} else {
 				speakDegree(degreeText);
@@ -333,7 +334,7 @@
 			if (!notePlayed && clickNum === 1) {
 				if (callDegreeFirst) {
 					speakDegree(degreeButtons[targetDegree - 1]);
-				} else {
+				} else if (!announceOnly) {
 					playNote(targetNote);
 				}
 				notePlayed = true;
@@ -522,6 +523,10 @@
 			<label class="flex cursor-pointer select-none items-center gap-2">
 				<input type="checkbox" bind:checked={voiceEnabled} class="accent-blue-500" />
 				<span class="text-sm">Announce degrees</span>
+			</label>
+			<label class="flex cursor-pointer select-none items-center gap-2">
+				<input type="checkbox" bind:checked={announceOnly} class="accent-blue-500" />
+				<span class="text-sm">Announce only</span>
 			</label>
 		</div>
 
