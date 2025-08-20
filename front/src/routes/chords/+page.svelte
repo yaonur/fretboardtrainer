@@ -31,8 +31,6 @@
 
 	// --- Voice Settings ---
 	let voiceEnabled = $state(true);
-
-	let callDegreeFirst = $state(true);
 	let announceOnly = $state(false);
 
 	// --- Timing Settings ---
@@ -332,22 +330,45 @@
 		correctAnswer = targetDegree;
 		lastDegree = targetDegree;
 		const chordDegrees = getChordDegrees(targetDegree);
-		feedback = `${degreeButtons[targetDegree - 1]}`;
-		const totalClicks = 1 + chordDegrees.length; // 1 announce + 4 chord tones
+		const targetNote = currentScale[targetDegree - 1];
+		feedback = `?...`;
+		const preClicks = Math.max(0, questionClicks);
+		const postClicks = Math.max(0, answerClicks);
+		const totalClicks = preClicks + chordDegrees.length + postClicks; // wait (announce on 1st) + 4 tones + wait
 		startMetronome(
 			totalClicks,
 			(clickNum) => {
-				if (clickNum === 1) {
-					// Always announce degree first
-					speakDegree(degreeButtons[targetDegree - 1]);
+				// Phase 1: Pre-question clicks (length: preClicks)
+				if (clickNum <= preClicks) {
+					// On the very first click, announce degree; otherwise just wait
+					if (clickNum === 1) {
+						feedback = `${degreeButtons[targetDegree - 1]}`;
+						speakDegree(degreeButtons[targetDegree - 1]);
+					}
 					return;
 				}
-				// Then play chord tones on subsequent clicks
-				const chordIndex = clickNum - 2; // 0..3
-				if (chordIndex >= 0 && chordIndex < chordDegrees.length && !announceOnly) {
-					const degreeToPlay = chordDegrees[chordIndex];
-					const noteToPlay = currentScale[degreeToPlay - 1];
-					playNote(noteToPlay);
+
+				// Phase 2: Chord tones (one per click)
+				const firstToneClick = preClicks + 1;
+				const lastToneClick = firstToneClick + chordDegrees.length - 1;
+				if (clickNum >= firstToneClick && clickNum <= lastToneClick) {
+					if (!announceOnly) {
+						const chordIndex = clickNum - firstToneClick; // 0..3
+						const degreeToPlay = chordDegrees[chordIndex];
+						const noteToPlay = currentScale[degreeToPlay - 1];
+						playNote(noteToPlay);
+					}
+					return;
+				}
+
+				// Phase 3: Post-answer clicks (length: postClicks)
+				const firstPostClick = lastToneClick + 1;
+				if (clickNum >= firstPostClick) {
+					// On the first post click, play the root degree note once; then wait remaining clicks
+					if (clickNum === firstPostClick && !announceOnly) {
+						playNote(targetNote);
+					}
+					return;
 				}
 			},
 			() => {
@@ -404,7 +425,20 @@
 		if (!voiceEnabled || !voiceSamplerLoaded) return;
 		const note = degreeToNote[degree];
 		if (voiceSampler && note) {
-			voiceSampler.triggerAttackRelease(note, '1n');
+			voiceSampler.triggerAttackRelease(note, '4n');
+		}
+	}
+
+	// Speak a numeric count (1..7) using the same voice samples
+	function speakCount(count: number) {
+		if (!voiceEnabled || !voiceSamplerLoaded) return;
+		// Use a different octave to distinguish count-in from degree announcement
+		const countNotes = ['C5','D5','E5','F5','G5','A5','B5'];
+		if (count >= 1 && count <= 7) {
+			const note = countNotes[count - 1];
+			if (voiceSampler && note) {
+				voiceSampler.triggerAttackRelease(note, '8n');
+			}
 		}
 	}
 </script>
@@ -535,13 +569,7 @@
 		</div>
 
 		<!-- Call Degree First Control -->
-		<div class="mb-4 flex items-center gap-4">
-			<span class="text-sm font-medium">Call Degree First:</span>
-			<label class="flex cursor-pointer select-none items-center gap-2">
-				<input type="checkbox" bind:checked={callDegreeFirst} class="accent-blue-500" />
-				<span class="text-sm">Announce degree before playing note</span>
-			</label>
-		</div>
+		<!-- Removed Call Degree First toggle: always announce degree first in this mode -->
 
 		<!-- Anchor Mode Controls -->
 		<div class="mb-4 flex flex-col items-center gap-2 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
