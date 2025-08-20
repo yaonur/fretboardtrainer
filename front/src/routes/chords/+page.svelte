@@ -33,6 +33,14 @@
 	let voiceEnabled = $state(true);
 	let announceOnly = $state(false);
 
+	// --- Chord Octave Mode ---
+	// When enabled, chord tones ascend by octave within a question; when disabled, use original per-note octave selection
+	let ascendingChordOctaves = $state(true);
+
+	// --- Reverse Answer Playback ---
+	// When enabled, play the chord tones in reverse order (e.g., 7-5-3-1)
+	let reverseAnswerPlayback = $state(false);
+
 	// --- Timing Settings ---
 	let bpm = $state(120); // Beats per minute
 	let questionClicks = $state(2); // Number of clicks before playing chord tones
@@ -302,11 +310,12 @@
 		correctAnswer = targetDegree;
 		lastDegree = targetDegree;
 		const chordDegrees = getChordDegrees(targetDegree);
+		const playbackDegrees = reverseAnswerPlayback ? [...chordDegrees].reverse() : chordDegrees;
 		feedback = `?...`;
 		const preClicks = Math.max(0, questionClicks);
-		const totalClicks = preClicks + chordDegrees.length; // wait (announce on 1st) + 4 tones
-		// Local state to enforce ascending tones within this question
-		const seqState: { lastIdx: number | null; currentOct: number | null } = { lastIdx: null, currentOct: null };
+		const totalClicks = preClicks + playbackDegrees.length; // wait (announce on 1st) + 4 tones
+		// Local state to enforce ascending tones within this question (only when enabled and not reversing)
+		const seqState = (ascendingChordOctaves && !reverseAnswerPlayback) ? { lastIdx: null as number | null, currentOct: null as number | null } : null;
 		startMetronome(
 			totalClicks,
 			(clickNum) => {
@@ -321,34 +330,35 @@
 
 				// Phase 2: Chord tones (one per click)
 				const firstToneClick = preClicks + 1; // tones start right after preClicks
-				const lastToneClick = firstToneClick + chordDegrees.length - 1;
+				const lastToneClick = firstToneClick + playbackDegrees.length - 1;
 				if (clickNum >= firstToneClick && clickNum <= lastToneClick) {
 					if (!announceOnly) {
-						// Ensure ascending playback across chord tones by adjusting octave when needed
-						// Maintain local state for this question's tone sequence
-						const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-
 						const chordIndex = clickNum - firstToneClick; // 0..3
-						const degreeToPlay = chordDegrees[chordIndex];
+						const degreeToPlay = playbackDegrees[chordIndex];
 						const noteToPlay = currentScale[degreeToPlay - 1];
-						const idx = noteNames.indexOf(noteToPlay);
-
-						if (idx !== -1) {
-							if (seqState.currentOct == null) {
-								seqState.currentOct = getBestOctave(noteToPlay);
-								seqState.lastIdx = idx;
-							} else {
-								// If the next note would not be higher than the previous, bump octave
-								if (seqState.lastIdx != null && idx <= seqState.lastIdx) {
-									seqState.currentOct = seqState.currentOct + 1;
+						if (ascendingChordOctaves && seqState) {
+							// Ensure ascending playback across chord tones by adjusting octave when needed
+							const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+							const idx = noteNames.indexOf(noteToPlay);
+							if (idx !== -1) {
+								if (seqState.currentOct == null) {
+									seqState.currentOct = getBestOctave(noteToPlay);
+									seqState.lastIdx = idx;
+								} else {
+									if (seqState.lastIdx != null && idx <= seqState.lastIdx) {
+										seqState.currentOct = seqState.currentOct + 1;
+									}
+									seqState.lastIdx = idx;
 								}
-								seqState.lastIdx = idx;
-							}
-							if (isAudioInitialized && sampler && samplerLoaded && seqState.currentOct != null) {
-								sampler.triggerAttackRelease(noteToPlay + seqState.currentOct, '4n', Tone.now() + 0.19);
+								if (isAudioInitialized && sampler && samplerLoaded && seqState.currentOct != null) {
+									sampler.triggerAttackRelease(noteToPlay + seqState.currentOct, '4n', Tone.now() + 0.19);
+								}
+							} else {
+								// Fallback when note not recognized
+								playNote(noteToPlay);
 							}
 						} else {
-							// Fallback to original behavior if note not recognized
+							// Original behavior: select octave independently per note
 							playNote(noteToPlay);
 						}
 					}
@@ -541,6 +551,30 @@
 				<input type="checkbox" bind:checked={announceOnly} class="accent-blue-500" />
 				<span class="text-sm">Announce only</span>
 			</label>
+		</div>
+
+		<!-- Chord Octave Mode -->
+		<div class="mb-4 flex items-center gap-4">
+			<span class="text-sm font-medium">Chord Octaves:</span>
+			<label class="flex cursor-pointer select-none items-center gap-2">
+				<input type="checkbox" bind:checked={ascendingChordOctaves} class="accent-blue-500" />
+				<span class="text-sm">Keep chord tones ascending</span>
+			</label>
+			<span class="text-xs text-gray-600 dark:text-gray-400">
+				{ascendingChordOctaves ? 'Ascending within a chord' : 'Original per-note octave'}
+			</span>
+		</div>
+
+		<!-- Reverse Answer Playback -->
+		<div class="mb-4 flex items-center gap-4">
+			<span class="text-sm font-medium">Answer Order:</span>
+			<label class="flex cursor-pointer select-none items-center gap-2">
+				<input type="checkbox" bind:checked={reverseAnswerPlayback} class="accent-blue-500" />
+				<span class="text-sm">Play chord tones in reverse</span>
+			</label>
+			<span class="text-xs text-gray-600 dark:text-gray-400">
+				{reverseAnswerPlayback ? 'Descending order' : 'Ascending order'}
+			</span>
 		</div>
 
 		<!-- Call Degree First Control -->
