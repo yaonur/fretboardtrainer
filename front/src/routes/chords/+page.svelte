@@ -305,6 +305,8 @@
 		feedback = `?...`;
 		const preClicks = Math.max(0, questionClicks);
 		const totalClicks = preClicks + chordDegrees.length; // wait (announce on 1st) + 4 tones
+		// Local state to enforce ascending tones within this question
+		const seqState: { lastIdx: number | null; currentOct: number | null } = { lastIdx: null, currentOct: null };
 		startMetronome(
 			totalClicks,
 			(clickNum) => {
@@ -322,10 +324,33 @@
 				const lastToneClick = firstToneClick + chordDegrees.length - 1;
 				if (clickNum >= firstToneClick && clickNum <= lastToneClick) {
 					if (!announceOnly) {
+						// Ensure ascending playback across chord tones by adjusting octave when needed
+						// Maintain local state for this question's tone sequence
+						const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
 						const chordIndex = clickNum - firstToneClick; // 0..3
 						const degreeToPlay = chordDegrees[chordIndex];
 						const noteToPlay = currentScale[degreeToPlay - 1];
-						playNote(noteToPlay);
+						const idx = noteNames.indexOf(noteToPlay);
+
+						if (idx !== -1) {
+							if (seqState.currentOct == null) {
+								seqState.currentOct = getBestOctave(noteToPlay);
+								seqState.lastIdx = idx;
+							} else {
+								// If the next note would not be higher than the previous, bump octave
+								if (seqState.lastIdx != null && idx <= seqState.lastIdx) {
+									seqState.currentOct = seqState.currentOct + 1;
+								}
+								seqState.lastIdx = idx;
+							}
+							if (isAudioInitialized && sampler && samplerLoaded && seqState.currentOct != null) {
+								sampler.triggerAttackRelease(noteToPlay + seqState.currentOct, '4n', Tone.now() + 0.19);
+							}
+						} else {
+							// Fallback to original behavior if note not recognized
+							playNote(noteToPlay);
+						}
 					}
 					return;
 				}
