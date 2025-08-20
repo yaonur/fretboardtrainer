@@ -35,20 +35,15 @@
 
 	// --- Timing Settings ---
 	let bpm = $state(120); // Beats per minute
-	let questionClicks = $state(2); // Number of clicks before answer
-	let answerClicks = $state(2); // Number of clicks to show answer
+	let questionClicks = $state(2); // Number of clicks before playing chord tones
 
 	// --- Click Volume ---
 	let clickVolume = $state(1); // 0.0 to 1.0
 
 	let beatDuration: number;
-	let showAnswerDelay: number;
-	let answerDisplayTime: number;
 
 	$effect(() => {
 		beatDuration = 60000 / bpm;
-		showAnswerDelay = questionClicks * beatDuration;
-		answerDisplayTime = answerClicks * beatDuration;
 	});
 
 	// Map degrees to note names for the sampler
@@ -200,30 +195,7 @@
 		}
 	}
 
-	// Show the correct answer
-	function showCorrectAnswer(targetNote: null | string = null) {
-		if (correctAnswer !== null) {
-			// Check if this was an anchor question
-			const isAnchorQuestion = anchorModeEnabled && questionCount % anchorFrequency === 0;
-			const anchorIndicator = isAnchorQuestion ? ' (Anchor)' : '';
-			const degreeText = degreeButtons[correctAnswer - 1];
-			feedback = `${degreeText}${anchorIndicator}`;
-			
-			// Speak the degree
-			if(targetNote){
-				setTimeout(() => {
-					if(!announceOnly) playNote(targetNote);
-			}, 1); // 800ms delay after speaking
-			} else {
-				speakDegree(degreeText);
-			}
-			
-			// Generate new question after the answer display time
-			questionTimeout = setTimeout(() => {
-				generateNewQuestion();
-			}, answerDisplayTime);
-		}
-	}
+// (Removed) showCorrectAnswer and answer timing logic
 
 	// Metronome interval
 	let metronomeInterval: ReturnType<typeof setInterval> | null = null;
@@ -330,26 +302,23 @@
 		correctAnswer = targetDegree;
 		lastDegree = targetDegree;
 		const chordDegrees = getChordDegrees(targetDegree);
-		const targetNote = currentScale[targetDegree - 1];
 		feedback = `?...`;
 		const preClicks = Math.max(0, questionClicks);
-		const postClicks = Math.max(0, answerClicks);
-		const totalClicks = preClicks + chordDegrees.length + postClicks; // wait (announce on 1st) + 4 tones + wait
+		const totalClicks = preClicks + chordDegrees.length; // wait (announce on 1st) + 4 tones
 		startMetronome(
 			totalClicks,
 			(clickNum) => {
-				// Phase 1: Pre-question clicks (length: preClicks)
-				if (clickNum <= preClicks) {
-					// On the very first click, announce degree; otherwise just wait
-					if (clickNum === 1) {
-						feedback = `${degreeButtons[targetDegree - 1]}`;
-						speakDegree(degreeButtons[targetDegree - 1]);
-					}
+				// Phase 1: Announcement on first click (works even when preClicks = 0)
+				if (clickNum === 1) {
+					feedback = `${degreeButtons[targetDegree - 1]}`;
+					speakDegree(degreeButtons[targetDegree - 1]);
 					return;
 				}
+				// Remaining pre-question clicks: just wait until tones
+				if (clickNum <= preClicks) return;
 
 				// Phase 2: Chord tones (one per click)
-				const firstToneClick = preClicks + 1;
+				const firstToneClick = preClicks + 1; // tones start right after preClicks
 				const lastToneClick = firstToneClick + chordDegrees.length - 1;
 				if (clickNum >= firstToneClick && clickNum <= lastToneClick) {
 					if (!announceOnly) {
@@ -360,19 +329,12 @@
 					}
 					return;
 				}
-
-				// Phase 3: Post-answer clicks (length: postClicks)
-				const firstPostClick = lastToneClick + 1;
-				if (clickNum >= firstPostClick) {
-					// On the first post click, play the root degree note once; then wait remaining clicks
-					if (clickNum === firstPostClick && !announceOnly) {
-						playNote(targetNote);
-					}
-					return;
-				}
 			},
 			() => {
-				generateNewQuestion();
+				// Add a one-beat gap before starting the next question to avoid overlap
+				setTimeout(() => {
+					generateNewQuestion();
+				}, beatDuration);
 			}
 		);
 	}
@@ -541,19 +503,7 @@
 			<span class="text-sm">{questionClicks} click{questionClicks > 1 ? 's' : ''}</span>
 		</div>
 
-		<!-- Answer Clicks Control -->
-		<div class="mb-4 flex items-center gap-4">
-			<span class="text-sm font-medium">Answer Clicks:</span>
-			<input
-				type="range"
-				min="1"
-				max="8"
-				step="1"
-				bind:value={answerClicks}
-				class="w-32 accent-blue-500"
-			/>
-			<span class="text-sm">{answerClicks} click{answerClicks > 1 ? 's' : ''}</span>
-		</div>
+		<!-- Removed Answer Clicks Control: tones play one-per-click, then next question -->
 
 		<!-- Voice Control -->
 		<div class="mb-4 flex items-center gap-4">
