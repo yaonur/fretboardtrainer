@@ -76,6 +76,9 @@
 			<a href="/listening" class="font-medium transition-colors duration-200 hover:text-blue-400"
 			>Listening</a
 		>
+			<a href="/chords" class="font-medium transition-colors duration-200 hover:text-blue-400"
+			>Chords</a
+		>
 		
 			<!-- <a href="/setlist" class="font-medium transition-colors duration-200 hover:text-blue-400"
 				>{m.setlist()}</a
@@ -118,6 +121,10 @@
 			>
 				<a href="/listening" class="font-medium transition-colors duration-200 hover:text-blue-400"
 				>Listening</a
+			>
+			>
+				<a href="/chords" class="font-medium transition-colors duration-200 hover:text-blue-400"
+				>Chords</a
 			>
 			
 			</div>
