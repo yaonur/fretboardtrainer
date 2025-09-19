@@ -103,7 +103,7 @@
 	<!-- Mobile menu -->
 	{#if isMenuOpen}
 		<div
-			class="fixed left-0 right-0 top-14 z-50 transform bg-gray-800 p-4 shadow-lg transition-transform duration-200 ease-in-out lg:hidden"
+			class="absolute left-0 right-0 top-14 z-50 transform bg-gray-800 p-4 shadow-lg transition-transform duration-200 ease-in-out lg:hidden"
 			style="transform: translateY({isMenuOpen ? '0' : '100%'});"
 		>
 			<div class="flex flex-col gap-4">
@@ -121,7 +121,6 @@
 			>
 				<a href="/listening" class="font-medium transition-colors duration-200 hover:text-blue-400"
 				>Listening</a
-			>
 			>
 				<a href="/chords" class="font-medium transition-colors duration-200 hover:text-blue-400"
 				>Chords</a
