@@ -29,26 +29,21 @@
 
 	let callDegreeFirst = $state(false);
 
-	// --- Timing Settings ---
-	let bpm = $state(120); // Beats per minute
-    let questionClicks = $state(2); // Number of clicks before answer
-	let answerClicks = $state(2); // Number of clicks to show answer
+    // --- Timing Settings ---
+    let bpm = $state(120); // Beats per minute
 
     // --- Dictation Settings ---
     let notesPerQuestion = $state(2); // At least 2 notes per question
+    const notesCount = $derived(Math.max(2, Math.min(8, notesPerQuestion)));
 
 	// --- Click Volume ---
 	let clickVolume = $state(1); // 0.0 to 1.0
 
-	let beatDuration: number;
-	let showAnswerDelay: number;
-	let answerDisplayTime: number;
+    let beatDuration: number;
 
-	$effect(() => {
-		beatDuration = 60000 / bpm;
-		showAnswerDelay = questionClicks * beatDuration;
-		answerDisplayTime = answerClicks * beatDuration;
-	});
+    $effect(() => {
+        beatDuration = 60000 / bpm;
+    });
 
 	// Map degrees to note names for the sampler
 	const degreeToNote: Record<string, string> = {
@@ -233,10 +228,11 @@
                 speakSequence(correctAnswer);
             }
 
-            // Generate new question after the answer display time
+            // Generate new question after reveal window that fits the full sequence
+            const revealBeats = Math.max(2, correctAnswer.length);
             questionTimeout = setTimeout(() => {
                 generateNewQuestion();
-            }, answerDisplayTime);
+            }, revealBeats * beatDuration);
         }
     }
 
@@ -313,10 +309,11 @@
 		stopMetronome();
 		feedback = '';
 		questionCount++;
-        // Build a sequence of degrees for this question
+        // Determine current notes count and build a sequence of degrees for this question
+        const desiredCount = Math.max(2, Math.min(8, Number(notesPerQuestion)));
         const sequence: number[] = [];
         let lastPicked: number | null = null;
-        for (let i = 0; i < Math.max(2, notesPerQuestion); i++) {
+        for (let i = 0; i < desiredCount; i++) {
             const pool = selectedDegrees.filter((d) => d !== lastPicked);
             const idx = Math.floor(Math.random() * pool.length);
             const d = pool[idx];
@@ -329,30 +326,30 @@
         // Placeholder during question
         feedback = Array(sequence.length).fill('?...').join(' ');
 
-        // Calculate when to reveal: after at least sequence length beats
-        const revealAtClick = Math.max(questionClicks, sequence.length) + 1; // align with original logic
-        const totalClicks = revealAtClick - 1 + answerClicks + 1;
+        // Total clicks: N beats for notes + max(2, N) beats for reveal window
+        const revealBeats = Math.max(2, desiredCount);
+        const totalClicks = desiredCount + revealBeats;
+        let notesPresented = 0;
 
         // On each click, present either spoken degrees or played notes for the sequence
         startMetronome(totalClicks, (clickNum) => {
-            // Play/speak sequence items on clicks 1..sequence.length
-            const idx = clickNum - 1;
-            if (idx >= 0 && idx < sequence.length) {
-                const degree = sequence[idx];
+            // While there are still notes to present, present one per click
+            if (notesPresented < sequence.length) {
+                const degree = sequence[notesPresented];
                 const noteName = currentScale[degree - 1];
                 if (callDegreeFirst) {
                     speakDegree(degreeButtons[degree - 1]);
                 } else {
                     playNote(noteName);
                 }
+                notesPresented += 1;
+                return;
             }
 
-            // Reveal at the computed click
-            if (clickNum === revealAtClick) {
+            // Reveal strictly on the first click after the last note
+            if (clickNum === desiredCount + 1) {
                 showCorrectAnswer();
             }
-        }, () => {
-            generateNewQuestion();
         });
 	}
 
@@ -505,33 +502,7 @@
             />
         </div>
 
-		<!-- Question Clicks Control -->
-		<div class="mb-4 flex items-center gap-4">
-			<span class="text-sm font-medium">Question Clicks:</span>
-			<input
-				type="range"
-				min="1"
-				max="8"
-				step="1"
-				bind:value={questionClicks}
-				class="w-32 accent-blue-500"
-			/>
-			<span class="text-sm">{questionClicks} click{questionClicks > 1 ? 's' : ''}</span>
-		</div>
-
-		<!-- Answer Clicks Control -->
-		<div class="mb-4 flex items-center gap-4">
-			<span class="text-sm font-medium">Answer Clicks:</span>
-			<input
-				type="range"
-				min="1"
-				max="8"
-				step="1"
-				bind:value={answerClicks}
-				class="w-32 accent-blue-500"
-			/>
-			<span class="text-sm">{answerClicks} click{answerClicks > 1 ? 's' : ''}</span>
-		</div>
+        
 
         <!-- Voice Control -->
 		<div class="mb-4 flex items-center gap-4">
@@ -646,8 +617,7 @@
 			<li>Choose which degrees you want to practice</li>
 			<li>Set Tempo (beats per minute)</li>
             <li>Set Notes per question (min 2)</li>
-            <li>Set Question Clicks (how many clicks before showing the answer; at least the number of notes will play)</li>
-			<li>Set Answer Clicks (how many clicks to show the answer before next question)</li>
+            <li>The exercise plays N notes; then reveals and announces them</li>
             <li>Click "Start Dictation"</li>
             <li>Listen to the notes that play (or the degrees announced if Call Degree First is enabled)</li>
             <li>Think about which degrees they are</li>
