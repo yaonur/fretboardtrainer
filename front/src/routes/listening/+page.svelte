@@ -278,12 +278,26 @@
 			.filter(n => !isNaN(n) && n >= 1 && n <= 7);
 		sequenceDegrees = parsed;
 	}
+	function stopSoundEngine() {
+		if (sampler) {
+			try { sampler.dispose(); } catch {}
+			samplerLoaded = false;
+		}
+		if (clickSampler) {
+			try { clickSampler.dispose(); } catch {}
+		}
+		if (voiceSampler) {
+			try { voiceSampler.dispose(); } catch {}
+			voiceSamplerLoaded = false;
+		}
+		isAudioInitialized = false;
+	}
 	$effect(() => {
 		parseSequence();
 		// stop game on exiting the page
 		return () => {
 			stopGame()
-			// stopSoundEngine()
+			stopSoundEngine()
 
 		}
 

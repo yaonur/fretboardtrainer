@@ -264,21 +264,24 @@
 	}
 	function stopSoundEngine() {
 		if (sampler) {
-			sampler.stop();
+			try { sampler.dispose(); } catch {}
+			samplerLoaded = false;
 		}
 		if (clickSampler) {
-			clickSampler.stop();
+			try { clickSampler.dispose(); } catch {}
 		}
 		if (voiceSampler) {
-			voiceSampler.stop();
+			try { voiceSampler.dispose(); } catch {}
+			voiceSamplerLoaded = false;
 		}
+		isAudioInitialized = false;
 	}
 	$effect(() => {
 		parseSequence();
 		// stop game on exiting the page
 		return () => {
 			stopGame()
-			// stopSoundEngine()
+			stopSoundEngine()
 
 		}
 
