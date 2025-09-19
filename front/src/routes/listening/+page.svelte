@@ -280,6 +280,13 @@
 	}
 	$effect(() => {
 		parseSequence();
+		// stop game on exiting the page
+		return () => {
+			stopGame()
+			// stopSoundEngine()
+
+		}
+
 	});
 
 	// Update generateNewQuestion to use the metronome

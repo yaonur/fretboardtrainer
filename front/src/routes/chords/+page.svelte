@@ -262,8 +262,26 @@
 			.filter(n => !isNaN(n) && n >= 1 && n <= 7);
 		sequenceDegrees = parsed;
 	}
+	function stopSoundEngine() {
+		if (sampler) {
+			sampler.stop();
+		}
+		if (clickSampler) {
+			clickSampler.stop();
+		}
+		if (voiceSampler) {
+			voiceSampler.stop();
+		}
+	}
 	$effect(() => {
 		parseSequence();
+		// stop game on exiting the page
+		return () => {
+			stopGame()
+			// stopSoundEngine()
+
+		}
+
 	});
 
 	// Update generateNewQuestion to use the metronome
