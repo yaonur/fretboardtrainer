@@ -10,8 +10,8 @@
 	// Game state
 	let selectedKey = $state('A');
 	let lowestNote = $state<string>('G3'); // User's lowest note as reference
-	let selectedDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7]);
-	let correctAnswer = $state<number | null>(null);
+    let selectedDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7]);
+    let correctAnswer = $state<number[] | null>(null);
 	let feedback = $state('');
 	let questionCount = $state(0);
 	let gameStarted = $state(false);
@@ -24,21 +24,18 @@
 	let samplerLoaded = $state(false);
 	let voiceSamplerLoaded = $state(false);
 
-	// --- Anchor Mode Settings ---
-	let anchorModeEnabled = $state(false);
-	let anchorDegree = $state<number>(1); // Default to I degree
-	let anchorFrequency = $state<number>(2); // How many questions to skip before anchor (default: every 2nd question)
-
-	// --- Voice Settings ---
+    // --- Voice Settings ---
 	let voiceEnabled = $state(true);
 
 	let callDegreeFirst = $state(false);
-	let announceOnly = $state(false);
 
 	// --- Timing Settings ---
 	let bpm = $state(120); // Beats per minute
-	let questionClicks = $state(2); // Number of clicks before answer
+    let questionClicks = $state(2); // Number of clicks before answer
 	let answerClicks = $state(2); // Number of clicks to show answer
+
+    // --- Dictation Settings ---
+    let notesPerQuestion = $state(2); // At least 2 notes per question
 
 	// --- Click Volume ---
 	let clickVolume = $state(1); // 0.0 to 1.0
@@ -196,30 +193,52 @@
 		}
 	}
 
-	// Show the correct answer
-	function showCorrectAnswer(targetNote: null | string = null) {
-		if (correctAnswer !== null) {
-			// Check if this was an anchor question
-			const isAnchorQuestion = anchorModeEnabled && questionCount % anchorFrequency === 0;
-			const anchorIndicator = isAnchorQuestion ? ' (Anchor)' : '';
-			const degreeText = degreeButtons[correctAnswer - 1];
-			feedback = `${degreeText}${anchorIndicator}`;
-			
-			// Speak the degree
-			if(targetNote){
-				setTimeout(() => {
-					if(!announceOnly) playNote(targetNote);
-			}, 1); // 800ms delay after speaking
-			} else {
-				speakDegree(degreeText);
-			}
-			
-			// Generate new question after the answer display time
-			questionTimeout = setTimeout(() => {
-				generateNewQuestion();
-			}, answerDisplayTime);
-		}
-	}
+    // Utility: speak a sequence of degrees one per beat
+    function speakSequence(degrees: number[]) {
+        if (!voiceEnabled || !voiceSamplerLoaded) return;
+        degrees.forEach((deg, idx) => {
+            const label = degreeButtons[deg - 1];
+            const note = degreeToNote[label];
+            if (note) {
+                voiceSampler.triggerAttackRelease(note, '4n', Tone.now() + idx * (beatDuration / 1000));
+            }
+        });
+    }
+
+    // Utility: play a sequence of scale notes one per beat
+    function playSequence(degrees: number[]) {
+        if (!isAudioInitialized || !samplerLoaded) return;
+        degrees.forEach((deg, idx) => {
+            const targetNote = currentScale[deg - 1];
+            const bestOctave = getBestOctave(targetNote);
+            sampler.triggerAttackRelease(
+                targetNote + bestOctave,
+                '4n',
+                Tone.now() + idx * (beatDuration / 1000) + 0.19
+            );
+        });
+    }
+
+    // Show the correct answer (announce or play full sequence depending on mode)
+    function showCorrectAnswer() {
+        if (correctAnswer && correctAnswer.length > 0) {
+            const degreeText = correctAnswer.map((d) => degreeButtons[d - 1]).join(' ');
+            feedback = degreeText;
+
+            if (callDegreeFirst) {
+                // We already announced during question; now play them
+                playSequence(correctAnswer);
+            } else {
+                // We played during question; now announce
+                speakSequence(correctAnswer);
+            }
+
+            // Generate new question after the answer display time
+            questionTimeout = setTimeout(() => {
+                generateNewQuestion();
+            }, answerDisplayTime);
+        }
+    }
 
 	// Metronome interval
 	let metronomeInterval: ReturnType<typeof setInterval> | null = null;
@@ -256,28 +275,7 @@
 		}
 	}
 
-	// --- Sequence Mode Settings ---
-	let sequenceModeEnabled = $state(false);
-	let sequenceInput = $state<string>('4-2-1-3'); // Default sequence
-	let sequenceDegrees = $state<number[]>([]); // Parsed sequence degrees
-	let sequenceFrequency = $state<number>(3); // How many questions to skip before sequence starts
-	let sequenceQuestionCount = $state<number>(0); // Track how many sequence questions have been asked
-	let inSequenceMode = $state(false); // Track if we're currently in a sequence
-
-	// Parse sequence input and update sequenceDegrees
-	function parseSequence() {
-		if (!sequenceInput.trim()) {
-			sequenceDegrees = [];
-			return;
-		}
-		const parsed = sequenceInput
-			.split(/[-\s,]+/)
-			.map(s => s.trim())
-			.filter(s => s.length > 0)
-			.map(s => parseInt(s))
-			.filter(n => !isNaN(n) && n >= 1 && n <= 7);
-		sequenceDegrees = parsed;
-	}
+    // (Dictation page removes anchor and sequence modes)
 	function stopSoundEngine() {
 		if (sampler) {
 			try { sampler.dispose(); } catch {}
@@ -292,19 +290,18 @@
 		}
 		isAudioInitialized = false;
 	}
-	$effect(() => {
-		parseSequence();
-		// stop game on exiting the page
-		return () => {
-			stopGame()
-			stopSoundEngine()
+    $effect(() => {
+        // stop game on exiting the page
+        return () => {
+            stopGame()
+            stopSoundEngine()
 
-		}
+        }
 
-	});
+    });
 
-	// Update generateNewQuestion to use the metronome
-	function generateNewQuestion() {
+    // Update generateNewQuestion for dictation (multiple notes)
+    function generateNewQuestion() {
 		if (selectedDegrees.length === 0) {
 			feedback = 'Please select at least one degree to practice.';
 			return;
@@ -316,61 +313,47 @@
 		stopMetronome();
 		feedback = '';
 		questionCount++;
-		let targetDegree: number;
-		// --- Sequence Mode Logic ---
-		if (sequenceModeEnabled && sequenceDegrees.length > 0 && !inSequenceMode && questionCount % sequenceFrequency === 0) {
-			inSequenceMode = true;
-			sequenceQuestionCount = 0;
-		}
-		if (sequenceModeEnabled && sequenceDegrees.length > 0 && inSequenceMode) {
-			targetDegree = sequenceDegrees[sequenceQuestionCount % sequenceDegrees.length];
-			sequenceQuestionCount++;
-			if (sequenceQuestionCount >= sequenceDegrees.length) {
-				inSequenceMode = false;
-			}
-		} else if (anchorModeEnabled && questionCount % anchorFrequency === 0) {
-			targetDegree = anchorDegree;
-		} else {
-			let availableDegrees = selectedDegrees;
-			if (anchorModeEnabled) {
-				availableDegrees = availableDegrees.filter(degree => degree !== anchorDegree);
-			}
-			availableDegrees = availableDegrees.filter(degree => degree !== lastDegree);
-			if (availableDegrees.length === 0) {
-				availableDegrees = anchorModeEnabled 
-					? selectedDegrees.filter(degree => degree !== anchorDegree)
-					: [...selectedDegrees];
-			}
-			const randomDegreeIndex = Math.floor(Math.random() * availableDegrees.length);
-			targetDegree = availableDegrees[randomDegreeIndex];
-		}
-		correctAnswer = targetDegree;
-		lastDegree = targetDegree;
-		const targetNote = currentScale[targetDegree - 1];
-		let notePlayed = false;
-		let answerShown = false;
-		feedback = `?...`;
-		const totalClicks = questionClicks + answerClicks+1;
-		startMetronome(totalClicks, (clickNum) => {
-			if (!notePlayed && clickNum === 1) {
-				if (callDegreeFirst) {
-					speakDegree(degreeButtons[targetDegree - 1]);
-				} else if (!announceOnly) {
-					playNote(targetNote);
-				}
-				notePlayed = true;
-			}
-			if (!answerShown && clickNum === questionClicks + 1) {
-				if (callDegreeFirst) {
-					showCorrectAnswer(targetNote);
-				} else {
-					showCorrectAnswer();
-				}
-				answerShown = true;
-			}
-		}, () => {
-			generateNewQuestion();
-		});
+        // Build a sequence of degrees for this question
+        const sequence: number[] = [];
+        let lastPicked: number | null = null;
+        for (let i = 0; i < Math.max(2, notesPerQuestion); i++) {
+            const pool = selectedDegrees.filter((d) => d !== lastPicked);
+            const idx = Math.floor(Math.random() * pool.length);
+            const d = pool[idx];
+            sequence.push(d);
+            lastPicked = d;
+        }
+        correctAnswer = sequence;
+        lastDegree = sequence[sequence.length - 1] ?? null;
+
+        // Placeholder during question
+        feedback = Array(sequence.length).fill('?...').join(' ');
+
+        // Calculate when to reveal: after at least sequence length beats
+        const revealAtClick = Math.max(questionClicks, sequence.length) + 1; // align with original logic
+        const totalClicks = revealAtClick - 1 + answerClicks + 1;
+
+        // On each click, present either spoken degrees or played notes for the sequence
+        startMetronome(totalClicks, (clickNum) => {
+            // Play/speak sequence items on clicks 1..sequence.length
+            const idx = clickNum - 1;
+            if (idx >= 0 && idx < sequence.length) {
+                const degree = sequence[idx];
+                const noteName = currentScale[degree - 1];
+                if (callDegreeFirst) {
+                    speakDegree(degreeButtons[degree - 1]);
+                } else {
+                    playNote(noteName);
+                }
+            }
+
+            // Reveal at the computed click
+            if (clickNum === revealAtClick) {
+                showCorrectAnswer();
+            }
+        }, () => {
+            generateNewQuestion();
+        });
 	}
 
 	// Toggle all degrees
@@ -427,7 +410,7 @@
 </script>
 
 <div class="flex flex-col items-center p-6">
-	<h1 class="mb-8 text-3xl font-bold">Listening Practice</h1>
+    <h1 class="mb-8 text-3xl font-bold">Dictation Practice</h1>
 	
 	<!-- Settings Panel -->
 	<div class="mb-8 w-full max-w-2xl rounded-lg bg-gray-50 p-6 dark:bg-gray-800">
@@ -496,7 +479,7 @@
 			<span class="text-sm">{bpm} BPM</span>
 		</div>
 
-		<!-- Click Volume Control -->
+        <!-- Click Volume Control -->
 		<div class="mb-4 flex items-center gap-4">
 			<span class="text-sm font-medium">Click Volume:</span>
 			<input
@@ -509,6 +492,18 @@
 			/>
 			<span class="text-sm">{Math.round(clickVolume * 100)}%</span>
 		</div>
+
+        <!-- Notes Per Question -->
+        <div class="mb-4 flex items-center gap-4">
+            <span class="text-sm font-medium">Notes per question:</span>
+            <input
+                type="number"
+                min="2"
+                max="8"
+                bind:value={notesPerQuestion}
+                class="w-16 rounded border border-gray-300 bg-white px-2 py-1 text-center text-sm dark:bg-gray-700 dark:text-white"
+            />
+        </div>
 
 		<!-- Question Clicks Control -->
 		<div class="mb-4 flex items-center gap-4">
@@ -538,16 +533,12 @@
 			<span class="text-sm">{answerClicks} click{answerClicks > 1 ? 's' : ''}</span>
 		</div>
 
-		<!-- Voice Control -->
+        <!-- Voice Control -->
 		<div class="mb-4 flex items-center gap-4">
 			<span class="text-sm font-medium">Voice:</span>
 			<label class="flex cursor-pointer select-none items-center gap-2">
 				<input type="checkbox" bind:checked={voiceEnabled} class="accent-blue-500" />
 				<span class="text-sm">Announce degrees</span>
-			</label>
-			<label class="flex cursor-pointer select-none items-center gap-2">
-				<input type="checkbox" bind:checked={announceOnly} class="accent-blue-500" />
-				<span class="text-sm">Announce only</span>
 			</label>
 		</div>
 
@@ -560,89 +551,10 @@
 			</label>
 		</div>
 
-		<!-- Anchor Mode Controls -->
-		<div class="mb-4 flex flex-col items-center gap-2 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
-			<div class="flex items-center gap-2">
-				<span class="flex cursor-pointer select-none items-center gap-2">
-					<input type="checkbox" bind:checked={anchorModeEnabled} class="accent-blue-500" />
-					<span class="text-sm font-medium">Enable Anchor Mode</span>
-				</span>
-			</div>
-			{#if anchorModeEnabled}
-				<div class="flex items-center gap-2">
-					<span class="text-sm">Anchor Degree:</span>
-					<select
-						bind:value={anchorDegree}
-						class="rounded border border-gray-300 bg-white px-2 py-1 text-sm dark:bg-gray-700 dark:text-white"
-					>
-						{#each degreeButtons as degree, i}
-							<option value={i + 1}>{degree}</option>
-						{/each}
-					</select>
-				</div>
-				<div class="flex items-center gap-2">
-					<span class="text-sm">Every</span>
-					<input
-						type="number"
-						bind:value={anchorFrequency}
-						min="1"
-						max="10"
-						class="w-16 rounded border border-gray-300 bg-white px-2 py-1 text-center text-sm dark:bg-gray-700 dark:text-white"
-					/>
-					<span class="text-sm">questions</span>
-				</div>
-				<div class="text-xs text-gray-600 dark:text-gray-400">
-					Every {anchorFrequency} question{anchorFrequency !== 1 ? 's' : ''} will be {degreeButtons[anchorDegree - 1]} degree
-				</div>
-			{/if}
-		</div>
-
-		<!-- Sequence Mode Controls -->
-		<div class="mb-4 flex flex-col items-center gap-2 rounded-lg bg-green-50 p-4 dark:bg-green-900/20">
-			<div class="flex items-center gap-2">
-				<label class="flex cursor-pointer select-none items-center gap-2">
-					<input type="checkbox" bind:checked={sequenceModeEnabled} class="accent-green-500" />
-					<span class="text-sm font-medium">Enable Sequence Mode</span>
-				</label>
-			</div>
-			{#if sequenceModeEnabled}
-				<div class="flex items-center gap-2">
-					<span class="text-sm">Sequence:</span>
-					<input
-						type="text"
-						bind:value={sequenceInput}
-						placeholder="4-2-6-1"
-						class="w-32 rounded border border-gray-300 bg-white px-2 py-1 text-center text-sm dark:bg-gray-700 dark:text-white"
-					/>
-					<span class="text-xs text-gray-600 dark:text-gray-400">
-						(degrees 1-7, separated by hyphens)
-					</span>
-				</div>
-				<div class="flex items-center gap-2">
-					<span class="text-sm">Every</span>
-					<input
-						type="number"
-						bind:value={sequenceFrequency}
-						min="1"
-						max="10"
-						class="w-16 rounded border border-gray-300 bg-white px-2 py-1 text-center text-sm dark:bg-gray-700 dark:text-white"
-					/>
-					<span class="text-sm">questions</span>
-				</div>
-				{#if sequenceDegrees.length > 0}
-					<div class="text-xs text-gray-600 dark:text-gray-400">
-						Every {sequenceFrequency} question{sequenceFrequency !== 1 ? 's' : ''} will start sequence: {sequenceDegrees.map(d => degreeButtons[d - 1]).join(' → ')}
-					</div>
-					<div class="text-xs text-gray-600 dark:text-gray-400">
-						Current position: {sequenceQuestionCount} of {sequenceDegrees.length}
-					</div>
-				{:else}
-					<div class="text-xs text-red-600 dark:text-red-400">
-						⚠️ Invalid sequence. Please enter degrees 1-7 separated by hyphens (e.g., 4-2-6-1)
-					</div>
-				{/if}
-			{/if}
-		</div>
+        <!-- Dictation Mode Note -->
+        <div class="mb-4 text-xs text-gray-600 dark:text-gray-400">
+            Plays {notesPerQuestion} note{notesPerQuestion > 1 ? 's' : ''} per question.
+        </div>
 
 		<!-- Degree Selection -->
 		<div class="mb-4">
@@ -685,8 +597,8 @@
 				onclick={startGame}
 				disabled={selectedDegrees.length === 0 || !samplerLoaded}
 				class="rounded bg-blue-500 px-6 py-3 text-lg font-semibold text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-400"
-			>
-				Start Listening Practice
+            >
+                Start Dictation
 			</button>
 			{#if !samplerLoaded}
 				<div class="text-xs text-gray-500 mt-2">Loading piano sounds...</div>
@@ -728,40 +640,23 @@
 
 	<!-- Instructions -->
 	<div class="max-w-2xl text-center text-gray-600 dark:text-gray-400">
-		<h3 class="mb-2 text-lg font-semibold">How to Use:</h3>
+        <h3 class="mb-2 text-lg font-semibold">How to Use:</h3>
 		<ol class="list-decimal list-inside space-y-1 text-sm">
 			<li>Select your preferred key and lowest note</li>
 			<li>Choose which degrees you want to practice</li>
 			<li>Set Tempo (beats per minute)</li>
-			<li>Set Question Clicks (how many clicks before showing the answer)</li>
+            <li>Set Notes per question (min 2)</li>
+            <li>Set Question Clicks (how many clicks before showing the answer; at least the number of notes will play)</li>
 			<li>Set Answer Clicks (how many clicks to show the answer before next question)</li>
-			<li>Click "Start Listening Practice"</li>
-			<li>Listen to the note that plays</li>
-			<li>Think about which degree it is</li>
-			<li>The correct degree will be shown automatically after Question Clicks</li>
+            <li>Click "Start Dictation"</li>
+            <li>Listen to the notes that play (or the degrees announced if Call Degree First is enabled)</li>
+            <li>Think about which degrees they are</li>
+            <li>The correct degrees will be shown automatically after Question Clicks</li>
 			<li>A new question will be asked after Answer Clicks</li>
 		</ol>
 		<p class="mt-2 text-xs text-gray-500">
-			🎸 Perfect for practicing with your guitar - just listen and learn the sound of each degree!
+            🎸 Practice melodic dictation: internalize sound of multiple degrees in context.
 		</p>
 	</div>
 
-	<!-- Additional Information -->
-	{#if (anchorModeEnabled || sequenceModeEnabled) && correctAnswer !== null}
-		<div class="mb-4 text-sm">
-			{#if sequenceModeEnabled && sequenceDegrees.length > 0 && inSequenceMode}
-				<span class="rounded bg-green-500 px-2 py-1 text-white">
-					Sequence: {sequenceDegrees.map(d => degreeButtons[d - 1]).join('-')} ({sequenceQuestionCount}/{sequenceDegrees.length})
-				</span>
-			{:else if anchorModeEnabled && questionCount % anchorFrequency === 0}
-				<span class="rounded bg-blue-500 px-2 py-1 text-white">
-					Anchor: {degreeButtons[anchorDegree - 1]}
-				</span>
-			{:else}
-				<span class="rounded bg-gray-500 px-2 py-1 text-white">
-					Random
-				</span>
-			{/if}
-		</div>
-	{/if}
 </div> 
