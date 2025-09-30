@@ -46,12 +46,17 @@
 	// --- Click Volume ---
 	let clickVolume = $state(1); // 0.0 to 1.0
 
-	let beatDuration: number;
+	// --- Note Sustain Settings ---
+	let noteSustainEnabled = $state(false);
+	let noteSustainMultiplier = $state(1); // How many beats to sustain the note
+
 	let showAnswerDelay: number;
 	let answerDisplayTime: number;
 
+	// Calculate beat duration based on BPM
+	const beatDuration = $derived(60000 / bpm);
+
 	$effect(() => {
-		beatDuration = 60000 / bpm;
 		showAnswerDelay = questionClicks * beatDuration;
 		answerDisplayTime = answerClicks * beatDuration;
 	});
@@ -205,7 +210,18 @@
 	function playNote(note: string) {
 		if (isAudioInitialized && sampler && samplerLoaded) {
 			const bestOctave = getBestOctave(note);
-			sampler.triggerAttackRelease(note + bestOctave, '4n',Tone.now() + 0.19);
+			
+			// Calculate sustain duration based on click timing if enabled
+			let duration: string;
+			if (noteSustainEnabled) {
+				// Calculate duration in seconds based on BPM and sustain multiplier
+				const sustainDurationSeconds = (noteSustainMultiplier * beatDuration) / 1000;
+				duration = sustainDurationSeconds.toString() + 'n'; // Use note duration format
+			} else {
+				duration = '4n'; // Default quarter note
+			}
+			
+			sampler.triggerAttackRelease(note + bestOctave, duration, Tone.now() + 0.19);
 		}
 	}
 
@@ -620,6 +636,33 @@
 				class="w-32 accent-blue-500"
 			/>
 			<span class="text-sm">{answerClicks} click{answerClicks > 1 ? 's' : ''}</span>
+		</div>
+
+		<!-- Note Sustain Controls -->
+		<div class="mb-4 flex flex-col items-center gap-2 rounded-lg bg-purple-50 p-4 dark:bg-purple-900/20">
+			<div class="flex items-center gap-2">
+				<label class="flex cursor-pointer select-none items-center gap-2">
+					<input type="checkbox" bind:checked={noteSustainEnabled} class="accent-purple-500" />
+					<span class="text-sm font-medium">Enable Note Sustain</span>
+				</label>
+			</div>
+			{#if noteSustainEnabled}
+				<div class="flex items-center gap-4">
+					<span class="text-sm font-medium">Sustain Duration:</span>
+					<input
+						type="range"
+						min="0.5"
+						max="4"
+						step="0.5"
+						bind:value={noteSustainMultiplier}
+						class="w-32 accent-purple-500"
+					/>
+					<span class="text-sm">{noteSustainMultiplier} beat{noteSustainMultiplier > 1 ? 's' : ''}</span>
+				</div>
+				<div class="text-xs text-gray-600 dark:text-gray-400">
+					Notes will sustain for {noteSustainMultiplier} beat{noteSustainMultiplier > 1 ? 's' : ''} ({Math.round((noteSustainMultiplier * beatDuration) / 1000 * 100) / 100}s)
+				</div>
+			{/if}
 		</div>
 
 		<!-- Voice Control -->
