@@ -23,6 +23,9 @@
 	let questionTimeout: ReturnType<typeof setTimeout> | null = null;
 	let samplerLoaded = $state(false);
 	let voiceSamplerLoaded = $state(false);
+	let voiceQueue: Array<{ note: string; time: number; degree: string }> = [];
+	let isVoicePlaying = $state(false);
+	let voiceTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	// --- Anchor Mode Settings ---
 	let anchorModeEnabled = $state(false);
@@ -107,7 +110,14 @@
 				},
 				onload: () => {
 					voiceSamplerLoaded = true;
-					voiceSampler.context.lookAhead = 0
+					// Increase lookahead for better mobile performance
+					voiceSampler.context.lookAhead = 0.1;
+					// Set buffer size/latency hint for mobile compatibility
+					// @ts-ignore - Tone's context exposes latencyHint
+					voiceSampler.context.latencyHint = 'interactive';
+				},
+				onerror: (error) => {
+					console.error('Voice sampler loading error:', error);
 				}
 			}).toDestination();
 			
@@ -123,6 +133,9 @@
 	onDestroy(() => {
 		if (questionTimeout) {
 			clearTimeout(questionTimeout);
+		}
+		if (voiceTimeout) {
+			clearTimeout(voiceTimeout);
 		}
 	});
 
@@ -408,6 +421,11 @@
 			clearTimeout(questionTimeout);
 			questionTimeout = null;
 		}
+		if (voiceTimeout) {
+			clearTimeout(voiceTimeout);
+			voiceTimeout = null;
+		}
+		voiceQueue = [];
 		stopMetronome();
 		gameStarted = false;
 		correctAnswer = null;
@@ -416,12 +434,78 @@
 		lastDegree = null;
 	}
 
+	// Utility: speak a sequence of degrees one per beat
+	function speakSequence(degrees: number[]) {
+		if (!voiceEnabled || !voiceSamplerLoaded) return;
+
+		// Clear any existing voice queue
+		voiceQueue = [];
+		if (voiceTimeout) {
+			clearTimeout(voiceTimeout);
+			voiceTimeout = null;
+		}
+
+		// Ensure audio context is running
+		if (voiceSampler.context.state !== 'running') {
+			voiceSampler.context.resume();
+		}
+
+		// Queue all voice announcements with proper timing
+		degrees.forEach((deg, idx) => {
+			const label = degreeButtons[deg - 1];
+			const note = degreeToNote[label];
+			if (note) {
+				const scheduleTime = idx * (beatDuration / 1000);
+				voiceQueue.push({ note, time: scheduleTime, degree: label });
+			}
+		});
+
+		// Process the queue sequentially
+		processVoiceQueue();
+	}
+
+	// Process voice queue with fallback timing
+	function processVoiceQueue() {
+		if (voiceQueue.length === 0) return;
+
+		const currentItem = voiceQueue.shift();
+		if (!currentItem) return;
+
+		const delay = currentItem.time * 1000; // Convert to milliseconds
+
+		voiceTimeout = setTimeout(() => {
+			try {
+				// Double-check audio context is still running
+				if (voiceSampler.context.state !== 'running') {
+					voiceSampler.context.resume().then(() => {
+						voiceSampler.triggerAttackRelease(currentItem.note, '4n');
+					});
+				} else {
+					voiceSampler.triggerAttackRelease(currentItem.note, '4n');
+				}
+			} catch (error) {
+				console.error(`Failed to play voice ${currentItem.degree}:`, error);
+			}
+
+			// Process next item in queue
+			processVoiceQueue();
+		}, delay);
+	}
+
 	// Speak the degree using Tone.js Sampler
 	function speakDegree(degree: string) {
 		if (!voiceEnabled || !voiceSamplerLoaded) return;
 		const note = degreeToNote[degree];
 		if (voiceSampler && note) {
-			voiceSampler.triggerAttackRelease(note, '1n');
+			// Ensure audio context is running
+			if (voiceSampler.context.state !== 'running') {
+				voiceSampler.context.resume();
+			}
+			try {
+				voiceSampler.triggerAttackRelease(note, '1n', Tone.now() + 0.05);
+			} catch (error) {
+				console.error(`Failed to play voice ${degree}:`, error);
+			}
 		}
 	}
 </script>
