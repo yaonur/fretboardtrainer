@@ -640,7 +640,7 @@
 				max="1"
 				step="0.01"
 				bind:value={clickVolume}
-				class="w-32 accent-blue-500"
+				class="w-48 accent-blue-500"
 			/>
 			<span class="text-sm">{Math.round(clickVolume * 100)}%</span>
 		</div>
@@ -654,7 +654,7 @@
 				max="1"
 				step="0.01"
 				bind:value={voiceVolume}
-				class="w-32 accent-blue-500"
+				class="w-48 accent-blue-500"
 			/>
 			<span class="text-sm">{Math.round(voiceVolume * 100)}%</span>
 		</div>
