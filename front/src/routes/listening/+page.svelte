@@ -46,6 +46,9 @@
 	// --- Click Volume ---
 	let clickVolume = $state(1); // 0.0 to 1.0
 
+	// --- Voice Volume ---
+	let voiceVolume = $state(1); // 0.0 to 1.0
+
 	// --- Note Sustain Settings ---
 	let noteSustainEnabled = $state(false);
 	let noteSustainMultiplier = $state(1); // How many beats to sustain the note
@@ -491,6 +494,8 @@
 
 		voiceTimeout = setTimeout(() => {
 			try {
+				// Apply voice volume before playing
+				voiceSampler.volume.value = Tone.gainToDb(voiceVolume);
 				// Double-check audio context is still running
 				if (voiceSampler.context.state !== 'running') {
 					voiceSampler.context.resume().then(() => {
@@ -518,6 +523,8 @@
 				voiceSampler.context.resume();
 			}
 			try {
+				// Apply voice volume before playing
+				voiceSampler.volume.value = Tone.gainToDb(voiceVolume);
 				voiceSampler.triggerAttackRelease(note, '1n', Tone.now() + 0.05);
 			} catch (error) {
 				console.error(`Failed to play voice ${degree}:`, error);
@@ -608,6 +615,20 @@
 				class="w-32 accent-blue-500"
 			/>
 			<span class="text-sm">{Math.round(clickVolume * 100)}%</span>
+		</div>
+
+		<!-- Voice Volume Control -->
+		<div class="mb-4 flex items-center gap-4">
+			<span class="text-sm font-medium">Voice Volume:</span>
+			<input
+				type="range"
+				min="0"
+				max="1"
+				step="0.01"
+				bind:value={voiceVolume}
+				class="w-32 accent-blue-500"
+			/>
+			<span class="text-sm">{Math.round(voiceVolume * 100)}%</span>
 		</div>
 
 		<!-- Question Clicks Control -->
