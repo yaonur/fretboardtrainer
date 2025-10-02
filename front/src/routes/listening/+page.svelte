@@ -607,24 +607,24 @@
 
 		<!-- Tempo Control -->
 		<div class="mb-4 flex items-center gap-1 md:gap-4">
-			<span class="text-sm font-medium">Tempo (BPM):</span>
+			<span class="text-sm font-medium">Tempo:</span>
 			<input
 				type="range"
 				min="40"
 				max="240"
 				step="1"
 				bind:value={bpm}
-				class="w-32 accent-blue-500"
+				class="w-48 accent-blue-500"
 			/>
-			<span class="text-sm">{bpm} BPM</span>
+			<span class="text-sm">{bpm}</span>
 			<button
-				class="rounded border px-2 py-1 text-sm font-bold hover:bg-gray-200 dark:hover:bg-gray-700"
+				class="ml-1 rounded border px-2 py-1 text-sm font-bold hover:bg-gray-200 dark:hover:bg-gray-700"
 				onclick={() => {
 					bpm = bpm + 5;
 				}}>+5</button
 			>
 			<button
-				class="rounded border px-2 py-1 text-sm font-bold hover:bg-gray-200 dark:hover:bg-gray-700"
+				class="ml-1 rounded border px-2 py-1 text-sm font-bold hover:bg-gray-200 dark:hover:bg-gray-700"
 				onclick={() => {
 					bpm = bpm - 5;
 				}}>-5</button
