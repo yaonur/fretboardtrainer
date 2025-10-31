@@ -79,13 +79,16 @@
 			<a href="/chords" class="font-medium transition-colors duration-200 hover:text-blue-400"
 			>Chords</a
 		>
-			<a href="/dictation" class="font-medium transition-colors duration-200 hover:text-blue-400"
+		<a href="/dictation" class="font-medium transition-colors duration-200 hover:text-blue-400"
 			>Dictation</a
 		>
-			<!-- <a href="/setlist" class="font-medium transition-colors duration-200 hover:text-blue-400"
-				>{m.setlist()}</a
-			> -->
-		</div>
+		<a href="/timer" class="font-medium transition-colors duration-200 hover:text-blue-400"
+			>Timer</a
+		>
+		<!-- <a href="/setlist" class="font-medium transition-colors duration-200 hover:text-blue-400"
+			>{m.setlist()}</a
+		> -->
+	</div>
 
 		<!-- Add theme toggle before the language selector -->
 		<div class="flex items-center gap-4">
@@ -130,7 +133,9 @@
 				<a href="/dictation" class="font-medium transition-colors duration-200 hover:text-blue-400"
 				>Dictation</a
 			>
-			
+				<a href="/timer" class="font-medium transition-colors duration-200 hover:text-blue-400"
+				>Timer</a
+			>
 			</div>
 		</div>
 	{/if}
