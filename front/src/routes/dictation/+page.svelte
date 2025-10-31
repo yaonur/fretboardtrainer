@@ -103,8 +103,8 @@
 					voiceSamplerLoaded = true;
 					// Increase lookahead for better mobile performance
 					voiceSampler.context.lookAhead = 0.1;
-					// Set buffer size for mobile compatibility
-					voiceSampler.context.latencyHint = 'interactive';
+					// Note: latencyHint cannot be set after context creation (it's read-only)
+					// If needed, configure it when initializing Tone with Tone.setContext()
 				},
 				onerror: (error) => {
 					console.error('Voice sampler loading error:', error);
