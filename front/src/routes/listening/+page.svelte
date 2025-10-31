@@ -618,16 +618,16 @@
 			/>
 			<span class="text-sm">{bpm}</span>
 			<button
-				class="ml-1 rounded border px-2 py-1 text-sm font-bold hover:bg-gray-200 dark:hover:bg-gray-700"
-				onclick={() => {
-					bpm = bpm + 5;
-				}}>+5</button
+			class="ml-1 rounded border px-2 py-1 text-sm font-bold hover:bg-gray-200 dark:hover:bg-gray-700"
+			onclick={() => {
+				bpm = bpm - 5;
+			}}>-5</button
 			>
 			<button
 				class="ml-1 rounded border px-2 py-1 text-sm font-bold hover:bg-gray-200 dark:hover:bg-gray-700"
 				onclick={() => {
-					bpm = bpm - 5;
-				}}>-5</button
+					bpm = bpm + 5;
+				}}>+5</button
 			>
 		</div>
 
