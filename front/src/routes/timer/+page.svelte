@@ -345,9 +345,9 @@
 				</button>
 				<button
 					onclick={() => {
-						workMinutes = 50;
+						workMinutes = 15;
 						workSeconds = 0;
-						breakMinutes = 10;
+						breakMinutes = 5;
 						breakSeconds = 0;
 					}}
 					disabled={isRunning}
