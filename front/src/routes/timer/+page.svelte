@@ -170,6 +170,8 @@
 		</div>
 
 		<!-- Settings Panel -->
+		 {#if !isFocused}
+			 <!-- content here -->
 		<div
 			class="mb-8 rounded-lg border border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-800"
 		>
@@ -241,6 +243,7 @@
 				</div>
 			</div>
 		</div>
+		{/if}
 
 		<!-- Timer Display -->
 		 {#if !isFocused}
@@ -291,7 +294,7 @@
 		 {/if}
 		 <div class="text-center mb-4">
 			 <button onclick={() => isFocused = !isFocused} class="rounded-lg bg-blue-500 px-8 py-3 text-lg font-semibold text-white transition-colors hover:bg-blue-600 active:bg-blue-700">
-				 {isFocused ? 'Hide Timer' : 'Show Timer'}
+				 {isFocused ? 'Show Timer' : 'Focus'}
 			 </button>
 		 </div>		 
 
@@ -340,12 +343,14 @@
 		</div>
 
 		<!-- Quick Presets -->
+		 {#if !isFocused}
+			 <!-- content here -->
 		<div class="text-center">
 			<h3 class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">Quick Presets:</h3>
 			<div class="flex flex-wrap justify-center gap-2">
 				<button
 					onclick={() => {
-						workMinutes = 15;
+						workMinutes = 25;
 						workSeconds = 0;
 						breakMinutes = 5;
 						breakSeconds = 0;
@@ -372,14 +377,27 @@
 						workMinutes = 5;
 						workSeconds = 0;
 						breakMinutes = 0;
-						breakSeconds = 10;
+						breakSeconds = 14;
 					}}
 					disabled={isRunning}
 					class="rounded bg-blue-500 px-3 py-1 text-sm text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
 				>
-					Short (5/10 sec)
+					Short 5 (5/14 sec)
+				</button>
+				<button
+					onclick={() => {
+						workMinutes = 4;
+						workSeconds = 0;
+						breakMinutes = 0;
+						breakSeconds = 14;
+					}}
+					disabled={isRunning}
+					class="rounded bg-blue-500 px-3 py-1 text-sm text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+				>
+					Short 4 (4/14 sec)
 				</button>
 			</div>
 		</div>
+		{/if}
 	</div>
 </div>
