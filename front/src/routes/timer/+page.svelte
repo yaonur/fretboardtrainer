@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
+	import { browser } from '$app/environment';
 	import * as Tone from 'tone';
 
 	let workMinutes = $state(25);
@@ -126,6 +127,19 @@
 	$effect(() => {
 		if (!isRunning && !isPaused) {
 			updateCurrentTime();
+		}
+	});
+
+	// Update browser tab title with timer
+	$effect(() => {
+		if (browser) {
+			const timeString = formatTime(currentMinutes, currentSeconds);
+			if (isRunning || isPaused) {
+				const mode = isWorkTimer ? '🔴 Work' : '🟢 Break';
+				document.title = `${mode} ${timeString}`;
+			} else {
+				document.title = 'Timer';
+			}
 		}
 	});
 
