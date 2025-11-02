@@ -10,6 +10,7 @@
 	let isWorkTimer = $state(true);
 	let isRunning = $state(false);
 	let isPaused = $state(false);
+	let isFocused = $state(false);
 	let currentMinutes = $state(workMinutes);
 	let currentSeconds = $state(workSeconds);
 
@@ -47,7 +48,7 @@
 		if (!isRunning && !isPaused) {
 			initAudio();
 		}
-		
+
 		isRunning = true;
 		isPaused = false;
 
@@ -66,7 +67,7 @@
 				clearInterval(interval!);
 				interval = null;
 				isRunning = false;
-				
+
 				// Play click multiple times to indicate timer completion
 				playClick();
 				setTimeout(() => playClick(), 200);
@@ -106,14 +107,9 @@
 		}
 		isRunning = false;
 		isPaused = false;
-		
-		if (isWorkTimer) {
-			currentMinutes = workMinutes;
-			currentSeconds = workSeconds;
-		} else {
-			currentMinutes = breakMinutes;
-			currentSeconds = breakSeconds;
-		}
+		isWorkTimer = true;
+
+		updateCurrentTime();
 	}
 
 	function updateCurrentTime() {
@@ -155,14 +151,16 @@
 	});
 </script>
 
-<div class="flex flex-col items-center justify-center min-h-screen p-6 bg-white dark:bg-slate-900">
+<div class="flex min-h-screen flex-col items-center justify-center bg-white p-6 dark:bg-slate-900">
 	<div class="w-full max-w-2xl">
-		<h1 class="mb-8 text-4xl font-bold text-center text-gray-800 dark:text-white">Pomodoro Timer</h1>
+		<h1 class="mb-8 text-center text-4xl font-bold text-gray-800 dark:text-white">
+			Pomodoro Timer
+		</h1>
 
 		<!-- Timer Type Indicator -->
 		<div class="mb-6 text-center">
 			<div
-				class="inline-block px-6 py-3 rounded-full text-lg font-semibold transition-colors"
+				class="inline-block rounded-full px-6 py-3 text-lg font-semibold transition-colors"
 				class:bg-red-500={isWorkTimer}
 				class:text-white={isWorkTimer}
 				class:bg-green-500={!isWorkTimer}
@@ -172,66 +170,72 @@
 		</div>
 
 		<!-- Settings Panel -->
-		<div class="mb-8 p-6 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+		<div
+			class="mb-8 rounded-lg border border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-gray-800"
+		>
 			<h2 class="mb-4 text-xl font-semibold">Timer Settings</h2>
 
 			<!-- Work Timer Settings -->
-			<div class="mb-6 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30">
+			<div
+				class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900/30 dark:bg-red-900/20"
+			>
 				<div class="mb-4 flex items-center gap-2">
 					<span class="text-sm font-medium">🔴 Work Timer:</span>
 				</div>
 				<div class="grid grid-cols-2 gap-4">
 					<div class="flex items-center gap-2">
-						<label class="text-sm font-medium w-16">Minutes:</label>
+						<label class="w-16 text-sm font-medium">Minutes:</label>
 						<input
 							type="number"
 							bind:value={workMinutes}
 							min="0"
 							max="99"
 							disabled={isRunning}
-							class="flex-1 rounded border border-gray-300 bg-white px-3 py-2 text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600 disabled:bg-gray-100 disabled:text-gray-500 dark:disabled:bg-gray-900 dark:disabled:text-gray-600"
+							class="flex-1 rounded border border-gray-300 bg-white px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900 dark:disabled:text-gray-600"
 						/>
 					</div>
 					<div class="flex items-center gap-2">
-						<label class="text-sm font-medium w-16">Seconds:</label>
+						<label class="w-16 text-sm font-medium">Seconds:</label>
 						<input
 							type="number"
 							bind:value={workSeconds}
 							min="0"
 							max="59"
 							disabled={isRunning}
-							class="flex-1 rounded border border-gray-300 bg-white px-3 py-2 text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600 disabled:bg-gray-100 disabled:text-gray-500 dark:disabled:bg-gray-900 dark:disabled:text-gray-600"
+							class="flex-1 rounded border border-gray-300 bg-white px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900 dark:disabled:text-gray-600"
 						/>
 					</div>
 				</div>
 			</div>
 
 			<!-- Break Timer Settings -->
-			<div class="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900/30">
+			<div
+				class="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-900/30 dark:bg-green-900/20"
+			>
 				<div class="mb-4 flex items-center gap-2">
 					<span class="text-sm font-medium">🟢 Break Timer:</span>
 				</div>
 				<div class="grid grid-cols-2 gap-4">
 					<div class="flex items-center gap-2">
-						<label class="text-sm font-medium w-16">Minutes:</label>
+						<label class="w-16 text-sm font-medium">Minutes:</label>
 						<input
 							type="number"
 							bind:value={breakMinutes}
 							min="0"
 							max="99"
 							disabled={isRunning}
-							class="flex-1 rounded border border-gray-300 bg-white px-3 py-2 text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600 disabled:bg-gray-100 disabled:text-gray-500 dark:disabled:bg-gray-900 dark:disabled:text-gray-600"
+							class="flex-1 rounded border border-gray-300 bg-white px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900 dark:disabled:text-gray-600"
 						/>
 					</div>
 					<div class="flex items-center gap-2">
-						<label class="text-sm font-medium w-16">Seconds:</label>
+						<label class="w-16 text-sm font-medium">Seconds:</label>
 						<input
 							type="number"
 							bind:value={breakSeconds}
 							min="0"
 							max="59"
 							disabled={isRunning}
-							class="flex-1 rounded border border-gray-300 bg-white px-3 py-2 text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600 disabled:bg-gray-100 disabled:text-gray-500 dark:disabled:bg-gray-900 dark:disabled:text-gray-600"
+							class="flex-1 rounded border border-gray-300 bg-white px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-900 dark:disabled:text-gray-600"
 						/>
 					</div>
 				</div>
@@ -239,52 +243,60 @@
 		</div>
 
 		<!-- Timer Display -->
-		<div class="mb-8">
-			<div class="relative flex items-center justify-center">
-				<!-- Circular Progress -->
-				<div class="relative w-64 h-64 sm:w-80 sm:h-80">
-					<!-- Background Circle -->
-					<svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-						<circle
-							cx="50"
-							cy="50"
-							r="45"
-							stroke="currentColor"
-							stroke-width="8"
-							fill="none"
-							class="text-gray-200 dark:text-gray-700"
-						/>
-						<!-- Progress Circle -->
-						<circle
-							cx="50"
-							cy="50"
-							r="45"
-							stroke="currentColor"
-							stroke-width="8"
-							fill="none"
-							class="transition-all duration-1000"
-							class:text-red-500={isWorkTimer}
-							class:text-green-500={!isWorkTimer}
-							stroke-dasharray={2 * Math.PI * 45}
-							stroke-dashoffset={2 * Math.PI * 45 * (1 - progress / 100)}
-							stroke-linecap="round"
-						/>
-					</svg>
-
-					<!-- Time Display -->
-					<div
-						class="absolute inset-0 flex flex-col items-center justify-center text-6xl sm:text-7xl font-bold"
-						class:text-red-500={isWorkTimer}
-						class:text-green-500={!isWorkTimer}
-					>
-						{formatTime(currentMinutes, currentSeconds)}
-					</div>
-				</div>
-			</div>
-		</div>
+		 {#if !isFocused}
+			 <!-- content here -->
+			 <div class="mb-8">
+				 <div class="relative flex items-center justify-center">
+					 <!-- Circular Progress -->
+					 <div class="relative h-64 w-64 sm:h-80 sm:w-80">
+						 <!-- Background Circle -->
+						 <svg class="h-full w-full -rotate-90 transform" viewBox="0 0 100 100">
+							 <circle
+								 cx="50"
+								 cy="50"
+								 r="45"
+								 stroke="currentColor"
+								 stroke-width="8"
+								 fill="none"
+								 class="text-gray-200 dark:text-gray-700"
+							 />
+							 <!-- Progress Circle -->
+							 <circle
+								 cx="50"
+								 cy="50"
+								 r="45"
+								 stroke="currentColor"
+								 stroke-width="8"
+								 fill="none"
+								 class="transition-all duration-1000"
+								 class:text-red-500={isWorkTimer}
+								 class:text-green-500={!isWorkTimer}
+								 stroke-dasharray={2 * Math.PI * 45}
+								 stroke-dashoffset={2 * Math.PI * 45 * (1 - progress / 100)}
+								 stroke-linecap="round"
+							 />
+						 </svg>
+	 
+						 <!-- Time Display -->
+						 <div
+							 class="absolute inset-0 flex flex-col items-center justify-center text-6xl font-bold sm:text-7xl"
+							 class:text-red-500={isWorkTimer}
+							 class:text-green-500={!isWorkTimer}
+						 >
+							 {formatTime(currentMinutes, currentSeconds)}
+						 </div>
+					 </div>
+				 </div>
+			 </div>
+		 {/if}
+		 <div class="text-center mb-4">
+			 <button onclick={() => isFocused = !isFocused} class="rounded-lg bg-blue-500 px-8 py-3 text-lg font-semibold text-white transition-colors hover:bg-blue-600 active:bg-blue-700">
+				 {isFocused ? 'Hide Timer' : 'Show Timer'}
+			 </button>
+		 </div>		 
 
 		<!-- Controls -->
-		<div class="flex justify-center gap-4 mb-8">
+		<div class="mb-8 flex justify-center gap-4">
 			{#if !isRunning && !isPaused}
 				<button
 					onclick={startTimer}
@@ -339,7 +351,7 @@
 						breakSeconds = 0;
 					}}
 					disabled={isRunning}
-					class="rounded bg-blue-500 px-3 py-1 text-sm text-white transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+					class="rounded bg-blue-500 px-3 py-1 text-sm text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					Classic (25/5)
 				</button>
@@ -351,7 +363,7 @@
 						breakSeconds = 0;
 					}}
 					disabled={isRunning}
-					class="rounded bg-blue-500 px-3 py-1 text-sm text-white transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+					class="rounded bg-blue-500 px-3 py-1 text-sm text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					Medium (15/5)
 				</button>
@@ -363,7 +375,7 @@
 						breakSeconds = 10;
 					}}
 					disabled={isRunning}
-					class="rounded bg-blue-500 px-3 py-1 text-sm text-white transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+					class="rounded bg-blue-500 px-3 py-1 text-sm text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					Short (5/10 sec)
 				</button>
@@ -371,4 +383,3 @@
 		</div>
 	</div>
 </div>
-
