@@ -18,6 +18,19 @@ export type FretboardPreset = {
   sequenceFrequency?: number;
   sequenceQuestionCount?: number;
   highlightedDegrees: number[];
+  // Display settings
+  showNoteNameOnDot?: boolean;
+  redDotDisplayMode?: 'degrees' | 'notes' | 'empty';
+  showRedDotsOnSelectedStringOnly?: boolean;
+  selectedRedDotStrings?: number[];
+  showFragmentDots?: boolean;
+  showFragmentDegrees?: boolean;
+  // Game mode and auto settings
+  gameMode?: 'find-degree' | 'find-note';
+  autoNextEnabled?: boolean;
+  autoNextDelay?: number;
+  autoPlayOnNewQuestion?: boolean;
+  showLastPositionDegree?: boolean;
 };
 
 const DB_NAME = 'fretboardtrainer';

@@ -2,6 +2,8 @@
 	import UiSelect from '$lib/components/UiSelect.svelte';
 	import * as Tone from 'tone';
 	import { fretboardPresetsStore, type FretboardPreset } from '$lib/stores/fretboardStore.svelte';
+	import { LocalStorage } from '$lib/stores/storage.svelte';
+	import { browser } from '$app/environment';
 
 	const notes = ['E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C', 'C#', 'D', 'D#'];
 	const circleOfFifths = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
@@ -778,7 +780,20 @@
 			sequenceInput,
 			sequenceFrequency,
 			sequenceQuestionCount,
-			highlightedDegrees: [...highlightedDegrees]
+			highlightedDegrees: [...highlightedDegrees],
+			// Display settings
+			showNoteNameOnDot,
+			redDotDisplayMode,
+			showRedDotsOnSelectedStringOnly,
+			selectedRedDotStrings: [...selectedRedDotStrings],
+			showFragmentDots,
+			showFragmentDegrees,
+			// Game mode and auto settings
+			gameMode,
+			autoNextEnabled,
+			autoNextDelay,
+			autoPlayOnNewQuestion,
+			showLastPositionDegree
 		};
 		await fretboardPresetsStore.savePreset(preset);
 		loadedPresetName = newPresetName.trim();
@@ -801,6 +816,19 @@
 		sequenceFrequency = preset.sequenceFrequency || 3;
 		sequenceQuestionCount = preset.sequenceQuestionCount || 0;
 		highlightedDegrees = preset.highlightedDegrees || [1, 2, 3, 4, 5, 6, 7];
+		// Apply display settings if present
+		if (preset.showNoteNameOnDot !== undefined) showNoteNameOnDot = preset.showNoteNameOnDot;
+		if (preset.redDotDisplayMode !== undefined) redDotDisplayMode = preset.redDotDisplayMode;
+		if (preset.showRedDotsOnSelectedStringOnly !== undefined) showRedDotsOnSelectedStringOnly = preset.showRedDotsOnSelectedStringOnly;
+		if (preset.selectedRedDotStrings !== undefined) selectedRedDotStrings = [...preset.selectedRedDotStrings];
+		if (preset.showFragmentDots !== undefined) showFragmentDots = preset.showFragmentDots;
+		if (preset.showFragmentDegrees !== undefined) showFragmentDegrees = preset.showFragmentDegrees;
+		// Apply game mode and auto settings if present
+		if (preset.gameMode !== undefined) gameMode = preset.gameMode;
+		if (preset.autoNextEnabled !== undefined) autoNextEnabled = preset.autoNextEnabled;
+		if (preset.autoNextDelay !== undefined) autoNextDelay = preset.autoNextDelay;
+		if (preset.autoPlayOnNewQuestion !== undefined) autoPlayOnNewQuestion = preset.autoPlayOnNewQuestion;
+		if (preset.showLastPositionDegree !== undefined) showLastPositionDegree = preset.showLastPositionDegree;
 		loadedPresetName = preset.name;
 	}
 
@@ -831,7 +859,20 @@
 			sequenceInput,
 			sequenceFrequency,
 			sequenceQuestionCount,
-			highlightedDegrees: [...highlightedDegrees]
+			highlightedDegrees: [...highlightedDegrees],
+			// Display settings
+			showNoteNameOnDot,
+			redDotDisplayMode,
+			showRedDotsOnSelectedStringOnly,
+			selectedRedDotStrings: [...selectedRedDotStrings],
+			showFragmentDots,
+			showFragmentDegrees,
+			// Game mode and auto settings
+			gameMode,
+			autoNextEnabled,
+			autoNextDelay,
+			autoPlayOnNewQuestion,
+			showLastPositionDegree
 		};
 		await fretboardPresetsStore.savePreset(preset);
 	}
@@ -1378,6 +1419,109 @@
 			lastQuestionDegree = null;
 		}
 	});
+	
+	// Global settings storage (persists across sessions, not tied to presets)
+	type GlobalFretboardSettings = {
+		showNoteNameOnDot: boolean;
+		redDotDisplayMode: 'degrees' | 'notes' | 'empty';
+		showRedDotsOnSelectedStringOnly: boolean;
+		selectedRedDotStrings: number[];
+		showFragmentDots: boolean;
+		showFragmentDegrees: boolean;
+		gameMode: 'find-degree' | 'find-note';
+		autoNextEnabled: boolean;
+		autoNextDelay: number;
+		autoPlayOnNewQuestion: boolean;
+		showLastPositionDegree: boolean;
+	};
+	
+	const globalSettings = new LocalStorage<GlobalFretboardSettings>('fretboardGlobalSettings', {
+		showNoteNameOnDot: false,
+		redDotDisplayMode: 'empty',
+		showRedDotsOnSelectedStringOnly: true,
+		selectedRedDotStrings: [6],
+		showFragmentDots: true,
+		showFragmentDegrees: false,
+		gameMode: 'find-degree',
+		autoNextEnabled: true,
+		autoNextDelay: 1000,
+		autoPlayOnNewQuestion: false,
+		showLastPositionDegree: false
+	});
+	
+	// Flag to prevent saving during initial load
+	let isInitialLoad = $state(true);
+	
+	// Load global settings on mount
+	if (browser) {
+		const settings = globalSettings.current;
+		showNoteNameOnDot = settings.showNoteNameOnDot ?? false;
+		redDotDisplayMode = settings.redDotDisplayMode ?? 'empty';
+		showRedDotsOnSelectedStringOnly = settings.showRedDotsOnSelectedStringOnly ?? true;
+		selectedRedDotStrings = settings.selectedRedDotStrings ? [...settings.selectedRedDotStrings] : [6];
+		showFragmentDots = settings.showFragmentDots ?? true;
+		showFragmentDegrees = settings.showFragmentDegrees ?? false;
+		gameMode = settings.gameMode ?? 'find-degree';
+		autoNextEnabled = settings.autoNextEnabled ?? true;
+		autoNextDelay = settings.autoNextDelay ?? 1000;
+		autoPlayOnNewQuestion = settings.autoPlayOnNewQuestion ?? false;
+		showLastPositionDegree = settings.showLastPositionDegree ?? false;
+		isInitialLoad = false;
+	}
+	
+	// Save global settings when they change (using direct localStorage to avoid proxy reactivity loops)
+	let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+	function saveGlobalSettings() {
+		if (!browser || isInitialLoad) return;
+		// Clear any pending save
+		if (saveTimeout) {
+			clearTimeout(saveTimeout);
+		}
+		// Debounce saves to prevent excessive writes
+		saveTimeout = setTimeout(() => {
+			try {
+				const settings: GlobalFretboardSettings = {
+					showNoteNameOnDot,
+					redDotDisplayMode,
+					showRedDotsOnSelectedStringOnly,
+					selectedRedDotStrings: [...selectedRedDotStrings],
+					showFragmentDots,
+					showFragmentDegrees,
+					gameMode,
+					autoNextEnabled,
+					autoNextDelay,
+					autoPlayOnNewQuestion,
+					showLastPositionDegree
+				};
+				localStorage.setItem('fretboardGlobalSettings', JSON.stringify(settings));
+			} catch (e) {
+				console.error('Failed to save global settings:', e);
+			}
+			saveTimeout = null;
+		}, 100) as unknown as ReturnType<typeof setTimeout>;
+	}
+	
+	// Single effect that tracks all settings and saves when any change
+	// Using a single effect prevents multiple effects from interfering with each other
+	$effect(() => {
+		if (browser && !isInitialLoad) {
+			// Track all settings variables
+			const _ = [
+				showNoteNameOnDot,
+				redDotDisplayMode,
+				showRedDotsOnSelectedStringOnly,
+				selectedRedDotStrings,
+				showFragmentDots,
+				showFragmentDegrees,
+				gameMode,
+				autoNextEnabled,
+				autoNextDelay,
+				autoPlayOnNewQuestion,
+				showLastPositionDegree
+			];
+			saveGlobalSettings();
+		}
+	});
 
 	function clearAutoNextTimer() {
 		if (autoNextTimeout) {
@@ -1408,6 +1552,10 @@
 	import { onDestroy } from 'svelte';
 	onDestroy(() => {
 		clearAutoNextTimer();
+		if (saveTimeout) {
+			clearTimeout(saveTimeout);
+			saveTimeout = null;
+		}
 	});
 
 	// Patch generateNewQuestion and playAndNext to use timer
