@@ -216,6 +216,10 @@
 		feedback = '';
 		lastNote = '';
 		questionCount = 0;
+		// Clear last position when instrument changes
+		lastQuestionString = null;
+		lastQuestionFret = null;
+		lastQuestionDegree = null;
 		return () => {
 			if (sampler) {
 				sampler.dispose();
@@ -369,6 +373,14 @@
 	}
 
 	function generateNewQuestion(skipAutoPlay = false) {
+		// Store last question position and degree before generating new question
+		// Only store if toggle is enabled and we have a valid current question
+		if (showLastPositionDegree && correctAnswer !== null) {
+			lastQuestionString = activeString;
+			lastQuestionFret = activeFret;
+			lastQuestionDegree = correctAnswer;
+		}
+		
 		feedback = '';
 		questionCount++;
 
@@ -1351,6 +1363,21 @@
 	
 	// Auto-play note on new question
 	let autoPlayOnNewQuestion = $state(false);
+	
+	// Show degree on last question position
+	let showLastPositionDegree = $state(false);
+	let lastQuestionString = $state<number | null>(null);
+	let lastQuestionFret = $state<number | null>(null);
+	let lastQuestionDegree = $state<number | null>(null);
+	
+	// Clear last position when toggle is turned off
+	$effect(() => {
+		if (!showLastPositionDegree) {
+			lastQuestionString = null;
+			lastQuestionFret = null;
+			lastQuestionDegree = null;
+		}
+	});
 
 	function clearAutoNextTimer() {
 		if (autoNextTimeout) {
@@ -1844,6 +1871,12 @@
 				<span class="text-sm">Play note immediately when question is asked (OFF: play when asking new question)</span>
 			</label>
 		</div>
+		<div class="mt-2 flex justify-center">
+			<label class="flex cursor-pointer select-none items-center gap-2">
+				<input type="checkbox" bind:checked={showLastPositionDegree} class="accent-blue-500" />
+				<span class="text-sm">Show degree on last question's position</span>
+			</label>
+		</div>
 		{#if uniqueDegreesCount < 3}
 			<div class="mt-2 text-sm text-red-600 dark:text-red-400">
 				⚠️ Not enough unique degrees in selected range. Found {uniqueDegreesCount}. Select a wider
@@ -2280,6 +2313,16 @@
 						{/if}
 					{/each}
 				{/each}
+				<!-- Last question position degree (shown when toggle is on) -->
+				{#if showLastPositionDegree && lastQuestionString !== null && lastQuestionFret !== null && lastQuestionDegree !== null}
+					<div
+						class="absolute flex h-[16px] w-[16px] items-center justify-center rounded-full border-2 border-gray-500 bg-gray-300 text-xs font-bold text-black opacity-80 sm:h-[20px] sm:w-[20px] md:h-[24px] md:w-[24px] lg:h-[28px] lg:w-[28px]"
+						style:top="calc({lastQuestionString} * 30px - 10px)"
+						style:left="calc(({lastQuestionFret} - 0.5) * (100% / {numFrets}) - 8px)"
+					>
+						{degreeButtons[lastQuestionDegree - 1]}
+					</div>
+				{/if}
 				<!-- Main question dot -->
 				{#if correctAnswer !== null}
 					<div
