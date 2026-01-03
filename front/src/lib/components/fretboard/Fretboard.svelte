@@ -368,7 +368,7 @@
 		);
 	}
 
-	function generateNewQuestion() {
+	function generateNewQuestion(skipAutoPlay = false) {
 		feedback = '';
 		questionCount++;
 
@@ -467,7 +467,7 @@
 			) {
 				const note = fretboard[randomPosition.string][randomPosition.fret];
 				if (lastNote === note && validPositions.length > 1) {
-					generateNewQuestion();
+					generateNewQuestion(true);
 					return;
 				}
 
@@ -477,7 +477,7 @@
 				activeFret = randomPosition.fret;
 				correctAnswer = targetDegree;
 			} else {
-				generateNewQuestion();
+				generateNewQuestion(true);
 			}
 		} else {
 			// New mode: find the note for a given degree
@@ -516,6 +516,18 @@
 			targetDegree = degreeToFind;
 			correctAnswer = null; // Will be set when user clicks on fretboard
 		}
+		
+		// Auto-play note when new question is generated (if toggle is ON and not skipping)
+		// Only play for find-degree mode where we have a specific note position
+		if (!skipAutoPlay && autoPlayOnNewQuestion && isAudioInitialized && gameMode === 'find-degree' && correctAnswer !== null) {
+			// Use setTimeout to ensure the note plays after the question is fully set up
+			setTimeout(() => {
+				if (fretboard[activeString] && fretboard[activeString][activeFret]) {
+					const currentNote = fretboard[activeString][activeFret];
+					playNote(currentNote);
+				}
+			}, 50);
+		}
 	}
 
 	function handleAnswer(selectedDegree: number) {
@@ -525,7 +537,7 @@
 		}
 
 		if (selectedDegree === correctAnswer) {
-			// Play the correct note when answer is right
+			// Play the correct note when answer is right (for feedback)
 			if (correctAnswer !== null) {
 				// Add bounds checking
 				if (fretboard[activeString] && fretboard[activeString][activeFret]) {
@@ -547,7 +559,9 @@
 				feedback = 'Correct!';
 			}
 
-			setTimeout(() => generateNewQuestion(), 100);
+			// Skip auto-play since we just played for feedback
+			// The toggle controls when note plays for new questions, not for feedback
+			setTimeout(() => generateNewQuestion(true), 100);
 		} else {
 			// Play the note corresponding to the wrong degree selected
 			const scaleNotes = currentScale;
@@ -603,13 +617,17 @@
 	// Play current note and go to next question
 	function playAndNext() {
 		if (correctAnswer !== null) {
-			// Add bounds checking
-			if (fretboard[activeString] && fretboard[activeString][activeFret]) {
-				const currentNote = fretboard[activeString][activeFret];
-				playNote(currentNote);
+			// Only play note if toggle is OFF (old behavior - play when asking new question)
+			if (!autoPlayOnNewQuestion) {
+				// Add bounds checking
+				if (fretboard[activeString] && fretboard[activeString][activeFret]) {
+					const currentNote = fretboard[activeString][activeFret];
+					playNote(currentNote);
+				}
 			}
 			// Go to next question after a short delay
-			setTimeout(() => generateNewQuestion(), 100);
+			// If toggle is ON, the note will play in generateNewQuestion()
+			setTimeout(() => generateNewQuestion(!autoPlayOnNewQuestion), 100);
 		}
 	}
 
@@ -827,7 +845,7 @@
 					feedback = 'Correct!';
 				}
 				
-				setTimeout(() => generateNewQuestion(), 1000);
+				setTimeout(() => generateNewQuestion(true), 1000);
 			} else {
 				// Incorrect! Play the wrong note and provide feedback
 				playNote(clickedNote);
@@ -1330,6 +1348,9 @@
 	let autoNextDelay = $state(1000); // ms, default 2 seconds
 	let autoNextTimeout: ReturnType<typeof setTimeout> | null = null;
 	let autoNextRunning = $state(false); // NEW: running state
+	
+	// Auto-play note on new question
+	let autoPlayOnNewQuestion = $state(false);
 
 	function clearAutoNextTimer() {
 		if (autoNextTimeout) {
@@ -1817,6 +1838,12 @@
 				🔊 Play Note
 			</button>
 		{/if}
+		<div class="mt-2 flex justify-center">
+			<label class="flex cursor-pointer select-none items-center gap-2">
+				<input type="checkbox" bind:checked={autoPlayOnNewQuestion} class="accent-blue-500" />
+				<span class="text-sm">Play note immediately when question is asked (OFF: play when asking new question)</span>
+			</label>
+		</div>
 		{#if uniqueDegreesCount < 3}
 			<div class="mt-2 text-sm text-red-600 dark:text-red-400">
 				⚠️ Not enough unique degrees in selected range. Found {uniqueDegreesCount}. Select a wider
