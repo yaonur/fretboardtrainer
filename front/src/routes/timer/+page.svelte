@@ -410,6 +410,18 @@
 				>
 					Short 4 (4/14 sec)
 				</button>
+				<button
+					onclick={() => {
+						workMinutes = 3;
+						workSeconds = 0;
+						breakMinutes = 0;
+						breakSeconds = 20;
+					}}
+					disabled={isRunning}
+					class="rounded bg-blue-500 px-3 py-1 text-sm text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+				>
+					XShort (3/20 sec)
+				</button>
 			</div>
 		</div>
 		{/if}
