@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Tone from 'tone';
+	import { LocalStorage } from '$lib/stores/storage.svelte';
 
 	/** Semitone steps between consecutive chord tones (1–12). */
 	const INTERVAL_OPTIONS: { semitones: number; label: string }[] = [
@@ -21,17 +22,129 @@
 		INTERVAL_OPTIONS.map((o) => [o.semitones, o.label])
 	) as Record<number, string>;
 
-	let lowestNote = $state<string>('G3');
-	/** Each question’s chord root (lowest tone) is picked from your floor note up to +N half steps (1..18 ≈ 1.5 oct). */
-	let rangeSemitones = $state(12);
-	let noteCount = $state<2 | 3 | 4>(2);
-	let selectedSemitones = $state<number[]>([3, 4, 5, 7]);
-	let pauseAfterHarmonicMs = $state(1500);
-	let playAscending = $state(true);
-	let playDescending = $state(false);
-	let gapBetweenAscDescMs = $state(300);
-	let bpm = $state(120);
-	let answerPauseMs = $state(2000);
+	const FLOOR_NOTE_OPTIONS = [
+		'B1',
+		'C2',
+		'D2',
+		'E2',
+		'F2',
+		'G2',
+		'A2',
+		'B2',
+		'C3',
+		'D3',
+		'E3',
+		'F3',
+		'G3',
+		'A3',
+		'B3',
+		'C4'
+	] as const;
+
+	type IntervalsExerciseSettings = {
+		lowestNote: string;
+		/** Chord root may be floor .. floor + N half steps */
+		rangeSemitones: number;
+		noteCount: 2 | 3 | 4;
+		selectedSemitones: number[];
+		pauseAfterHarmonicMs: number;
+		playAscending: boolean;
+		playDescending: boolean;
+		gapBetweenAscDescMs: number;
+		bpm: number;
+		answerPauseMs: number;
+	};
+
+	const DEFAULT_SETTINGS: IntervalsExerciseSettings = {
+		lowestNote: 'G3',
+		rangeSemitones: 12,
+		noteCount: 2,
+		selectedSemitones: [3, 4, 5, 7],
+		pauseAfterHarmonicMs: 2100,
+		playAscending: true,
+		playDescending: false,
+		gapBetweenAscDescMs: 300,
+		bpm: 90,
+		answerPauseMs: 900
+	};
+
+	function sanitizeIntervalsSettings(raw: Partial<IntervalsExerciseSettings>): IntervalsExerciseSettings {
+		const d = DEFAULT_SETTINGS;
+		const ln = raw.lowestNote;
+		const lowestNote: string =
+			typeof ln === 'string' && FLOOR_NOTE_OPTIONS.includes(ln as (typeof FLOOR_NOTE_OPTIONS)[number])
+				? ln
+				: d.lowestNote;
+
+		let rangeSemitones = Math.round(Number(raw.rangeSemitones));
+		if (!Number.isFinite(rangeSemitones)) rangeSemitones = d.rangeSemitones;
+		rangeSemitones = Math.min(18, Math.max(1, rangeSemitones));
+
+		const noteCount =
+			raw.noteCount === 2 || raw.noteCount === 3 || raw.noteCount === 4 ? raw.noteCount : d.noteCount;
+
+		let selectedSemitones: number[];
+		if (!Array.isArray(raw.selectedSemitones) || raw.selectedSemitones.length === 0) {
+			selectedSemitones = [...d.selectedSemitones];
+		} else {
+			selectedSemitones = [
+				...new Set(
+					raw.selectedSemitones
+						.map((n) => Math.round(Number(n)))
+						.filter((n) => Number.isFinite(n) && n >= 1 && n <= 12)
+				)
+			].sort((a, b) => a - b);
+			if (selectedSemitones.length === 0) selectedSemitones = [...d.selectedSemitones];
+		}
+
+		const clamp = (n: number, lo: number, hi: number, fallback: number) => {
+			const x = Math.round(Number(n));
+			if (!Number.isFinite(x)) return fallback;
+			return Math.min(hi, Math.max(lo, x));
+		};
+
+		const pauseAfterHarmonicMs = Math.round(
+			clamp(
+				raw.pauseAfterHarmonicMs ?? d.pauseAfterHarmonicMs,
+				0,
+				5000,
+				d.pauseAfterHarmonicMs
+			) / 100
+		) * 100;
+		const gapBetweenAscDescMs = Math.round(
+			clamp(
+				raw.gapBetweenAscDescMs ?? d.gapBetweenAscDescMs,
+				0,
+				2000,
+				d.gapBetweenAscDescMs
+			) / 100
+		) * 100;
+		const answerPauseMs = Math.round(
+			clamp(raw.answerPauseMs ?? d.answerPauseMs, 500, 8000, d.answerPauseMs) / 100
+		) * 100;
+
+		return {
+			lowestNote,
+			rangeSemitones,
+			noteCount,
+			selectedSemitones,
+			pauseAfterHarmonicMs,
+			playAscending: typeof raw.playAscending === 'boolean' ? raw.playAscending : d.playAscending,
+			playDescending: typeof raw.playDescending === 'boolean' ? raw.playDescending : d.playDescending,
+			gapBetweenAscDescMs,
+			bpm: clamp(raw.bpm ?? d.bpm, 40, 240, d.bpm),
+			answerPauseMs
+		};
+	}
+
+	const settings = new LocalStorage<IntervalsExerciseSettings>('intervalsExerciseSettings', DEFAULT_SETTINGS);
+
+	let didSanitizeSettings = $state(false);
+	$effect.pre(() => {
+		if (didSanitizeSettings) return;
+		didSanitizeSettings = true;
+		settings.current = sanitizeIntervalsSettings(settings.current);
+	});
 
 	let feedback = $state('');
 	let questionCount = $state(0);
@@ -49,15 +162,45 @@
 		return `${names[pc]}${octave}`;
 	}
 
-	const beatDuration = $derived(60000 / bpm);
+	/** Sliders use 0.1 s steps (stored as ms); display as seconds with one decimal. */
+	function formatSecondsLabel(ms: number): string {
+		return `${(ms / 1000).toFixed(1)} s`;
+	}
+
+	function msToDs(ms: number): number {
+		return Math.round(ms / 100);
+	}
+
+	function setPauseAfterHarmonicDs(ds: number) {
+		settings.current.pauseAfterHarmonicMs = ds * 100;
+	}
+
+	function setGapBetweenAscDescDs(ds: number) {
+		settings.current.gapBetweenAscDescMs = ds * 100;
+	}
+
+	function setAnswerPauseDs(ds: number) {
+		settings.current.answerPauseMs = ds * 100;
+	}
+
+	const PAUSE_AFTER_HARMONIC_MAX_DS = 50; // 0–5.0 s
+	const GAP_MAX_DS = 20; // 0–2.0 s
+	const ANSWER_PAUSE_MIN_DS = 5; // 0.5 s
+	const ANSWER_PAUSE_MAX_DS = 80; // 8.0 s
+
+	const beatDuration = $derived(60000 / settings.current.bpm);
 	const arpeggioNoteSpacingSec = $derived(beatDuration / 1000);
 
 	const MAX_RANGE_SEMITONES = 18; // 1.5 octaves — max offset above floor for the chord’s lowest note
 	const MAX_MIDI = 127;
 
-	const minMidiFromLowest = $derived(Math.round(Tone.Frequency(lowestNote).toMidi()));
+	const minMidiFromLowest = $derived(
+		Math.round(Tone.Frequency(settings.current.lowestNote).toMidi())
+	);
 	/** Top of the band where the chord root may be chosen (before MIDI safety clamp). */
-	const rootRangeTopLabel = $derived(midiToNoteName(minMidiFromLowest + rangeSemitones));
+	const rootRangeTopLabel = $derived(
+		midiToNoteName(minMidiFromLowest + settings.current.rangeSemitones)
+	);
 
 	async function initAudio() {
 		if (!isAudioInitialized) {
@@ -102,22 +245,24 @@
 	});
 
 	function toggleInterval(semitones: number) {
-		selectedSemitones = selectedSemitones.includes(semitones)
-			? selectedSemitones.filter((s) => s !== semitones)
-			: [...selectedSemitones, semitones].sort((a, b) => a - b);
+		const cur = settings.current.selectedSemitones;
+		settings.current.selectedSemitones = cur.includes(semitones)
+			? cur.filter((s: number) => s !== semitones)
+			: [...cur, semitones].sort((a, b) => a - b);
 	}
 
 	function toggleAllIntervals() {
-		if (selectedSemitones.length === INTERVAL_OPTIONS.length) {
-			selectedSemitones = [];
+		const cur = settings.current.selectedSemitones;
+		if (cur.length === INTERVAL_OPTIONS.length) {
+			settings.current.selectedSemitones = [];
 		} else {
-			selectedSemitones = INTERVAL_OPTIONS.map((o) => o.semitones);
+			settings.current.selectedSemitones = INTERVAL_OPTIONS.map((o) => o.semitones);
 		}
 	}
 
 	function pickSteps(): number[] {
-		const stepsNeeded = noteCount - 1;
-		const pool = selectedSemitones;
+		const stepsNeeded = settings.current.noteCount - 1;
+		const pool = settings.current.selectedSemitones;
 		const out: number[] = [];
 		for (let i = 0; i < stepsNeeded; i++) {
 			out.push(pool[Math.floor(Math.random() * pool.length)]!);
@@ -130,7 +275,7 @@
 	}
 
 	function generateNewQuestion() {
-		if (selectedSemitones.length === 0) {
+		if (settings.current.selectedSemitones.length === 0) {
 			feedback = 'Select at least one interval size.';
 			return;
 		}
@@ -153,7 +298,7 @@
 
 		const floor = minMidiFromLowest;
 		const totalSpan = steps.reduce((a, b) => a + b, 0);
-		const desiredRootMax = floor + rangeSemitones;
+		const desiredRootMax = floor + settings.current.rangeSemitones;
 		const maxRoot = Math.min(desiredRootMax, MAX_MIDI - totalSpan);
 		if (maxRoot < floor) {
 			feedback = 'These intervals are too wide for the playable range; try smaller intervals.';
@@ -181,18 +326,18 @@
 		for (const n of notes) {
 			sampler.triggerAttackRelease(n, '2n', t);
 		}
-		t += harmLen + pauseAfterHarmonicMs / 1000;
+		t += harmLen + settings.current.pauseAfterHarmonicMs / 1000;
 
-		if (playAscending) {
+		if (settings.current.playAscending) {
 			notes.forEach((n, i) => {
 				sampler.triggerAttackRelease(n, '8n', t + i * arpeggioNoteSpacingSec);
 			});
 			t += (notes.length > 0 ? (notes.length - 1) * arpeggioNoteSpacingSec + arpLen : 0);
 		}
 
-		if (playDescending) {
-			if (playAscending) {
-				t += gapBetweenAscDescMs / 1000;
+		if (settings.current.playDescending) {
+			if (settings.current.playAscending) {
+				t += settings.current.gapBetweenAscDescMs / 1000;
 			}
 			const rev = [...notes].reverse();
 			rev.forEach((n, i) => {
@@ -208,13 +353,13 @@
 			feedback = formatSteps(steps);
 			questionTimeout = setTimeout(() => {
 				generateNewQuestion();
-			}, answerPauseMs);
+			}, settings.current.answerPauseMs);
 		}, delayMs);
 	}
 
 	function startGame() {
 		void initAudio().then(() => {
-			if (selectedSemitones.length === 0) {
+			if (settings.current.selectedSemitones.length === 0) {
 				feedback = 'Select at least one interval size.';
 				return;
 			}
@@ -245,6 +390,7 @@
 		<p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
 			The lowest tone of each question is chosen between your floor note and the root range below; other notes are that
 			root plus stacked intervals (no separate ceiling). Harmonic first, then silence and arpeggios when enabled.
+			Settings are saved in this browser.
 		</p>
 
 		<div class="mb-4 flex flex-wrap items-center gap-4">
@@ -254,14 +400,14 @@
 					<button
 						type="button"
 						class="rounded border-2 px-3 py-1 text-sm font-bold transition-colors"
-						class:bg-blue-600={noteCount === n}
-						class:text-white={noteCount === n}
-						class:border-blue-600={noteCount === n}
-						class:bg-gray-200={noteCount !== n}
-						class:text-gray-700={noteCount !== n}
-						class:border-gray-300={noteCount !== n}
+						class:bg-blue-600={settings.current.noteCount === n}
+						class:text-white={settings.current.noteCount === n}
+						class:border-blue-600={settings.current.noteCount === n}
+						class:bg-gray-200={settings.current.noteCount !== n}
+						class:text-gray-700={settings.current.noteCount !== n}
+						class:border-gray-300={settings.current.noteCount !== n}
 						onclick={() => {
-							noteCount = n as 2 | 3 | 4;
+							settings.current.noteCount = n as 2 | 3 | 4;
 						}}
 					>
 						{n}
@@ -273,7 +419,7 @@
 		<div class="mb-4 flex items-center gap-4">
 			<span class="text-sm font-medium">Lowest note (floor):</span>
 			<select
-				bind:value={lowestNote}
+				bind:value={settings.current.lowestNote}
 				class="rounded border border-gray-300 bg-white px-3 py-1 text-sm dark:bg-gray-700 dark:text-white"
 			>
 				<option value="B1">B1 (Bass)</option>
@@ -303,11 +449,11 @@
 					min="1"
 					max={MAX_RANGE_SEMITONES}
 					step="1"
-					bind:value={rangeSemitones}
+					bind:value={settings.current.rangeSemitones}
 					class="h-2 w-full min-w-[12rem] max-w-xs accent-blue-500"
 				/>
 				<span class="text-sm text-gray-700 dark:text-gray-300">
-					Up to +{rangeSemitones} half step{rangeSemitones === 1 ? '' : 's'} (max {MAX_RANGE_SEMITONES} = 1.5 oct); highest
+					Up to +{settings.current.rangeSemitones} half step{settings.current.rangeSemitones === 1 ? '' : 's'} (max {MAX_RANGE_SEMITONES} = 1.5 oct); highest
 					root ≈ {rootRangeTopLabel}
 				</span>
 			</div>
@@ -323,10 +469,10 @@
 				min="40"
 				max="240"
 				step="1"
-				bind:value={bpm}
+				bind:value={settings.current.bpm}
 				class="w-48 accent-blue-500"
 			/>
-			<span class="text-sm">{bpm} BPM</span>
+			<span class="text-sm">{settings.current.bpm} BPM</span>
 		</div>
 
 		<div class="mb-4 flex flex-wrap items-center gap-1 md:gap-4">
@@ -334,21 +480,23 @@
 			<input
 				type="range"
 				min="0"
-				max="5000"
-				step="100"
-				bind:value={pauseAfterHarmonicMs}
+				max={PAUSE_AFTER_HARMONIC_MAX_DS}
+				step="1"
+				value={msToDs(settings.current.pauseAfterHarmonicMs)}
+				aria-valuetext={formatSecondsLabel(settings.current.pauseAfterHarmonicMs)}
+				oninput={(e) => setPauseAfterHarmonicDs(Number((e.currentTarget as HTMLInputElement).value))}
 				class="w-48 accent-blue-500"
 			/>
-			<span class="text-sm">{pauseAfterHarmonicMs} ms</span>
+			<span class="text-sm tabular-nums">{formatSecondsLabel(settings.current.pauseAfterHarmonicMs)}</span>
 		</div>
 
 		<div class="mb-4 flex flex-wrap gap-6">
 			<label class="flex cursor-pointer select-none items-center gap-2">
-				<input type="checkbox" bind:checked={playAscending} class="accent-blue-500" />
+				<input type="checkbox" bind:checked={settings.current.playAscending} class="accent-blue-500" />
 				<span class="text-sm">Ascending arpeggio</span>
 			</label>
 			<label class="flex cursor-pointer select-none items-center gap-2">
-				<input type="checkbox" bind:checked={playDescending} class="accent-blue-500" />
+				<input type="checkbox" bind:checked={settings.current.playDescending} class="accent-blue-500" />
 				<span class="text-sm">Descending arpeggio</span>
 			</label>
 		</div>
@@ -358,26 +506,30 @@
 			<input
 				type="range"
 				min="0"
-				max="2000"
-				step="50"
-				bind:value={gapBetweenAscDescMs}
+				max={GAP_MAX_DS}
+				step="1"
+				value={msToDs(settings.current.gapBetweenAscDescMs)}
+				aria-valuetext={formatSecondsLabel(settings.current.gapBetweenAscDescMs)}
+				oninput={(e) => setGapBetweenAscDescDs(Number((e.currentTarget as HTMLInputElement).value))}
 				class="w-48 accent-blue-500"
-				disabled={!playAscending || !playDescending}
+				disabled={!settings.current.playAscending || !settings.current.playDescending}
 			/>
-			<span class="text-sm">{gapBetweenAscDescMs} ms</span>
+			<span class="text-sm tabular-nums">{formatSecondsLabel(settings.current.gapBetweenAscDescMs)}</span>
 		</div>
 
 		<div class="mb-4 flex flex-wrap items-center gap-1 md:gap-4">
 			<span class="text-sm font-medium">Pause before next question:</span>
 			<input
 				type="range"
-				min="500"
-				max="8000"
-				step="100"
-				bind:value={answerPauseMs}
+				min={ANSWER_PAUSE_MIN_DS}
+				max={ANSWER_PAUSE_MAX_DS}
+				step="1"
+				value={msToDs(settings.current.answerPauseMs)}
+				aria-valuetext={formatSecondsLabel(settings.current.answerPauseMs)}
+				oninput={(e) => setAnswerPauseDs(Number((e.currentTarget as HTMLInputElement).value))}
 				class="w-48 accent-blue-500"
 			/>
-			<span class="text-sm">{answerPauseMs} ms</span>
+			<span class="text-sm tabular-nums">{formatSecondsLabel(settings.current.answerPauseMs)}</span>
 		</div>
 
 		<div class="mb-4">
@@ -388,19 +540,19 @@
 					onclick={toggleAllIntervals}
 					class="rounded border-2 border-gray-400 bg-gray-100 px-3 py-1 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-100"
 				>
-					{selectedSemitones.length === INTERVAL_OPTIONS.length ? 'None' : 'All'}
+					{settings.current.selectedSemitones.length === INTERVAL_OPTIONS.length ? 'None' : 'All'}
 				</button>
 				{#each INTERVAL_OPTIONS as opt}
 					<button
 						type="button"
 						onclick={() => toggleInterval(opt.semitones)}
 						class="rounded border-2 px-3 py-1 text-sm font-bold transition-colors"
-						class:bg-blue-600={selectedSemitones.includes(opt.semitones)}
-						class:text-white={selectedSemitones.includes(opt.semitones)}
-						class:border-blue-600={selectedSemitones.includes(opt.semitones)}
-						class:bg-gray-200={!selectedSemitones.includes(opt.semitones)}
-						class:text-gray-700={!selectedSemitones.includes(opt.semitones)}
-						class:border-gray-300={!selectedSemitones.includes(opt.semitones)}
+						class:bg-blue-600={settings.current.selectedSemitones.includes(opt.semitones)}
+						class:text-white={settings.current.selectedSemitones.includes(opt.semitones)}
+						class:border-blue-600={settings.current.selectedSemitones.includes(opt.semitones)}
+						class:bg-gray-200={!settings.current.selectedSemitones.includes(opt.semitones)}
+						class:text-gray-700={!settings.current.selectedSemitones.includes(opt.semitones)}
+						class:border-gray-300={!settings.current.selectedSemitones.includes(opt.semitones)}
 					>
 						{opt.label}
 					</button>
@@ -414,7 +566,7 @@
 			<button
 				type="button"
 				onclick={startGame}
-				disabled={selectedSemitones.length === 0 || !samplerLoaded}
+				disabled={settings.current.selectedSemitones.length === 0 || !samplerLoaded}
 				class="rounded bg-blue-500 px-6 py-3 text-lg font-semibold text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-400"
 			>
 				Start interval exercise
