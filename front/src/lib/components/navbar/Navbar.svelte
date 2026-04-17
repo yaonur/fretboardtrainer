@@ -82,6 +82,9 @@
 		<a href="/dictation" class="font-medium transition-colors duration-200 hover:text-blue-400"
 			>Dictation</a
 		>
+		<a href="/intervals" class="font-medium transition-colors duration-200 hover:text-blue-400"
+			>Intervals</a
+		>
 		<a href="/timer" class="font-medium transition-colors duration-200 hover:text-blue-400"
 			>Timer</a
 		>
@@ -130,10 +133,13 @@
 				<a href="/chords" class="font-medium transition-colors duration-200 hover:text-blue-400"
 				>Chords</a
 			>
-				<a href="/dictation" class="font-medium transition-colors duration-200 hover:text-blue-400"
+			<a href="/dictation" class="font-medium transition-colors duration-200 hover:text-blue-400"
 				>Dictation</a
 			>
-				<a href="/timer" class="font-medium transition-colors duration-200 hover:text-blue-400"
+			<a href="/intervals" class="font-medium transition-colors duration-200 hover:text-blue-400"
+				>Intervals</a
+			>
+			<a href="/timer" class="font-medium transition-colors duration-200 hover:text-blue-400"
 				>Timer</a
 			>
 			</div>
