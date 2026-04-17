@@ -411,7 +411,7 @@
 			return;
 		}
 
-		const harmLen = settings.current.pauseAfterHarmonicMs/1000;
+		const harmLen = Tone.Time('2n').toSeconds();
 		const arpLen = Tone.Time('8n').toSeconds();
 		
 		const harmStart = Tone.now() + 0.18;
@@ -422,6 +422,7 @@
 		/** When the harmonic ends — start of “pause after tonic” before arpeggios; reveal answer here. */
 		const revealTime = harmStart + harmLen;
 		let t = harmStart + harmLen + settings.current.pauseAfterHarmonicMs / 1000;
+		
 
 		if (settings.current.playAscending) {
 			notes.forEach((n, i) => {
@@ -443,7 +444,7 @@
 
 		const endTime = t;
 
-		const revealDelaySec = Math.max(0, revealTime - Tone.now()) + 0.9;
+		const revealDelaySec = Math.max(0, revealTime - Tone.now()) + settings.current.pauseAfterHarmonicMs/1000;
 		toneRevealTimeoutId = Tone.getContext().setTimeout(() => {
 			toneRevealTimeoutId = null;
 			feedback = answerLabel;
