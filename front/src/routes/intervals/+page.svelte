@@ -173,6 +173,8 @@
 	});
 
 	let feedback = $state('');
+	/** Lowest pitch of the current question (matches playback). */
+	let currentLowestNoteName = $state('');
 	let questionCount = $state(0);
 	let gameStarted = $state(false);
 	let isAudioInitialized = $state(false);
@@ -374,6 +376,7 @@
 			toneNextQuestionTimeoutId = null;
 		}
 
+		currentLowestNoteName = '';
 		feedback = 'Listen…';
 
 		let { steps, answerLabel } = pickQuestion();
@@ -405,9 +408,11 @@
 			midiNotes.push(midiNotes[midiNotes.length - 1]! + s);
 		}
 		const notes = midiNotes.map(midiToNoteName);
+		currentLowestNoteName = notes[0].slice(0, -1) ?? '';
 
 		if (!isAudioInitialized || !sampler || !samplerLoaded) {
 			feedback = 'Audio not ready.';
+			currentLowestNoteName = '';
 			return;
 		}
 
@@ -487,6 +492,7 @@
 		}
 		gameStarted = false;
 		feedback = '';
+		currentLowestNoteName = '';
 		lastStepsKey = null;
 	}
 </script>
@@ -759,6 +765,11 @@
 			<div class="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">
 				{feedback}
 			</div>
+			{#if currentLowestNoteName}
+				<div class="mb-2 text-lg tabular-nums text-gray-600 dark:text-gray-400">
+					Lowest note: <span class="font-semibold text-gray-800 dark:text-gray-200">{currentLowestNoteName}</span>
+				</div>
+			{/if}
 			<div class="text-lg text-gray-600 dark:text-gray-400">Round {questionCount}</div>
 		</div>
 	{/if}
