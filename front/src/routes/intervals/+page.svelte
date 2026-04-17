@@ -22,12 +22,14 @@
 	) as Record<number, string>;
 
 	let lowestNote = $state<string>('G3');
+	/** Each question’s chord root (lowest tone) is picked from your floor note up to +N half steps (1..18 ≈ 1.5 oct). */
+	let rangeSemitones = $state(12);
 	let noteCount = $state<2 | 3 | 4>(2);
 	let selectedSemitones = $state<number[]>([3, 4, 5, 7]);
 	let pauseAfterHarmonicMs = $state(1500);
 	let playAscending = $state(true);
-	let playDescending = $state(true);
-	let gapBetweenAscDescMs = $state(0);
+	let playDescending = $state(false);
+	let gapBetweenAscDescMs = $state(300);
 	let bpm = $state(120);
 	let answerPauseMs = $state(2000);
 
@@ -40,8 +42,22 @@
 	let questionTimeout: ReturnType<typeof setTimeout> | null = null;
 	let lastStepsKey = $state<string | null>(null);
 
+	function midiToNoteName(midi: number): string {
+		const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+		const pc = ((midi % 12) + 12) % 12;
+		const octave = Math.floor(midi / 12) - 1;
+		return `${names[pc]}${octave}`;
+	}
+
 	const beatDuration = $derived(60000 / bpm);
 	const arpeggioNoteSpacingSec = $derived(beatDuration / 1000);
+
+	const MAX_RANGE_SEMITONES = 18; // 1.5 octaves — max offset above floor for the chord’s lowest note
+	const MAX_MIDI = 127;
+
+	const minMidiFromLowest = $derived(Math.round(Tone.Frequency(lowestNote).toMidi()));
+	/** Top of the band where the chord root may be chosen (before MIDI safety clamp). */
+	const rootRangeTopLabel = $derived(midiToNoteName(minMidiFromLowest + rangeSemitones));
 
 	async function initAudio() {
 		if (!isAudioInitialized) {
@@ -84,13 +100,6 @@
 			stopSoundEngine();
 		};
 	});
-
-	function midiToNoteName(midi: number): string {
-		const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-		const pc = ((midi % 12) + 12) % 12;
-		const octave = Math.floor(midi / 12) - 1;
-		return `${names[pc]}${octave}`;
-	}
 
 	function toggleInterval(semitones: number) {
 		selectedSemitones = selectedSemitones.includes(semitones)
@@ -142,19 +151,18 @@
 		}
 		lastStepsKey = key;
 
-		const minMidi = Math.round(Tone.Frequency(lowestNote).toMidi());
-		const maxMidi = 83;
+		const floor = minMidiFromLowest;
 		const totalSpan = steps.reduce((a, b) => a + b, 0);
-		const lowBound = minMidi;
-		const highBound = maxMidi - totalSpan;
-		if (highBound < lowBound) {
-			feedback = 'Lowest note is too high for this interval stack. Lower settings or widen range.';
+		const desiredRootMax = floor + rangeSemitones;
+		const maxRoot = Math.min(desiredRootMax, MAX_MIDI - totalSpan);
+		if (maxRoot < floor) {
+			feedback = 'These intervals are too wide for the playable range; try smaller intervals.';
 			return;
 		}
 
 		questionCount++;
 
-		const rootMidi = lowBound + Math.floor(Math.random() * (highBound - lowBound + 1));
+		const rootMidi = floor + Math.floor(Math.random() * (maxRoot - floor + 1));
 		const midiNotes: number[] = [rootMidi];
 		for (const s of steps) {
 			midiNotes.push(midiNotes[midiNotes.length - 1]! + s);
@@ -235,8 +243,8 @@
 		<h2 class="mb-4 text-xl font-semibold">Settings</h2>
 
 		<p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
-			Harmonic block first, then silence, then ascending and descending arpeggios (when enabled). The
-			intervals between adjacent chord tones are shown after each round.
+			The lowest tone of each question is chosen between your floor note and the root range below; other notes are that
+			root plus stacked intervals (no separate ceiling). Harmonic first, then silence and arpeggios when enabled.
 		</p>
 
 		<div class="mb-4 flex flex-wrap items-center gap-4">
@@ -263,7 +271,7 @@
 		</div>
 
 		<div class="mb-4 flex items-center gap-4">
-			<span class="text-sm font-medium">Lowest note:</span>
+			<span class="text-sm font-medium">Lowest note (floor):</span>
 			<select
 				bind:value={lowestNote}
 				class="rounded border border-gray-300 bg-white px-3 py-1 text-sm dark:bg-gray-700 dark:text-white"
@@ -286,6 +294,27 @@
 				<option value="C4">C4 (Tenor/Alto)</option>
 			</select>
 		</div>
+
+		<div class="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+			<span class="shrink-0 text-sm font-medium">Root range above floor:</span>
+			<div class="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+				<input
+					type="range"
+					min="1"
+					max={MAX_RANGE_SEMITONES}
+					step="1"
+					bind:value={rangeSemitones}
+					class="h-2 w-full min-w-[12rem] max-w-xs accent-blue-500"
+				/>
+				<span class="text-sm text-gray-700 dark:text-gray-300">
+					Up to +{rangeSemitones} half step{rangeSemitones === 1 ? '' : 's'} (max {MAX_RANGE_SEMITONES} = 1.5 oct); highest
+					root ≈ {rootRangeTopLabel}
+				</span>
+			</div>
+		</div>
+		<p class="mb-4 text-xs text-gray-500 dark:text-gray-400">
+			The top note of each chord is not set here—it is the root plus the stacked intervals.
+		</p>
 
 		<div class="mb-4 flex flex-wrap items-center gap-1 md:gap-4">
 			<span class="text-sm font-medium">Tempo (arpeggio spacing):</span>
@@ -416,7 +445,10 @@
 	<div class="max-w-2xl text-center text-gray-600 dark:text-gray-400">
 		<h3 class="mb-2 text-lg font-semibold">How it works</h3>
 		<ol class="list-inside list-decimal space-y-1 text-sm text-left">
-			<li>Set your lowest comfortable note (same idea as Listening and Dictation).</li>
+			<li>
+				Set your floor note, then how far above it the lowest tone of each question may be (1–18 half steps, up to 1.5
+				octaves). The chord’s top note follows from the intervals.
+			</li>
 			<li>Choose 2, 3, or 4 notes for each harmonic.</li>
 			<li>Pick which interval sizes can appear between adjacent notes.</li>
 			<li>Adjust the pause after the harmonic block and the tempo for the arpeggios.</li>
