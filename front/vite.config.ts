@@ -22,19 +22,19 @@ export default defineConfig({
 				theme_color: '#0f172a',
 				icons: [
 					{
-						src: 'pwa-icons/icon-512.png',
+						src: 'pwa-icons/guitar-electric-512.png',
 						sizes: '512x512',
 						type: 'image/png',
 						purpose: 'any'
 					},
 					{
-						src: 'pwa-icons/icon-192.png',
-						sizes: '192x192',
+						src: 'pwa-icons/guitar-electric-256.png',
+						sizes: '256x256',
 						type: 'image/png',
 						purpose: 'any'
 					},
 					{
-						src: 'favicon.png',
+						src: 'pwa-icons/guitar-electric-128.png',
 						sizes: '128x128',
 						type: 'image/png',
 						purpose: 'any'
