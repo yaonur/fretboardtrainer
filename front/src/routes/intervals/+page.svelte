@@ -413,11 +413,7 @@
 
 		const harmLen = settings.current.pauseAfterHarmonicMs/1000;
 		const arpLen = Tone.Time('8n').toSeconds();
-		console.log('harmLen', harmLen);
-		console.log('arpLen', arpLen);
-		console.log (
-		'Tone.now()', settings.current.pauseAfterHarmonicMs
-		)
+		
 		const harmStart = Tone.now() + 0.18;
 
 		for (const n of notes) {
