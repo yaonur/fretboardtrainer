@@ -178,7 +178,9 @@
 	let isAudioInitialized = $state(false);
 	let sampler: Tone.Sampler;
 	let samplerLoaded = $state(false);
-	let questionTimeout: ReturnType<typeof setTimeout> | null = null;
+	/** Audio-clock timeout ids (Tone); must clear with Tone.getContext().clearTimeout */
+	let toneRevealTimeoutId: number | null = null;
+	let toneNextQuestionTimeoutId: number | null = null;
 	let lastStepsKey = $state<string | null>(null);
 
 	function midiToNoteName(midi: number): string {
@@ -363,9 +365,13 @@
 						: 'Select at least one seventh chord voicing.';
 			return;
 		}
-		if (questionTimeout) {
-			clearTimeout(questionTimeout);
-			questionTimeout = null;
+		if (toneRevealTimeoutId !== null) {
+			Tone.getContext().clearTimeout(toneRevealTimeoutId);
+			toneRevealTimeoutId = null;
+		}
+		if (toneNextQuestionTimeoutId !== null) {
+			Tone.getContext().clearTimeout(toneNextQuestionTimeoutId);
+			toneNextQuestionTimeoutId = null;
 		}
 
 		feedback = 'Listen…';
@@ -405,14 +411,21 @@
 			return;
 		}
 
-		const harmLen = Tone.Time('2n').toSeconds();
+		const harmLen = settings.current.pauseAfterHarmonicMs/1000;
 		const arpLen = Tone.Time('8n').toSeconds();
-		let t = Tone.now() + 0.18;
+		console.log('harmLen', harmLen);
+		console.log('arpLen', arpLen);
+		console.log (
+		'Tone.now()', settings.current.pauseAfterHarmonicMs
+		)
+		const harmStart = Tone.now() + 0.18;
 
 		for (const n of notes) {
-			sampler.triggerAttackRelease(n, '2n', t);
+			sampler.triggerAttackRelease(n, '2n', harmStart);
 		}
-		t += harmLen + settings.current.pauseAfterHarmonicMs / 1000;
+		/** When the harmonic ends — start of “pause after tonic” before arpeggios; reveal answer here. */
+		const revealTime = harmStart + harmLen;
+		let t = harmStart + harmLen + settings.current.pauseAfterHarmonicMs / 1000;
 
 		if (settings.current.playAscending) {
 			notes.forEach((n, i) => {
@@ -433,14 +446,19 @@
 		}
 
 		const endTime = t;
-		const delayMs = Math.max(0, (endTime - Tone.now()) * 1000) + 120;
 
-		questionTimeout = setTimeout(() => {
+		const revealDelaySec = Math.max(0, revealTime - Tone.now()) + 0.9;
+		toneRevealTimeoutId = Tone.getContext().setTimeout(() => {
+			toneRevealTimeoutId = null;
 			feedback = answerLabel;
-			questionTimeout = setTimeout(() => {
-				generateNewQuestion();
-			}, settings.current.answerPauseMs);
-		}, delayMs);
+		}, revealDelaySec);
+
+		const nextQuestionDelaySec =
+			Math.max(0, endTime - Tone.now()) + 0.12 + settings.current.answerPauseMs / 1000;
+		toneNextQuestionTimeoutId = Tone.getContext().setTimeout(() => {
+			toneNextQuestionTimeoutId = null;
+			generateNewQuestion();
+		}, nextQuestionDelaySec);
 	}
 
 	function startGame() {
@@ -462,9 +480,13 @@
 	}
 
 	function stopGame() {
-		if (questionTimeout) {
-			clearTimeout(questionTimeout);
-			questionTimeout = null;
+		if (toneRevealTimeoutId !== null) {
+			Tone.getContext().clearTimeout(toneRevealTimeoutId);
+			toneRevealTimeoutId = null;
+		}
+		if (toneNextQuestionTimeoutId !== null) {
+			Tone.getContext().clearTimeout(toneNextQuestionTimeoutId);
+			toneNextQuestionTimeoutId = null;
 		}
 		gameStarted = false;
 		feedback = '';
@@ -757,7 +779,10 @@
 				(major, minor, diminished, augmented, dom7, maj7, m7, half-dim, etc., including inversions).
 			</li>
 			<li>Adjust the pause after the harmonic block and the tempo for the arpeggios.</li>
-			<li>After the sequence, the interval names are shown, then the next round starts automatically.</li>
+			<li>
+				After the harmonic, the answer appears when the pause after tonic begins (before any arpeggio). The next round
+				starts after the arpeggios and the pause before next question.
+			</li>
 		</ol>
 	</div>
 </div>
