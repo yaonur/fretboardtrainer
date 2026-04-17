@@ -22,16 +22,38 @@ export default defineConfig({
 				theme_color: '#0f172a',
 				icons: [
 					{
-						src: 'favicon.png',
+						src: 'pwa-icons/icon-512.png',
 						sizes: '512x512',
 						type: 'image/png',
 						purpose: 'any'
 					},
 					{
-						src: 'favicon.png',
+						src: 'pwa-icons/icon-192.png',
 						sizes: '192x192',
 						type: 'image/png',
 						purpose: 'any'
+					},
+					{
+						src: 'favicon.png',
+						sizes: '128x128',
+						type: 'image/png',
+						purpose: 'any'
+					}
+				],
+				// Richer install UI (Chrome): wide + non-wide screenshot entries
+				screenshots: [
+					{
+						src: 'pwa-screenshots/wide.png',
+						sizes: '1280x720',
+						type: 'image/png',
+						form_factor: 'wide',
+						label: 'Fretboard Trainer on desktop'
+					},
+					{
+						src: 'pwa-screenshots/narrow.png',
+						sizes: '750x1334',
+						type: 'image/png',
+						label: 'Fretboard Trainer on mobile'
 					}
 				]
 			},
