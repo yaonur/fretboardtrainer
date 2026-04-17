@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as Tone from 'tone';
 	import { LocalStorage } from '$lib/stores/storage.svelte';
+	import { SEVENTH_IDS, SEVENTH_SHAPES, TRIAD_IDS, TRIAD_SHAPES } from '$lib/intervals/chordShapes';
 
 	/** Semitone steps between consecutive chord tones (1–12). */
 	const INTERVAL_OPTIONS: { semitones: number; label: string }[] = [
@@ -46,7 +47,12 @@
 		/** Chord root may be floor .. floor + N half steps */
 		rangeSemitones: number;
 		noteCount: 2 | 3 | 4;
+		/** Two-note mode: random single intervals */
 		selectedSemitones: number[];
+		/** Three-note mode: triad voicings (maj/min/dim/aug + inversions) */
+		selectedTriadIds: string[];
+		/** Four-note mode: seventh chord voicings */
+		selectedSeventhIds: string[];
 		pauseAfterHarmonicMs: number;
 		playAscending: boolean;
 		playDescending: boolean;
@@ -60,6 +66,8 @@
 		rangeSemitones: 12,
 		noteCount: 2,
 		selectedSemitones: [3, 4, 5, 7],
+		selectedTriadIds: [...TRIAD_IDS],
+		selectedSeventhIds: [...SEVENTH_IDS],
 		pauseAfterHarmonicMs: 2100,
 		playAscending: true,
 		playDescending: false,
@@ -97,6 +105,22 @@
 			if (selectedSemitones.length === 0) selectedSemitones = [...d.selectedSemitones];
 		}
 
+		let selectedTriadIds: string[];
+		if (!Array.isArray(raw.selectedTriadIds) || raw.selectedTriadIds.length === 0) {
+			selectedTriadIds = [...d.selectedTriadIds];
+		} else {
+			selectedTriadIds = [...new Set(raw.selectedTriadIds.filter((id) => TRIAD_IDS.includes(id)))];
+			if (selectedTriadIds.length === 0) selectedTriadIds = [...d.selectedTriadIds];
+		}
+
+		let selectedSeventhIds: string[];
+		if (!Array.isArray(raw.selectedSeventhIds) || raw.selectedSeventhIds.length === 0) {
+			selectedSeventhIds = [...d.selectedSeventhIds];
+		} else {
+			selectedSeventhIds = [...new Set(raw.selectedSeventhIds.filter((id) => SEVENTH_IDS.includes(id)))];
+			if (selectedSeventhIds.length === 0) selectedSeventhIds = [...d.selectedSeventhIds];
+		}
+
 		const clamp = (n: number, lo: number, hi: number, fallback: number) => {
 			const x = Math.round(Number(n));
 			if (!Number.isFinite(x)) return fallback;
@@ -128,6 +152,8 @@
 			rangeSemitones,
 			noteCount,
 			selectedSemitones,
+			selectedTriadIds,
+			selectedSeventhIds,
 			pauseAfterHarmonicMs,
 			playAscending: typeof raw.playAscending === 'boolean' ? raw.playAscending : d.playAscending,
 			playDescending: typeof raw.playDescending === 'boolean' ? raw.playDescending : d.playDescending,
@@ -260,14 +286,67 @@
 		}
 	}
 
-	function pickSteps(): number[] {
-		const stepsNeeded = settings.current.noteCount - 1;
-		const pool = settings.current.selectedSemitones;
-		const out: number[] = [];
-		for (let i = 0; i < stepsNeeded; i++) {
-			out.push(pool[Math.floor(Math.random() * pool.length)]!);
+	function toggleTriad(id: string) {
+		const cur = settings.current.selectedTriadIds;
+		settings.current.selectedTriadIds = cur.includes(id)
+			? cur.filter((x: string) => x !== id)
+			: [...cur, id];
+	}
+
+	function toggleAllTriads() {
+		const cur = settings.current.selectedTriadIds;
+		if (cur.length === TRIAD_SHAPES.length) {
+			settings.current.selectedTriadIds = [];
+		} else {
+			settings.current.selectedTriadIds = TRIAD_IDS.map((x) => x);
 		}
-		return out;
+	}
+
+	function toggleSeventh(id: string) {
+		const cur = settings.current.selectedSeventhIds;
+		settings.current.selectedSeventhIds = cur.includes(id)
+			? cur.filter((x: string) => x !== id)
+			: [...cur, id];
+	}
+
+	function toggleAllSevenths() {
+		const cur = settings.current.selectedSeventhIds;
+		if (cur.length === SEVENTH_SHAPES.length) {
+			settings.current.selectedSeventhIds = [];
+		} else {
+			settings.current.selectedSeventhIds = SEVENTH_IDS.map((x) => x);
+		}
+	}
+
+	const selectionReady = $derived(
+		settings.current.noteCount === 2
+			? settings.current.selectedSemitones.length > 0
+			: settings.current.noteCount === 3
+				? settings.current.selectedTriadIds.length > 0
+				: settings.current.selectedSeventhIds.length > 0
+	);
+
+	function pickQuestion(): { steps: number[]; answerLabel: string } {
+		const nc = settings.current.noteCount;
+		if (nc === 2) {
+			const pool = settings.current.selectedSemitones;
+			const stepsNeeded = 1;
+			const out: number[] = [];
+			for (let i = 0; i < stepsNeeded; i++) {
+				out.push(pool[Math.floor(Math.random() * pool.length)]!);
+			}
+			return { steps: out, answerLabel: formatSteps(out) };
+		}
+		if (nc === 3) {
+			const ids = settings.current.selectedTriadIds;
+			const id = ids[Math.floor(Math.random() * ids.length)]!;
+			const shape = TRIAD_SHAPES.find((s) => s.id === id)!;
+			return { steps: [...shape.steps], answerLabel: shape.label };
+		}
+		const ids = settings.current.selectedSeventhIds;
+		const id = ids[Math.floor(Math.random() * ids.length)]!;
+		const shape = SEVENTH_SHAPES.find((s) => s.id === id)!;
+		return { steps: [...shape.steps], answerLabel: shape.label };
 	}
 
 	function formatSteps(steps: number[]): string {
@@ -275,8 +354,13 @@
 	}
 
 	function generateNewQuestion() {
-		if (settings.current.selectedSemitones.length === 0) {
-			feedback = 'Select at least one interval size.';
+		if (!selectionReady) {
+			feedback =
+				settings.current.noteCount === 2
+					? 'Select at least one interval size.'
+					: settings.current.noteCount === 3
+						? 'Select at least one triad voicing.'
+						: 'Select at least one seventh chord voicing.';
 			return;
 		}
 		if (questionTimeout) {
@@ -286,12 +370,14 @@
 
 		feedback = 'Listen…';
 
-		let steps = pickSteps();
-		let key = steps.join('-');
+		let { steps, answerLabel } = pickQuestion();
+		let key = `${answerLabel}|${steps.join('-')}`;
 		let guard = 0;
 		while (lastStepsKey !== null && key === lastStepsKey && guard < 12) {
-			steps = pickSteps();
-			key = steps.join('-');
+			const q = pickQuestion();
+			steps = q.steps;
+			answerLabel = q.answerLabel;
+			key = `${answerLabel}|${steps.join('-')}`;
 			guard++;
 		}
 		lastStepsKey = key;
@@ -350,7 +436,7 @@
 		const delayMs = Math.max(0, (endTime - Tone.now()) * 1000) + 120;
 
 		questionTimeout = setTimeout(() => {
-			feedback = formatSteps(steps);
+			feedback = answerLabel;
 			questionTimeout = setTimeout(() => {
 				generateNewQuestion();
 			}, settings.current.answerPauseMs);
@@ -359,8 +445,13 @@
 
 	function startGame() {
 		void initAudio().then(() => {
-			if (settings.current.selectedSemitones.length === 0) {
-				feedback = 'Select at least one interval size.';
+			if (!selectionReady) {
+				feedback =
+					settings.current.noteCount === 2
+						? 'Select at least one interval size.'
+						: settings.current.noteCount === 3
+							? 'Select at least one triad voicing.'
+							: 'Select at least one seventh chord voicing.';
 				return;
 			}
 			questionCount = 0;
@@ -459,7 +550,8 @@
 			</div>
 		</div>
 		<p class="mb-4 text-xs text-gray-500 dark:text-gray-400">
-			The top note of each chord is not set here—it is the root plus the stacked intervals.
+			For 3 or 4 notes, voicings follow real chord shapes (triads and sevenths, including inversions). The bass is still
+			picked in your root range; upper notes follow that voicing.
 		</p>
 
 		<div class="mb-4 flex flex-wrap items-center gap-1 md:gap-4">
@@ -532,33 +624,91 @@
 			<span class="text-sm tabular-nums">{formatSecondsLabel(settings.current.answerPauseMs)}</span>
 		</div>
 
-		<div class="mb-4">
-			<span class="mb-2 block text-sm font-medium">Intervals between adjacent notes (random from selection):</span>
-			<div class="flex flex-wrap gap-2">
-				<button
-					type="button"
-					onclick={toggleAllIntervals}
-					class="rounded border-2 border-gray-400 bg-gray-100 px-3 py-1 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-100"
-				>
-					{settings.current.selectedSemitones.length === INTERVAL_OPTIONS.length ? 'None' : 'All'}
-				</button>
-				{#each INTERVAL_OPTIONS as opt}
+		{#if settings.current.noteCount === 2}
+			<div class="mb-4">
+				<span class="mb-2 block text-sm font-medium">Single interval (between two notes):</span>
+				<div class="flex flex-wrap gap-2">
 					<button
 						type="button"
-						onclick={() => toggleInterval(opt.semitones)}
-						class="rounded border-2 px-3 py-1 text-sm font-bold transition-colors"
-						class:bg-blue-600={settings.current.selectedSemitones.includes(opt.semitones)}
-						class:text-white={settings.current.selectedSemitones.includes(opt.semitones)}
-						class:border-blue-600={settings.current.selectedSemitones.includes(opt.semitones)}
-						class:bg-gray-200={!settings.current.selectedSemitones.includes(opt.semitones)}
-						class:text-gray-700={!settings.current.selectedSemitones.includes(opt.semitones)}
-						class:border-gray-300={!settings.current.selectedSemitones.includes(opt.semitones)}
+						onclick={toggleAllIntervals}
+						class="rounded border-2 border-gray-400 bg-gray-100 px-3 py-1 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-100"
 					>
-						{opt.label}
+						{settings.current.selectedSemitones.length === INTERVAL_OPTIONS.length ? 'None' : 'All'}
 					</button>
-				{/each}
+					{#each INTERVAL_OPTIONS as opt}
+						<button
+							type="button"
+							onclick={() => toggleInterval(opt.semitones)}
+							class="rounded border-2 px-3 py-1 text-sm font-bold transition-colors"
+							class:bg-blue-600={settings.current.selectedSemitones.includes(opt.semitones)}
+							class:text-white={settings.current.selectedSemitones.includes(opt.semitones)}
+							class:border-blue-600={settings.current.selectedSemitones.includes(opt.semitones)}
+							class:bg-gray-200={!settings.current.selectedSemitones.includes(opt.semitones)}
+							class:text-gray-700={!settings.current.selectedSemitones.includes(opt.semitones)}
+							class:border-gray-300={!settings.current.selectedSemitones.includes(opt.semitones)}
+						>
+							{opt.label}
+						</button>
+					{/each}
+				</div>
 			</div>
-		</div>
+		{:else if settings.current.noteCount === 3}
+			<div class="mb-4">
+				<span class="mb-2 block text-sm font-medium">Triad voicings (close position, random from selection):</span>
+				<div class="flex flex-wrap gap-2">
+					<button
+						type="button"
+						onclick={toggleAllTriads}
+						class="rounded border-2 border-gray-400 bg-gray-100 px-3 py-1 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-100"
+					>
+						{settings.current.selectedTriadIds.length === TRIAD_SHAPES.length ? 'None' : 'All'}
+					</button>
+					{#each TRIAD_SHAPES as shape}
+						<button
+							type="button"
+							onclick={() => toggleTriad(shape.id)}
+							class="rounded border-2 px-2 py-1 text-xs font-bold transition-colors sm:text-sm"
+							class:bg-blue-600={settings.current.selectedTriadIds.includes(shape.id)}
+							class:text-white={settings.current.selectedTriadIds.includes(shape.id)}
+							class:border-blue-600={settings.current.selectedTriadIds.includes(shape.id)}
+							class:bg-gray-200={!settings.current.selectedTriadIds.includes(shape.id)}
+							class:text-gray-700={!settings.current.selectedTriadIds.includes(shape.id)}
+							class:border-gray-300={!settings.current.selectedTriadIds.includes(shape.id)}
+						>
+							{shape.label}
+						</button>
+					{/each}
+				</div>
+			</div>
+		{:else}
+			<div class="mb-4">
+				<span class="mb-2 block text-sm font-medium">Seventh chords (close position, random from selection):</span>
+				<div class="flex flex-wrap gap-2">
+					<button
+						type="button"
+						onclick={toggleAllSevenths}
+						class="rounded border-2 border-gray-400 bg-gray-100 px-3 py-1 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-100"
+					>
+						{settings.current.selectedSeventhIds.length === SEVENTH_SHAPES.length ? 'None' : 'All'}
+					</button>
+					{#each SEVENTH_SHAPES as shape}
+						<button
+							type="button"
+							onclick={() => toggleSeventh(shape.id)}
+							class="rounded border-2 px-2 py-1 text-xs font-bold transition-colors sm:text-sm"
+							class:bg-blue-600={settings.current.selectedSeventhIds.includes(shape.id)}
+							class:text-white={settings.current.selectedSeventhIds.includes(shape.id)}
+							class:border-blue-600={settings.current.selectedSeventhIds.includes(shape.id)}
+							class:bg-gray-200={!settings.current.selectedSeventhIds.includes(shape.id)}
+							class:text-gray-700={!settings.current.selectedSeventhIds.includes(shape.id)}
+							class:border-gray-300={!settings.current.selectedSeventhIds.includes(shape.id)}
+						>
+							{shape.label}
+						</button>
+					{/each}
+				</div>
+			</div>
+		{/if}
 	</div>
 
 	<div class="mb-8 flex flex-col items-center gap-4">
@@ -566,7 +716,7 @@
 			<button
 				type="button"
 				onclick={startGame}
-				disabled={settings.current.selectedSemitones.length === 0 || !samplerLoaded}
+				disabled={!selectionReady || !samplerLoaded}
 				class="rounded bg-blue-500 px-6 py-3 text-lg font-semibold text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-400"
 			>
 				Start interval exercise
@@ -601,8 +751,11 @@
 				Set your floor note, then how far above it the lowest tone of each question may be (1–18 half steps, up to 1.5
 				octaves). The chord’s top note follows from the intervals.
 			</li>
-			<li>Choose 2, 3, or 4 notes for each harmonic.</li>
-			<li>Pick which interval sizes can appear between adjacent notes.</li>
+			<li>Choose 2, 3, or 4 notes per harmonic.</li>
+			<li>
+				For 2 notes, pick which interval sizes are allowed. For 3 or 4 notes, pick triad or seventh chord voicings
+				(major, minor, diminished, augmented, dom7, maj7, m7, half-dim, etc., including inversions).
+			</li>
 			<li>Adjust the pause after the harmonic block and the tempo for the arpeggios.</li>
 			<li>After the sequence, the interval names are shown, then the next round starts automatically.</li>
 		</ol>
