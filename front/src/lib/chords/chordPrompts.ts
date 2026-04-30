@@ -1,5 +1,5 @@
 /**
- * Chord prompts: diatonic chords from a chosen tonality, user-built pool, optional slash bass.
+ * Chord prompts: diatonic chords, each pool item stores its own tonality; multiple named profiles.
  */
 
 export const CIRCLE_OF_FIFTHS = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'] as const;
@@ -27,6 +27,13 @@ const NATURAL_PC: Record<string, number> = {
 	B: 11
 };
 
+function newProfileId(): string {
+	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+		return crypto.randomUUID();
+	}
+	return `p-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
 function toSharpName(note: string): string {
 	return FLAT_TO_SHARP[note] ?? note;
 }
@@ -37,7 +44,6 @@ export function noteToPc(note: string): number | null {
 	return i === -1 ? null : i;
 }
 
-/** Semitones above tonic for each scale degree (1..7). */
 const MODE_STEPS: Record<TonalityMode, number[]> = {
 	major: [0, 2, 4, 5, 7, 9, 11],
 	naturalMinor: [0, 2, 3, 5, 7, 8, 10],
@@ -69,9 +75,6 @@ function spellLetterToPc(letter: string, targetPc: number): string {
 	return `${letter}#`;
 }
 
-/**
- * Seven diatonic note names for tonality (enharmonic spelling follows letter line from tonic).
- */
 export function buildDiatonicScale(tonic: CircleRoot, mode: TonalityMode): string[] {
 	const tonicPc = noteToPc(tonic);
 	if (tonicPc === null) return [];
@@ -85,39 +88,58 @@ export function buildDiatonicScale(tonic: CircleRoot, mode: TonalityMode): strin
 
 export type ChordKind = 'triad' | 'seventh';
 
-export type TonalityPoolEntry = {
-	/** Scale degree 1–7 */
+/** One chord in the practice pool — tonality is fixed when added (changing the builder does not rewrite this). */
+export type PooledChordEntry = {
+	tonalityRoot: CircleRoot;
+	tonalityMode: TonalityMode;
 	degree: number;
 	kind: ChordKind;
-	/** Bass note = this scale degree (pedal / slash). Omit = chord root in bass. */
 	slashBassDegree?: number;
 };
 
-export type ChordPromptPick = {
-	label: string;
-	tonalityRoot: CircleRoot;
-	tonalityMode: TonalityMode;
-	entry: TonalityPoolEntry;
-};
-
-export type ChordPromptsSettings = {
-	tonalityRoot: CircleRoot;
-	tonalityMode: TonalityMode;
-	poolEntries: TonalityPoolEntry[];
+export type ChordPromptProfile = {
+	id: string;
+	name: string;
+	builderTonalityRoot: CircleRoot;
+	builderTonalityMode: TonalityMode;
+	poolEntries: PooledChordEntry[];
 	bpm: number;
 	clicksPerChord: number;
 	clickVolume: number;
 	metronomeEnabled: boolean;
 };
 
-export const DEFAULT_CHORD_PROMPTS_SETTINGS: ChordPromptsSettings = {
-	tonalityRoot: 'C',
-	tonalityMode: 'major',
-	poolEntries: [],
-	bpm: 80,
-	clicksPerChord: 4,
-	clickVolume: 1,
-	metronomeEnabled: true
+export type ChordPromptsSettings = {
+	profiles: ChordPromptProfile[];
+	activeProfileId: string;
+};
+
+export function createChordPromptProfile(
+	name: string,
+	overrides?: Partial<Omit<ChordPromptProfile, 'id'>> & { id?: string }
+): ChordPromptProfile {
+	return {
+		id: overrides?.id ?? newProfileId(),
+		name,
+		builderTonalityRoot: 'C',
+		builderTonalityMode: 'major',
+		poolEntries: [],
+		bpm: 80,
+		clicksPerChord: 4,
+		clickVolume: 1,
+		metronomeEnabled: true,
+		...overrides
+	};
+}
+
+export const DEFAULT_CHORD_PROMPTS_SETTINGS: ChordPromptsSettings = (() => {
+	const p = createChordPromptProfile('Default');
+	return { profiles: [p], activeProfileId: p.id };
+})();
+
+export type ChordPromptPick = {
+	label: string;
+	entry: PooledChordEntry;
 };
 
 function clamp(n: number, lo: number, hi: number, fallback: number): number {
@@ -126,11 +148,10 @@ function clamp(n: number, lo: number, hi: number, fallback: number): number {
 	return Math.min(hi, Math.max(lo, x));
 }
 
-export function poolEntryKey(e: TonalityPoolEntry): string {
-	return `${e.degree}-${e.kind}-${e.slashBassDegree ?? ''}`;
+export function poolEntryKey(e: PooledChordEntry): string {
+	return `${e.tonalityRoot}|${e.tonalityMode}|${e.degree}|${e.kind}|${e.slashBassDegree ?? ''}`;
 }
 
-/** Suffix after chord root note (e.g. `m7`, `ø`, `maj7`). */
 function classifyChordSymbol(
 	rootPc: number,
 	thirdPc: number,
@@ -173,8 +194,8 @@ function classifyChordSymbol(
 	return { triadSuffix, seventhSuffix };
 }
 
-export function formatPoolEntryLabel(tonic: CircleRoot, mode: TonalityMode, entry: TonalityPoolEntry): string {
-	const scale = buildDiatonicScale(tonic, mode);
+export function formatPoolEntryLabel(entry: PooledChordEntry): string {
+	const scale = buildDiatonicScale(entry.tonalityRoot, entry.tonalityMode);
 	if (scale.length !== 7) return '?';
 
 	const d = entry.degree;
@@ -225,19 +246,23 @@ export function formatPoolEntryLabel(tonic: CircleRoot, mode: TonalityMode, entr
 	return body;
 }
 
-/** Preview lines for builder UI: degree, roman hint, triad label, seventh label. */
 export function diatonicDegreePreview(
 	tonic: CircleRoot,
 	mode: TonalityMode,
 	degree: number
 ): { roman: string; triad: string; seventh: string } {
-	const triad: TonalityPoolEntry = { degree, kind: 'triad' };
-	const seventh: TonalityPoolEntry = { degree, kind: 'seventh' };
+	const triad: PooledChordEntry = { tonalityRoot: tonic, tonalityMode: mode, degree, kind: 'triad' };
+	const seventh: PooledChordEntry = {
+		tonalityRoot: tonic,
+		tonalityMode: mode,
+		degree,
+		kind: 'seventh'
+	};
 	const romans = romanNumeralForDegree(mode, degree);
 	return {
 		roman: romans,
-		triad: formatPoolEntryLabel(tonic, mode, triad),
-		seventh: formatPoolEntryLabel(tonic, mode, seventh)
+		triad: formatPoolEntryLabel(triad),
+		seventh: formatPoolEntryLabel(seventh)
 	};
 }
 
@@ -254,13 +279,13 @@ function randomItem<T>(arr: readonly T[]): T {
 }
 
 export function pickRandomChordFromPool(options: {
-	tonalityRoot: CircleRoot;
-	tonalityMode: TonalityMode;
-	pool: TonalityPoolEntry[];
+	pool: PooledChordEntry[];
 	lastLabel?: string | null;
 }): ChordPromptPick | null {
 	const pool = options.pool.filter(
 		(e) =>
+			CIRCLE_OF_FIFTHS.includes(e.tonalityRoot as CircleRoot) &&
+			TONALITY_MODES.includes(e.tonalityMode) &&
 			e.degree >= 1 &&
 			e.degree <= 7 &&
 			(e.slashBassDegree === undefined || (e.slashBassDegree >= 1 && e.slashBassDegree <= 7))
@@ -269,86 +294,171 @@ export function pickRandomChordFromPool(options: {
 
 	for (let attempt = 0; attempt < 50; attempt++) {
 		const entry = randomItem(pool);
-		const label = formatPoolEntryLabel(options.tonalityRoot, options.tonalityMode, entry);
+		const label = formatPoolEntryLabel(entry);
 		if (options.lastLabel && label === options.lastLabel && pool.length > 1) continue;
-		return {
-			label,
-			tonalityRoot: options.tonalityRoot,
-			tonalityMode: options.tonalityMode,
-			entry
-		};
+		return { label, entry };
 	}
 
 	const entry = randomItem(pool);
-	return {
-		label: formatPoolEntryLabel(options.tonalityRoot, options.tonalityMode, entry),
-		tonalityRoot: options.tonalityRoot,
-		tonalityMode: options.tonalityMode,
-		entry
-	};
+	return { label: formatPoolEntryLabel(entry), entry };
 }
 
-export function addPoolEntry(
-	pool: TonalityPoolEntry[],
-	entry: TonalityPoolEntry
-): TonalityPoolEntry[] {
+export function addPoolEntry(pool: PooledChordEntry[], entry: PooledChordEntry): PooledChordEntry[] {
 	const k = poolEntryKey(entry);
 	const next = pool.filter((e) => poolEntryKey(e) !== k);
 	return [...next, entry];
 }
 
-export function removePoolEntry(pool: TonalityPoolEntry[], entry: TonalityPoolEntry): TonalityPoolEntry[] {
+export function removePoolEntry(pool: PooledChordEntry[], entry: PooledChordEntry): PooledChordEntry[] {
 	const k = poolEntryKey(entry);
 	return pool.filter((e) => poolEntryKey(e) !== k);
 }
 
-type LegacySettings = {
+function sanitizeProfile(raw: unknown, fallbackName: string): ChordPromptProfile | null {
+	if (!raw || typeof raw !== 'object') return null;
+	const o = raw as Record<string, unknown>;
+	const id = typeof o.id === 'string' && o.id.length > 0 ? o.id : newProfileId();
+	const name = typeof o.name === 'string' && o.name.trim() ? o.name.trim() : fallbackName;
+
+	const builderTonalityRoot = CIRCLE_OF_FIFTHS.includes(o.builderTonalityRoot as CircleRoot)
+		? (o.builderTonalityRoot as CircleRoot)
+		: CIRCLE_OF_FIFTHS.includes(o.tonalityRoot as CircleRoot)
+			? (o.tonalityRoot as CircleRoot)
+			: 'C';
+
+	const rawMode = o.builderTonalityMode ?? o.tonalityMode;
+	const builderTonalityMode =
+		rawMode === 'major' || rawMode === 'naturalMinor' || rawMode === 'harmonicMinor'
+			? rawMode
+			: 'major';
+
+	let poolEntries: PooledChordEntry[] = [];
+	if (Array.isArray(o.poolEntries)) {
+		for (const e of o.poolEntries) {
+			if (!e || typeof e !== 'object') continue;
+			const row = e as Record<string, unknown>;
+			const deg = clamp(Number(row.degree), 1, 7, -1);
+			const kind = row.kind;
+			if (deg < 1 || (kind !== 'triad' && kind !== 'seventh')) continue;
+
+			const tr = CIRCLE_OF_FIFTHS.includes(row.tonalityRoot as CircleRoot)
+				? (row.tonalityRoot as CircleRoot)
+				: builderTonalityRoot;
+			const tm =
+				row.tonalityMode === 'major' ||
+				row.tonalityMode === 'naturalMinor' ||
+				row.tonalityMode === 'harmonicMinor'
+					? row.tonalityMode
+					: builderTonalityMode;
+
+			let slashBassDegree: number | undefined;
+			const sd = row.slashBassDegree;
+			if (sd !== undefined && sd !== null) {
+				const b = clamp(Number(sd), 1, 7, -1);
+				if (b >= 1) slashBassDegree = b;
+			}
+			poolEntries.push({ tonalityRoot: tr, tonalityMode: tm, degree: deg, kind, slashBassDegree });
+		}
+	}
+
+	const ref = DEFAULT_CHORD_PROMPTS_SETTINGS.profiles[0]!;
+	return {
+		id,
+		name,
+		builderTonalityRoot,
+		builderTonalityMode,
+		poolEntries,
+		bpm: clamp(Number(o.bpm ?? ref.bpm), 40, 240, ref.bpm),
+		clicksPerChord: clamp(Number(o.clicksPerChord ?? ref.clicksPerChord), 1, 32, ref.clicksPerChord),
+		clickVolume: Math.min(
+			1,
+			Math.max(
+				0,
+				Number.isFinite(Number(o.clickVolume)) ? Number(o.clickVolume) : ref.clickVolume
+			)
+		),
+		metronomeEnabled:
+			typeof o.metronomeEnabled === 'boolean' ? o.metronomeEnabled : ref.metronomeEnabled
+	};
+}
+
+/** Flat storage before profiles (single pool + global tonality). */
+type LegacyFlat = {
+	tonalityRoot?: CircleRoot;
+	tonalityMode?: TonalityMode;
+	poolEntries?: Array<{ degree: number; kind: ChordKind; slashBassDegree?: number }>;
+	bpm?: number;
+	clicksPerChord?: number;
+	clickVolume?: number;
+	metronomeEnabled?: boolean;
 	selectedQualityIds?: string[];
-	slashChordsEnabled?: boolean;
 };
 
-export function sanitizeChordPromptsSettings(raw: Partial<ChordPromptsSettings> & LegacySettings): ChordPromptsSettings {
+export function sanitizeChordPromptsSettings(
+	raw: Partial<ChordPromptsSettings> & LegacyFlat
+): ChordPromptsSettings {
 	const d = DEFAULT_CHORD_PROMPTS_SETTINGS;
 
-	const tonalityRoot = CIRCLE_OF_FIFTHS.includes(raw.tonalityRoot as CircleRoot)
-		? (raw.tonalityRoot as CircleRoot)
-		: d.tonalityRoot;
+	if (raw.profiles && Array.isArray(raw.profiles) && raw.profiles.length > 0) {
+		const profiles = raw.profiles
+			.map((p, i) => sanitizeProfile(p, `Profile ${i + 1}`))
+			.filter((p): p is ChordPromptProfile => p !== null);
+		if (profiles.length === 0) return d;
+		let activeProfileId =
+			typeof raw.activeProfileId === 'string' ? raw.activeProfileId : profiles[0]!.id;
+		if (!profiles.some((p) => p.id === activeProfileId)) activeProfileId = profiles[0]!.id;
+		return { profiles, activeProfileId };
+	}
 
-	const tonalityMode =
-		raw.tonalityMode === 'major' ||
-		raw.tonalityMode === 'naturalMinor' ||
-		raw.tonalityMode === 'harmonicMinor'
-			? raw.tonalityMode
-			: d.tonalityMode;
-
-	let poolEntries: TonalityPoolEntry[] = [];
-	if (Array.isArray(raw.poolEntries)) {
+	if (raw.poolEntries && Array.isArray(raw.poolEntries) && raw.poolEntries.length >= 0) {
+		const tr = CIRCLE_OF_FIFTHS.includes(raw.tonalityRoot as CircleRoot)
+			? (raw.tonalityRoot as CircleRoot)
+			: 'C';
+		const tm =
+			raw.tonalityMode === 'major' ||
+			raw.tonalityMode === 'naturalMinor' ||
+			raw.tonalityMode === 'harmonicMinor'
+				? raw.tonalityMode
+				: 'major';
+		const migratedPool: PooledChordEntry[] = [];
 		for (const e of raw.poolEntries) {
 			if (!e || typeof e !== 'object') continue;
-			const deg = clamp(Number((e as TonalityPoolEntry).degree), 1, 7, -1);
-			const kind = (e as TonalityPoolEntry).kind;
+			const deg = clamp(Number((e as { degree: number }).degree), 1, 7, -1);
+			const kind = (e as { kind: ChordKind }).kind;
 			if (deg < 1 || (kind !== 'triad' && kind !== 'seventh')) continue;
-			const sd = (e as TonalityPoolEntry).slashBassDegree;
+			const sd = (e as { slashBassDegree?: number }).slashBassDegree;
 			let slashBassDegree: number | undefined;
 			if (sd !== undefined && sd !== null) {
 				const b = clamp(Number(sd), 1, 7, -1);
 				if (b >= 1) slashBassDegree = b;
 			}
-			poolEntries.push({ degree: deg, kind, slashBassDegree });
+			migratedPool.push({ tonalityRoot: tr, tonalityMode: tm, degree: deg, kind, slashBassDegree });
 		}
+		const p = createChordPromptProfile('Default', {
+			builderTonalityRoot: tr,
+			builderTonalityMode: tm,
+			poolEntries: migratedPool,
+			bpm: clamp(raw.bpm ?? 80, 40, 240, 80),
+			clicksPerChord: clamp(raw.clicksPerChord ?? 4, 1, 32, 4),
+			clickVolume: Math.min(
+				1,
+				Math.max(0, Number.isFinite(Number(raw.clickVolume)) ? Number(raw.clickVolume) : 1)
+			),
+			metronomeEnabled:
+				typeof raw.metronomeEnabled === 'boolean' ? raw.metronomeEnabled : true
+		});
+		return { profiles: [p], activeProfileId: p.id };
 	}
 
-	return {
-		tonalityRoot,
-		tonalityMode,
-		poolEntries,
-		bpm: clamp(raw.bpm ?? d.bpm, 40, 240, d.bpm),
-		clicksPerChord: clamp(raw.clicksPerChord ?? d.clicksPerChord, 1, 32, d.clicksPerChord),
-		clickVolume: Math.min(
-			1,
-			Math.max(0, Number.isFinite(Number(raw.clickVolume)) ? Number(raw.clickVolume) : d.clickVolume)
-		),
-		metronomeEnabled:
-			typeof raw.metronomeEnabled === 'boolean' ? raw.metronomeEnabled : d.metronomeEnabled
-	};
+	return { ...d, activeProfileId: d.profiles[0]!.id };
+}
+
+export function getActiveProfile(settings: ChordPromptsSettings): ChordPromptProfile {
+	const p = settings.profiles.find((x) => x.id === settings.activeProfileId);
+	return p ?? settings.profiles[0]!;
+}
+
+export function profileIndex(settings: ChordPromptsSettings): number {
+	const i = settings.profiles.findIndex((x) => x.id === settings.activeProfileId);
+	return i >= 0 ? i : 0;
 }
