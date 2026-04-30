@@ -79,6 +79,9 @@
 			<a href="/chords" class="font-medium transition-colors duration-200 hover:text-blue-400"
 			>Chords</a
 		>
+			<a href="/chord-prompts" class="font-medium transition-colors duration-200 hover:text-blue-400"
+			>Chord prompts</a
+		>
 		<a href="/dictation" class="font-medium transition-colors duration-200 hover:text-blue-400"
 			>Dictation</a
 		>
@@ -132,6 +135,9 @@
 			>
 				<a href="/chords" class="font-medium transition-colors duration-200 hover:text-blue-400"
 				>Chords</a
+			>
+				<a href="/chord-prompts" class="font-medium transition-colors duration-200 hover:text-blue-400"
+				>Chord prompts</a
 			>
 			<a href="/dictation" class="font-medium transition-colors duration-200 hover:text-blue-400"
 				>Dictation</a
