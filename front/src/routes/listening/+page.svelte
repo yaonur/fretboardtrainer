@@ -7,6 +7,16 @@
 	const circleOfFifths = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
 	const degreeButtons = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
+	const droneRegisterOptions = (() => {
+		const options: string[] = [];
+		for (let octave = 0; octave <= 4; octave++) {
+			for (const name of notes) {
+				options.push(`${name}${octave}`);
+			}
+		}
+		return options;
+	})();
+
 	// Game state
 	let selectedKey = $state('A');
 	let lowestNote = $state<string>('G3'); // User's lowest note as reference
@@ -19,6 +29,8 @@
 	let sampler: Tone.Sampler;
 	let clickSampler: Tone.Sampler;
 	let voiceSampler: Tone.Sampler;
+	let droneSampler: Tone.Sampler;
+	let dronePlaying = $state(false);
 	let lastDegree = $state<number | null>(null); // Track last asked degree to avoid repetition
 	let questionTimeout: ReturnType<typeof setTimeout> | null = null;
 	let samplerLoaded = $state(false);
@@ -52,6 +64,26 @@
 	// --- Note Sustain Settings ---
 	let noteSustainEnabled = $state(false);
 	let noteSustainMultiplier = $state(1); // How many beats to sustain the note
+
+	// --- Tonic reference ---
+	let tonicEnabled = $state(false);
+	let tonicSustainEnabled = $state(false);
+	let selectedTonicDegrees = $state<number[]>([1]);
+	let tonicRotateFrequency = $state(3);
+	let activeTonicDegree = $state(1);
+	let tonicRotateIndex = $state(0);
+	let questionsOnActiveTonic = $state(0);
+	let droneRegister = $state('C2');
+	let droneVolume = $state(0.35);
+	let droneSamplerLoaded = $state(false);
+	let degreeOctavesFromTonic = $state(false);
+	let selectedDegreeOctaveOffsets = $state<number[]>([0, 1]);
+	let activeDegreeOctaveOffset = $state(0);
+
+	// --- Random tone (key) change ---
+	let randomToneEnabled = $state(false);
+	let questionsInCurrentKey = $state(0);
+	let nextToneChangeAfter = $state(10);
 
 	let showAnswerDelay: number;
 	let answerDisplayTime: number;
@@ -128,6 +160,20 @@
 				}
 			}).toDestination();
 
+			droneSampler = new Tone.Sampler({
+				urls: {
+					C4: 'C4.mp3',
+					'D#4': 'Ds4.mp3',
+					'F#4': 'Fs4.mp3'
+				},
+				release: 3,
+				attack: 0.05,
+				baseUrl: 'https://tonejs.github.io/audio/salamander/',
+				onload: () => {
+					droneSamplerLoaded = true;
+				}
+			}).toDestination();
+
 			isAudioInitialized = true;
 		}
 	}
@@ -182,35 +228,183 @@
 	// Get the major scale for the current key
 	const currentScale = $derived(generateMajorScale(selectedKey));
 
-	// Calculate the best octave for a note based on user's lowest note
-	function getBestOctave(noteName: string): number {
+	function getBestOctaveForReference(noteName: string, referenceNote: string): number {
 		const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-		// Parse the lowest note (e.g., "G3" -> note: "G", octave: 3)
-		const lowestNoteName = lowestNote.slice(0, -1);
-		const lowestOctave = parseInt(lowestNote.slice(-1));
+		const referenceNoteName = referenceNote.slice(0, -1);
+		const referenceOctave = parseInt(referenceNote.slice(-1));
 
-		// Get note indices
 		const targetNoteIndex = noteNames.indexOf(noteName);
-		const lowestNoteIndex = noteNames.indexOf(lowestNoteName);
+		const referenceNoteIndex = noteNames.indexOf(referenceNoteName);
 
-		if (targetNoteIndex === -1 || lowestNoteIndex === -1) {
-			return 4; // Fallback to middle octave
+		if (targetNoteIndex === -1 || referenceNoteIndex === -1) {
+			return 4;
 		}
 
-		// If target note is lower than lowest note, go up one octave
-		if (targetNoteIndex < lowestNoteIndex) {
-			return lowestOctave + 1;
+		if (targetNoteIndex < referenceNoteIndex) {
+			return referenceOctave + 1;
 		}
 
-		// Otherwise, stay in the same octave as lowest note
-		return lowestOctave;
+		return referenceOctave;
+	}
+
+	function getBestOctave(noteName: string): number {
+		return getBestOctaveForReference(noteName, lowestNote);
+	}
+
+	function parsePitch(pitch: string): { noteName: string; octave: number } {
+		return { noteName: pitch.slice(0, -1), octave: parseInt(pitch.slice(-1), 10) };
+	}
+
+	function noteToMidi(noteName: string, octave: number): number {
+		const idx = notes.indexOf(noteName);
+		if (idx === -1) return 0;
+		return (octave + 1) * 12 + idx;
+	}
+
+	function getMinimumDegreeOctave(noteName: string): number {
+		const tonicPitch = getTonicPitch();
+		const { noteName: tonicNoteName, octave: tonicOctave } = parsePitch(tonicPitch);
+		let octave = getBestOctaveForReference(noteName, `${tonicNoteName}${tonicOctave}`);
+		const tonicMidi = noteToMidi(tonicNoteName, tonicOctave);
+		while (noteToMidi(noteName, octave) < tonicMidi) {
+			octave++;
+		}
+		return octave;
+	}
+
+	function getDegreeOctave(noteName: string): number {
+		if (!degreeOctavesFromTonic || !tonicEnabled) {
+			return getBestOctave(noteName);
+		}
+		return getMinimumDegreeOctave(noteName) + activeDegreeOctaveOffset;
+	}
+
+	function pickDegreeOctaveOffset() {
+		if (!degreeOctavesFromTonic || !tonicEnabled) {
+			activeDegreeOctaveOffset = 0;
+			return;
+		}
+		const options = [...selectedDegreeOctaveOffsets].sort((a, b) => a - b);
+		if (options.length === 0) {
+			activeDegreeOctaveOffset = 0;
+			return;
+		}
+		activeDegreeOctaveOffset = options[Math.floor(Math.random() * options.length)];
+	}
+
+	function toggleDegreeOctaveOffset(offset: number) {
+		if (selectedDegreeOctaveOffsets.includes(offset)) {
+			const next = selectedDegreeOctaveOffsets.filter((o) => o !== offset);
+			selectedDegreeOctaveOffsets = next.length > 0 ? next : [offset];
+		} else {
+			selectedDegreeOctaveOffsets = [...selectedDegreeOctaveOffsets, offset].sort((a, b) => a - b);
+		}
+	}
+
+	function getSortedTonicDegrees(): number[] {
+		return [...selectedTonicDegrees].sort((a, b) => a - b);
+	}
+
+	function getTonicPitch(degreeNum = activeTonicDegree): string {
+		const noteName = currentScale[degreeNum - 1];
+		if (!noteName) return 'C4';
+		const octave = getBestOctaveForReference(noteName, droneRegister);
+		return `${noteName}${octave}`;
+	}
+
+	function advanceTonicIfNeeded() {
+		const sorted = getSortedTonicDegrees();
+		if (!tonicEnabled || sorted.length === 0) return;
+
+		if (sorted.length === 1) {
+			activeTonicDegree = sorted[0];
+			return;
+		}
+
+		if (questionCount === 1) {
+			tonicRotateIndex = 0;
+			activeTonicDegree = sorted[0];
+			questionsOnActiveTonic = 1;
+			return;
+		}
+
+		questionsOnActiveTonic++;
+		if (questionsOnActiveTonic > tonicRotateFrequency) {
+			tonicRotateIndex = (tonicRotateIndex + 1) % sorted.length;
+			activeTonicDegree = sorted[tonicRotateIndex];
+			questionsOnActiveTonic = 1;
+		}
+	}
+
+	function playTonicOnQuestion() {
+		if (!tonicEnabled || selectedTonicDegrees.length === 0 || !droneSamplerLoaded) return;
+		const pitch = getTonicPitch();
+		droneSampler.volume.value = Tone.gainToDb(droneVolume);
+		if (tonicSustainEnabled) {
+			droneSampler.releaseAll();
+			droneSampler.triggerAttack(pitch, Tone.now() + 0.05);
+			dronePlaying = true;
+		} else {
+			droneSampler.triggerAttackRelease(pitch, '2n', Tone.now() + 0.05);
+		}
+	}
+
+	function toggleTonicDegree(degree: number) {
+		if (selectedTonicDegrees.includes(degree)) {
+			const next = selectedTonicDegrees.filter((d) => d !== degree);
+			selectedTonicDegrees = next.length > 0 ? next : [degree];
+		} else {
+			selectedTonicDegrees = [...selectedTonicDegrees, degree].sort((a, b) => a - b);
+		}
+	}
+
+	function randomToneChangeInterval(): number {
+		return Math.floor(Math.random() * 50) + 1;
+	}
+
+	function pickRandomKey() {
+		const otherKeys = circleOfFifths.filter((key) => key !== selectedKey);
+		if (otherKeys.length === 0) return;
+		selectedKey = otherKeys[Math.floor(Math.random() * otherKeys.length)];
+	}
+
+	function maybeChangeRandomKey() {
+		if (!randomToneEnabled) return;
+		questionsInCurrentKey++;
+		if (questionsInCurrentKey >= nextToneChangeAfter) {
+			pickRandomKey();
+			questionsInCurrentKey = 0;
+			nextToneChangeAfter = randomToneChangeInterval();
+			updateDronePitch();
+		}
+	}
+
+	function stopDrone() {
+		if (droneSampler && dronePlaying) {
+			droneSampler.releaseAll();
+			dronePlaying = false;
+		}
+	}
+
+	function updateDronePitch() {
+		if (!tonicEnabled || !tonicSustainEnabled || !droneSampler || !droneSamplerLoaded) {
+			stopDrone();
+			return;
+		}
+		const pitch = getTonicPitch();
+		droneSampler.volume.value = Tone.gainToDb(droneVolume);
+		if (dronePlaying) {
+			droneSampler.releaseAll();
+		}
+		droneSampler.triggerAttack(pitch, Tone.now() + 0.05);
+		dronePlaying = true;
 	}
 
 	// Play a note
 	function playNote(note: string) {
 		if (isAudioInitialized && sampler && samplerLoaded) {
-			const bestOctave = getBestOctave(note);
+			const bestOctave = getDegreeOctave(note);
 
 			// Calculate sustain duration based on click timing if enabled
 			let duration: string;
@@ -330,6 +524,13 @@
 			} catch {}
 			voiceSamplerLoaded = false;
 		}
+		if (droneSampler) {
+			try {
+				droneSampler.dispose();
+			} catch {}
+			droneSamplerLoaded = false;
+			dronePlaying = false;
+		}
 		isAudioInitialized = false;
 	}
 	$effect(() => {
@@ -354,6 +555,9 @@
 		stopMetronome();
 		feedback = '';
 		questionCount++;
+		maybeChangeRandomKey();
+		advanceTonicIfNeeded();
+		pickDegreeOctaveOffset();
 		let targetDegree: number;
 		// --- Sequence Mode Logic ---
 		if (
@@ -398,6 +602,9 @@
 			totalClicks,
 			(clickNum) => {
 				if (!notePlayed && clickNum === 1) {
+					if (tonicEnabled) {
+						playTonicOnQuestion();
+					}
 					if (callDegreeFirst) {
 						speakDegree(degreeButtons[targetDegree - 1]);
 					} else if (!announceOnly) {
@@ -445,8 +652,17 @@
 		await initAudio();
 		questionCount = 0;
 		lastDegree = null;
-		generateNewQuestion();
+		questionsInCurrentKey = 0;
+		questionsOnActiveTonic = 0;
+		tonicRotateIndex = 0;
+		if (selectedTonicDegrees.length > 0) {
+			activeTonicDegree = getSortedTonicDegrees()[0];
+		}
+		if (randomToneEnabled) {
+			nextToneChangeAfter = randomToneChangeInterval();
+		}
 		gameStarted = true;
+		generateNewQuestion();
 	}
 
 	// Stop the game
@@ -461,12 +677,31 @@
 		}
 		voiceQueue = [];
 		stopMetronome();
+		stopDrone();
 		gameStarted = false;
 		correctAnswer = null;
 		feedback = '';
 		questionCount = 0;
 		lastDegree = null;
+		questionsInCurrentKey = 0;
+		questionsOnActiveTonic = 0;
 	}
+
+	$effect(() => {
+		if (!gameStarted || !isAudioInitialized) return;
+		tonicEnabled;
+		tonicSustainEnabled;
+		droneRegister;
+		droneVolume;
+		selectedKey;
+		activeTonicDegree;
+		droneSamplerLoaded;
+		if (tonicEnabled && tonicSustainEnabled && droneSamplerLoaded) {
+			updateDronePitch();
+		} else {
+			stopDrone();
+		}
+	});
 
 	// Utility: speak a sequence of degrees one per beat
 	function speakSequence(degrees: number[]) {
@@ -579,11 +814,13 @@
 		</div>
 
 		<!-- Lowest Note Selection -->
-		<div class="mb-4 flex items-center gap-4">
+		<div class="mb-4 flex flex-col gap-1">
+		<div class="flex items-center gap-4">
 			<span class="text-sm font-medium">Lowest Note:</span>
 			<select
 				bind:value={lowestNote}
-				class="rounded border border-gray-300 bg-white px-3 py-1 text-sm dark:bg-gray-700 dark:text-white"
+				disabled={tonicEnabled && degreeOctavesFromTonic}
+				class="rounded border border-gray-300 bg-white px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-700 dark:text-white"
 			>
 				<option value="B1">B1 (Bass)</option>
 				<option value="C2">C2 (Low Bass)</option>
@@ -602,6 +839,12 @@
 				<option value="B3">B3 (Tenor)</option>
 				<option value="C4">C4 (Tenor/Alto)</option>
 			</select>
+		</div>
+		{#if tonicEnabled && degreeOctavesFromTonic}
+			<p class="text-xs text-gray-600 dark:text-gray-400">
+				Degree pitches use the current tonic ({getTonicPitch()}) as the floor instead of lowest note.
+			</p>
+		{/if}
 		</div>
 
 		<!-- Tempo Control -->
@@ -716,6 +959,136 @@
 						((noteSustainMultiplier * beatDuration) / 1000) * 100
 					) / 100}s)
 				</div>
+			{/if}
+		</div>
+
+		<!-- Tonic reference -->
+		<div
+			class="mb-4 flex flex-col items-center gap-2 rounded-lg bg-amber-50 p-4 dark:bg-amber-900/20"
+		>
+			<label class="flex cursor-pointer select-none items-center gap-2">
+				<input type="checkbox" bind:checked={tonicEnabled} class="accent-amber-500" />
+				<span class="text-sm font-medium">Enable tonic (plays each new question)</span>
+			</label>
+			{#if tonicEnabled}
+				<div class="w-full">
+					<span class="mb-2 block text-center text-sm font-medium">Tonic degree:</span>
+					<div class="flex flex-wrap justify-center gap-2">
+						{#each degreeButtons as degree, i}
+							<button
+								type="button"
+								onclick={() => toggleTonicDegree(i + 1)}
+								class="rounded border-2 px-3 py-1 text-lg font-bold transition-colors"
+								class:bg-amber-600={selectedTonicDegrees.includes(i + 1)}
+								class:text-white={selectedTonicDegrees.includes(i + 1)}
+								class:border-amber-600={selectedTonicDegrees.includes(i + 1)}
+								class:bg-gray-200={!selectedTonicDegrees.includes(i + 1)}
+								class:text-gray-700={!selectedTonicDegrees.includes(i + 1)}
+								class:border-gray-300={!selectedTonicDegrees.includes(i + 1)}
+							>
+								{degree}
+							</button>
+						{/each}
+					</div>
+				</div>
+				{#if selectedTonicDegrees.length > 1}
+					<div class="flex flex-wrap items-center justify-center gap-2">
+						<span class="text-sm">Change tonic every</span>
+						<input
+							type="number"
+							bind:value={tonicRotateFrequency}
+							min="1"
+							max="50"
+							class="w-16 rounded border border-gray-300 bg-white px-2 py-1 text-center text-sm dark:bg-gray-700 dark:text-white"
+						/>
+						<span class="text-sm">question{tonicRotateFrequency !== 1 ? 's' : ''}</span>
+					</div>
+					<p class="text-center text-xs text-gray-600 dark:text-gray-400">
+						Rotates: {getSortedTonicDegrees()
+							.map((d) => degreeButtons[d - 1])
+							.join(' → ')}
+					</p>
+				{/if}
+				<label class="flex cursor-pointer select-none items-center gap-2">
+					<input type="checkbox" bind:checked={tonicSustainEnabled} class="accent-amber-500" />
+					<span class="text-sm">Sustain tonic between questions</span>
+				</label>
+				<div class="flex flex-wrap items-center justify-center gap-4">
+					<span class="text-sm font-medium">Register from:</span>
+					<select
+						bind:value={droneRegister}
+						class="max-w-[8rem] rounded border border-gray-300 bg-white px-3 py-1 text-sm dark:bg-gray-700 dark:text-white"
+					>
+						{#each droneRegisterOptions as reg (reg)}
+							<option value={reg}>{reg}</option>
+						{/each}
+					</select>
+					<span class="text-xs text-gray-600 dark:text-gray-400">
+						Current: {degreeButtons[activeTonicDegree - 1]} → {getTonicPitch()} in {selectedKey}
+					</span>
+				</div>
+				<div class="flex items-center gap-4">
+					<span class="text-sm font-medium">Tonic volume:</span>
+					<input
+						type="range"
+						min="0"
+						max="1"
+						step="0.01"
+						bind:value={droneVolume}
+						class="w-48 accent-amber-500"
+					/>
+					<span class="text-sm">{Math.round(droneVolume * 100)}%</span>
+				</div>
+				<label class="flex cursor-pointer select-none items-center gap-2">
+					<input type="checkbox" bind:checked={degreeOctavesFromTonic} class="accent-amber-500" />
+					<span class="text-sm">Place degrees relative to tonic (never below tonic pitch)</span>
+				</label>
+				{#if degreeOctavesFromTonic}
+					<div class="w-full">
+						<span class="mb-2 block text-center text-sm font-medium"
+							>Octave offsets to use (random each question):</span
+						>
+						<div class="flex flex-wrap justify-center gap-2">
+							{#each [0, 1, 2, 3, 4] as offset (offset)}
+								<button
+									type="button"
+									onclick={() => toggleDegreeOctaveOffset(offset)}
+									class="rounded border-2 px-3 py-1 text-sm font-bold transition-colors"
+									class:bg-amber-600={selectedDegreeOctaveOffsets.includes(offset)}
+									class:text-white={selectedDegreeOctaveOffsets.includes(offset)}
+									class:border-amber-600={selectedDegreeOctaveOffsets.includes(offset)}
+									class:bg-gray-200={!selectedDegreeOctaveOffsets.includes(offset)}
+									class:text-gray-700={!selectedDegreeOctaveOffsets.includes(offset)}
+									class:border-gray-300={!selectedDegreeOctaveOffsets.includes(offset)}
+								>
+									+{offset}
+								</button>
+							{/each}
+						</div>
+					</div>
+					<p class="text-center text-xs text-gray-600 dark:text-gray-400">
+						Each question picks one offset above the tonic floor. Selected:
+						{selectedDegreeOctaveOffsets.map((o) => `+${o}`).join(', ')}
+					</p>
+				{/if}
+			{/if}
+		</div>
+
+		<!-- Random tone (key) change -->
+		<div
+			class="mb-4 flex flex-col items-center gap-2 rounded-lg bg-orange-50 p-4 dark:bg-orange-900/20"
+		>
+			<label class="flex cursor-pointer select-none items-center gap-2">
+				<input type="checkbox" bind:checked={randomToneEnabled} class="accent-orange-500" />
+				<span class="text-sm font-medium">Random tone (change key automatically)</span>
+			</label>
+			{#if randomToneEnabled}
+				<p class="text-center text-xs text-gray-600 dark:text-gray-400">
+					After a random number of questions (1–50), the key changes along the circle of fifths pool.
+					{#if gameStarted}
+						Next change in {Math.max(0, nextToneChangeAfter - questionsInCurrentKey)} question(s).
+					{/if}
+				</p>
 			{/if}
 		</div>
 
@@ -906,7 +1279,8 @@
 			</div>
 			{#if correctAnswer !== null}
 				<div class="text-lg text-gray-600 dark:text-gray-400">
-					Question {questionCount}
+					Question {questionCount} · Key: {selectedKey}{#if tonicEnabled && degreeOctavesFromTonic}
+						· Octave +{activeDegreeOctaveOffset}{/if}
 				</div>
 			{/if}
 		</div>
@@ -916,7 +1290,7 @@
 	<div class="max-w-2xl text-center text-gray-600 dark:text-gray-400">
 		<h3 class="mb-2 text-lg font-semibold">How to Use:</h3>
 		<ol class="list-inside list-decimal space-y-1 text-sm">
-			<li>Select your preferred key and lowest note</li>
+			<li>Select your preferred key and lowest note (optional drone register from C0 upward)</li>
 			<li>Choose which degrees you want to practice</li>
 			<li>Set Tempo (beats per minute)</li>
 			<li>Set Question Clicks (how many clicks before showing the answer)</li>
