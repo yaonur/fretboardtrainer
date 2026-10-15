@@ -1,7 +1,13 @@
 <script lang="ts">
 	import * as Tone from 'tone';
 	import { onDestroy } from 'svelte';
-	import { onMount } from 'svelte';
+	import {
+		loadListeningPracticeSettings,
+		saveListeningPracticeSettings,
+		type ListeningPracticeSettings
+	} from '$lib/stores/listeningPracticeSettings';
+
+	const savedSettings = loadListeningPracticeSettings();
 
 	const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 	const circleOfFifths = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
@@ -18,9 +24,9 @@
 	})();
 
 	// Game state
-	let selectedKey = $state('A');
-	let lowestNote = $state<string>('G3'); // User's lowest note as reference
-	let selectedDegrees = $state<number[]>([1, 2, 3, 4, 5, 6, 7]);
+	let selectedKey = $state(savedSettings.selectedKey);
+	let lowestNote = $state<string>(savedSettings.lowestNote);
+	let selectedDegrees = $state<number[]>(savedSettings.selectedDegrees);
 	let correctAnswer = $state<number | null>(null);
 	let feedback = $state('');
 	let questionCount = $state(0);
@@ -40,50 +46,50 @@
 	let voiceTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	// --- Anchor Mode Settings ---
-	let anchorModeEnabled = $state(false);
-	let anchorDegree = $state<number>(1); // Default to I degree
-	let anchorFrequency = $state<number>(2); // How many questions to skip before anchor (default: every 2nd question)
+	let anchorModeEnabled = $state(savedSettings.anchorModeEnabled);
+	let anchorDegree = $state<number>(savedSettings.anchorDegree);
+	let anchorFrequency = $state<number>(savedSettings.anchorFrequency);
 
 	// --- Voice Settings ---
-	let voiceEnabled = $state(true);
+	let voiceEnabled = $state(savedSettings.voiceEnabled);
 
-	let callDegreeFirst = $state(false);
-	let announceOnly = $state(false);
+	let callDegreeFirst = $state(savedSettings.callDegreeFirst);
+	let announceOnly = $state(savedSettings.announceOnly);
 
 	// --- Timing Settings ---
-	let bpm = $state(120); // Beats per minute
-	let questionClicks = $state(2); // Number of clicks before answer
-	let answerClicks = $state(2); // Number of clicks to show answer
+	let bpm = $state(savedSettings.bpm);
+	let questionClicks = $state(savedSettings.questionClicks);
+	let answerClicks = $state(savedSettings.answerClicks);
 
 	// --- Click Volume ---
-	let clickVolume = $state(1); // 0.0 to 1.0
+	let clickVolume = $state(savedSettings.clickVolume);
 
 	// --- Voice Volume ---
-	let voiceVolume = $state(1); // 0.0 to 1.0
+	let voiceVolume = $state(savedSettings.voiceVolume);
 
 	// --- Note Sustain Settings ---
-	let noteSustainEnabled = $state(false);
-	let noteSustainMultiplier = $state(1); // How many beats to sustain the note
+	let noteSustainEnabled = $state(savedSettings.noteSustainEnabled);
+	let noteSustainMultiplier = $state(savedSettings.noteSustainMultiplier);
 
 	// --- Tonic reference ---
-	let tonicEnabled = $state(false);
-	let tonicSustainEnabled = $state(false);
-	let selectedTonicDegrees = $state<number[]>([1]);
-	let tonicRotateFrequency = $state(3);
+	let tonicEnabled = $state(savedSettings.tonicEnabled);
+	let tonicSustainEnabled = $state(savedSettings.tonicSustainEnabled);
+	let selectedTonicDegrees = $state<number[]>(savedSettings.selectedTonicDegrees);
+	let tonicRotateFrequency = $state(savedSettings.tonicRotateFrequency);
 	let activeTonicDegree = $state(1);
 	let tonicRotateIndex = $state(0);
 	let questionsOnActiveTonic = $state(0);
-	let droneRegister = $state('C2');
-	let droneVolume = $state(0.35);
+	let droneRegister = $state(savedSettings.droneRegister);
+	let droneVolume = $state(savedSettings.droneVolume);
 	let droneSamplerLoaded = $state(false);
-	let degreeOctavesFromTonic = $state(false);
-	let selectedDegreeOctaveOffsets = $state<number[]>([0, 1]);
+	let degreeOctavesFromTonic = $state(savedSettings.degreeOctavesFromTonic);
+	let selectedDegreeOctaveOffsets = $state<number[]>(savedSettings.selectedDegreeOctaveOffsets);
 	let activeDegreeOctaveOffset = $state(0);
 
 	// --- Random tone (key) change ---
-	let randomToneEnabled = $state(false);
+	let randomToneEnabled = $state(savedSettings.randomToneEnabled);
+	let randomToneFrequency = $state(savedSettings.randomToneFrequency);
 	let questionsInCurrentKey = $state(0);
-	let nextToneChangeAfter = $state(10);
 
 	let showAnswerDelay: number;
 	let answerDisplayTime: number;
@@ -94,6 +100,86 @@
 	$effect(() => {
 		showAnswerDelay = questionClicks * beatDuration;
 		answerDisplayTime = answerClicks * beatDuration;
+	});
+
+	let settingsSaveMessage = $state('');
+	let settingsSaveTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	function getSettingsSnapshot(): ListeningPracticeSettings {
+		return {
+			selectedKey,
+			lowestNote,
+			selectedDegrees,
+			anchorModeEnabled,
+			anchorDegree,
+			anchorFrequency,
+			voiceEnabled,
+			callDegreeFirst,
+			announceOnly,
+			bpm,
+			questionClicks,
+			answerClicks,
+			clickVolume,
+			voiceVolume,
+			noteSustainEnabled,
+			noteSustainMultiplier,
+			tonicEnabled,
+			tonicSustainEnabled,
+			selectedTonicDegrees,
+			tonicRotateFrequency,
+			droneRegister,
+			droneVolume,
+			degreeOctavesFromTonic,
+			selectedDegreeOctaveOffsets,
+			randomToneEnabled,
+			randomToneFrequency,
+			sequenceModeEnabled,
+			sequenceInput,
+			sequenceFrequency
+		};
+	}
+
+	function savePracticeSettings(showMessage = true) {
+		saveListeningPracticeSettings(getSettingsSnapshot());
+		if (!showMessage) return;
+		settingsSaveMessage = 'Settings saved';
+		if (settingsSaveTimeout) clearTimeout(settingsSaveTimeout);
+		settingsSaveTimeout = setTimeout(() => {
+			settingsSaveMessage = '';
+		}, 2000);
+	}
+
+	$effect(() => {
+		selectedKey;
+		lowestNote;
+		selectedDegrees;
+		anchorModeEnabled;
+		anchorDegree;
+		anchorFrequency;
+		voiceEnabled;
+		callDegreeFirst;
+		announceOnly;
+		bpm;
+		questionClicks;
+		answerClicks;
+		clickVolume;
+		voiceVolume;
+		noteSustainEnabled;
+		noteSustainMultiplier;
+		tonicEnabled;
+		tonicSustainEnabled;
+		selectedTonicDegrees;
+		tonicRotateFrequency;
+		droneRegister;
+		droneVolume;
+		degreeOctavesFromTonic;
+		selectedDegreeOctaveOffsets;
+		randomToneEnabled;
+		randomToneFrequency;
+		sequenceModeEnabled;
+		sequenceInput;
+		sequenceFrequency;
+		savePracticeSettings(false);
 	});
 
 	// Map degrees to note names for the sampler
@@ -188,6 +274,9 @@
 		}
 		if (voiceTimeout) {
 			clearTimeout(voiceTimeout);
+		}
+		if (settingsSaveTimeout) {
+			clearTimeout(settingsSaveTimeout);
 		}
 	});
 
@@ -359,10 +448,6 @@
 		}
 	}
 
-	function randomToneChangeInterval(): number {
-		return Math.floor(Math.random() * 50) + 1;
-	}
-
 	function pickRandomKey() {
 		const otherKeys = circleOfFifths.filter((key) => key !== selectedKey);
 		if (otherKeys.length === 0) return;
@@ -372,10 +457,9 @@
 	function maybeChangeRandomKey() {
 		if (!randomToneEnabled) return;
 		questionsInCurrentKey++;
-		if (questionsInCurrentKey >= nextToneChangeAfter) {
+		if (questionsInCurrentKey >= randomToneFrequency) {
 			pickRandomKey();
 			questionsInCurrentKey = 0;
-			nextToneChangeAfter = randomToneChangeInterval();
 			updateDronePitch();
 		}
 	}
@@ -485,10 +569,10 @@
 	}
 
 	// --- Sequence Mode Settings ---
-	let sequenceModeEnabled = $state(false);
-	let sequenceInput = $state<string>('4-2-1-3'); // Default sequence
+	let sequenceModeEnabled = $state(savedSettings.sequenceModeEnabled);
+	let sequenceInput = $state<string>(savedSettings.sequenceInput);
 	let sequenceDegrees = $state<number[]>([]); // Parsed sequence degrees
-	let sequenceFrequency = $state<number>(3); // How many questions to skip before sequence starts
+	let sequenceFrequency = $state<number>(savedSettings.sequenceFrequency);
 	let sequenceQuestionCount = $state<number>(0); // Track how many sequence questions have been asked
 	let inSequenceMode = $state(false); // Track if we're currently in a sequence
 
@@ -658,9 +742,6 @@
 		if (selectedTonicDegrees.length > 0) {
 			activeTonicDegree = getSortedTonicDegrees()[0];
 		}
-		if (randomToneEnabled) {
-			nextToneChangeAfter = randomToneChangeInterval();
-		}
 		gameStarted = true;
 		generateNewQuestion();
 	}
@@ -788,7 +869,21 @@
 
 	<!-- Settings Panel -->
 	<div class="mx-0 mb-8 w-full max-w-2xl rounded-lg bg-gray-50 p-1 md:p-6 dark:bg-gray-800">
-		<h2 class="mb-4 text-xl font-semibold">Settings</h2>
+		<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+			<h2 class="text-xl font-semibold">Settings</h2>
+			<div class="flex items-center gap-2">
+				<button
+					type="button"
+					class="rounded border border-gray-300 bg-white px-3 py-1 text-sm font-medium hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600"
+					onclick={() => savePracticeSettings(true)}
+				>
+					Save settings
+				</button>
+				{#if settingsSaveMessage}
+					<span class="text-xs text-green-600 dark:text-green-400">{settingsSaveMessage}</span>
+				{/if}
+			</div>
+		</div>
 
 		<!-- Key Selection -->
 		<div class="mb-4 flex items-center gap-4">
@@ -1083,10 +1178,21 @@
 				<span class="text-sm font-medium">Random tone (change key automatically)</span>
 			</label>
 			{#if randomToneEnabled}
+				<div class="flex flex-wrap items-center justify-center gap-2">
+					<span class="text-sm">Change key every</span>
+					<input
+						type="number"
+						bind:value={randomToneFrequency}
+						min="1"
+						max="50"
+						class="w-16 rounded border border-gray-300 bg-white px-2 py-1 text-center text-sm dark:bg-gray-700 dark:text-white"
+					/>
+					<span class="text-sm">question{randomToneFrequency !== 1 ? 's' : ''}</span>
+				</div>
 				<p class="text-center text-xs text-gray-600 dark:text-gray-400">
-					After a random number of questions (1–50), the key changes along the circle of fifths pool.
+					Key picks randomly from the circle-of-fifths list (never repeats the same key twice).
 					{#if gameStarted}
-						Next change in {Math.max(0, nextToneChangeAfter - questionsInCurrentKey)} question(s).
+						Next change in {Math.max(0, randomToneFrequency - questionsInCurrentKey)} question(s).
 					{/if}
 				</p>
 			{/if}
