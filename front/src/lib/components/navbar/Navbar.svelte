@@ -71,30 +71,34 @@
 				>{m.degrees()}</a
 			>
 			<a href="/gpractice" class="font-medium transition-colors duration-200 hover:text-blue-400"
-			>Practice</a
-		>
+				>Practice</a
+			>
 			<a href="/listening" class="font-medium transition-colors duration-200 hover:text-blue-400"
-			>Listening</a
-		>
+				>Listening</a
+			>
 			<a href="/chords" class="font-medium transition-colors duration-200 hover:text-blue-400"
-			>Chords</a
-		>
-			<a href="/chord-prompts" class="font-medium transition-colors duration-200 hover:text-blue-400"
-			>Chord prompts</a
-		>
-		<a href="/dictation" class="font-medium transition-colors duration-200 hover:text-blue-400"
-			>Dictation</a
-		>
-		<a href="/intervals" class="font-medium transition-colors duration-200 hover:text-blue-400"
-			>Intervals</a
-		>
-		<a href="/timer" class="font-medium transition-colors duration-200 hover:text-blue-400"
-			>Timer</a
-		>
-		<!-- <a href="/setlist" class="font-medium transition-colors duration-200 hover:text-blue-400"
+				>Chords</a
+			>
+			<a
+				href="/chord-prompts"
+				class="font-medium transition-colors duration-200 hover:text-blue-400">Chord prompts</a
+			>
+			<a href="/dictation" class="font-medium transition-colors duration-200 hover:text-blue-400"
+				>Dictation</a
+			>
+			<a href="/audition" class="font-medium transition-colors duration-200 hover:text-blue-400"
+				>Audition</a
+			>
+			<a href="/intervals" class="font-medium transition-colors duration-200 hover:text-blue-400"
+				>Intervals</a
+			>
+			<a href="/timer" class="font-medium transition-colors duration-200 hover:text-blue-400"
+				>Timer</a
+			>
+			<!-- <a href="/setlist" class="font-medium transition-colors duration-200 hover:text-blue-400"
 			>{m.setlist()}</a
 		> -->
-	</div>
+		</div>
 
 		<!-- Add theme toggle before the language selector -->
 		<div class="flex items-center gap-4">
@@ -102,7 +106,7 @@
 			<select
 				onchange={switchToLanguage}
 				bind:value={lang.current}
-				class="bordere-none600 focus:outline-hidden cursor-pointer rounded-md border bg-gray-700 py-1 text-white focus:ring-2 focus:ring-blue-500"
+				class="bordere-none600 cursor-pointer rounded-md border bg-gray-700 py-1 text-white focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
 			>
 				<option value="en">EN</option>
 				<option value="tr">TR</option>
@@ -114,7 +118,7 @@
 	<!-- Mobile menu -->
 	{#if isMenuOpen}
 		<div
-			class="absolute left-0 right-0 top-14 z-50 transform bg-gray-800 p-4 shadow-lg transition-transform duration-200 ease-in-out lg:hidden"
+			class="absolute top-14 right-0 left-0 z-50 transform bg-gray-800 p-4 shadow-lg transition-transform duration-200 ease-in-out lg:hidden"
 			style="transform: translateY({isMenuOpen ? '0' : '100%'});"
 		>
 			<div class="flex flex-col gap-4">
@@ -128,26 +132,32 @@
 					>{m.degrees()}</a
 				>
 				<a href="/gpractice" class="font-medium transition-colors duration-200 hover:text-blue-400"
-				>Practice</a
-			>
+					>Practice</a
+				>
 				<a href="/listening" class="font-medium transition-colors duration-200 hover:text-blue-400"
-				>Listening</a
-			>
+					>Listening</a
+				>
 				<a href="/chords" class="font-medium transition-colors duration-200 hover:text-blue-400"
-				>Chords</a
-			>
-				<a href="/chord-prompts" class="font-medium transition-colors duration-200 hover:text-blue-400"
-				>Chord prompts</a
-			>
-			<a href="/dictation" class="font-medium transition-colors duration-200 hover:text-blue-400"
-				>Dictation</a
-			>
-			<a href="/intervals" class="font-medium transition-colors duration-200 hover:text-blue-400"
-				>Intervals</a
-			>
-			<a href="/timer" class="font-medium transition-colors duration-200 hover:text-blue-400"
-				>Timer</a
-			>
+					>Chords</a
+				>
+				<a
+					href="/chord-prompts"
+					class="font-medium transition-colors duration-200 hover:text-blue-400">Chord prompts</a
+				>
+				<a href="/dictation" class="font-medium transition-colors duration-200 hover:text-blue-400"
+					>Dictation</a
+				>
+				<a
+					href="/audition"
+					onclick={closeMenu}
+					class="font-medium transition-colors duration-200 hover:text-blue-400">Audition</a
+				>
+				<a href="/intervals" class="font-medium transition-colors duration-200 hover:text-blue-400"
+					>Intervals</a
+				>
+				<a href="/timer" class="font-medium transition-colors duration-200 hover:text-blue-400"
+					>Timer</a
+				>
 			</div>
 		</div>
 	{/if}

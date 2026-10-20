@@ -1,0 +1,32 @@
+{
+	"bars": 4,
+	"beatsPerBar": 4,
+	"notationHelp": "Space-separated notes. 1-7 = scale degree, r = rest. Add ' per octave up or , per octave down. Add :beats for length (default 1; 0.5 eighth, 1.5 dotted quarter, 2 half, 4 whole). | marks a bar. Each bar is 4 beats.",
+	"melodies": [
+		{
+			"id": "four-bar-cadence",
+			"name": "Four-bar cadence",
+			"notation": "1 2 3 4 | 5 3 4 2 | 3 1 2 7, | 1:4"
+		},
+		{
+			"id": "arch-phrase",
+			"name": "Arch phrase",
+			"notation": "1 3 5 3 | 4 6 5 4 | 3 5 4 2 | 3 2 1:2"
+		},
+		{
+			"id": "sequence-up",
+			"name": "Sequence up",
+			"notation": "5:2 3 4 | 5:2 6 7 | 1':2 7 6 | 5:2 4 3"
+		},
+		{
+			"id": "running-start",
+			"name": "Running start",
+			"notation": "1:0.5 2:0.5 3:0.5 2:0.5 1:0.5 2:0.5 3:0.5 4:0.5 | 5 6 5 4 | 3 4 3 2 | 1:4"
+		},
+		{
+			"id": "high-do-return",
+			"name": "High do and return",
+			"notation": "1 5 1' 7 | 6 5 4 3 | 2 5 4 3 | 2 7, 1:2"
+		}
+	]
+}

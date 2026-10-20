@@ -1,0 +1,52 @@
+{
+	"bars": 1,
+	"beatsPerBar": 4,
+	"notationHelp": "Space-separated notes. 1-7 = scale degree, r = rest. Add ' per octave up or , per octave down. Add :beats for length (default 1; 0.5 eighth, 1.5 dotted quarter, 2 half, 4 whole). | marks a bar. Each bar is 4 beats.",
+	"melodies": [
+		{
+			"id": "do-re-mi-sol",
+			"name": "Do re mi sol",
+			"notation": "1 2 3 5"
+		},
+		{
+			"id": "sol-fa-mi-re",
+			"name": "Sol fa mi re",
+			"notation": "5 4 3 2"
+		},
+		{
+			"id": "tonic-triad",
+			"name": "Tonic triad",
+			"notation": "1 3 5 1'"
+		},
+		{
+			"id": "lower-neighbor",
+			"name": "Lower neighbor",
+			"notation": "3 2 1 2"
+		},
+		{
+			"id": "sol-to-do",
+			"name": "Sol to do",
+			"notation": "5:2 1:2"
+		},
+		{
+			"id": "eighths-to-sol",
+			"name": "Eighths to sol",
+			"notation": "1:0.5 2:0.5 3:0.5 4:0.5 5 3"
+		},
+		{
+			"id": "rest-and-neighbor",
+			"name": "Rest and neighbor",
+			"notation": "r 5 6 5"
+		},
+		{
+			"id": "falling-cadence",
+			"name": "Falling cadence",
+			"notation": "5 4 2 1"
+		},
+		{
+			"id": "dotted-do",
+			"name": "Dotted do",
+			"notation": "1:1.5 2:0.5 3:2"
+		}
+	]
+}
