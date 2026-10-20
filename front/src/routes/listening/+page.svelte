@@ -73,6 +73,7 @@
 
 	// --- Tonic reference ---
 	let tonicEnabled = $state(savedSettings.tonicEnabled);
+	let tonicOnAnswer = $state(savedSettings.tonicOnAnswer);
 	let tonicSustainEnabled = $state(savedSettings.tonicSustainEnabled);
 	let selectedTonicDegrees = $state<number[]>(savedSettings.selectedTonicDegrees);
 	let tonicRotateFrequency = $state(savedSettings.tonicRotateFrequency);
@@ -124,6 +125,7 @@
 			noteSustainEnabled,
 			noteSustainMultiplier,
 			tonicEnabled,
+			tonicOnAnswer,
 			tonicSustainEnabled,
 			selectedTonicDegrees,
 			tonicRotateFrequency,
@@ -167,6 +169,7 @@
 		noteSustainEnabled;
 		noteSustainMultiplier;
 		tonicEnabled;
+		tonicOnAnswer;
 		tonicSustainEnabled;
 		selectedTonicDegrees;
 		tonicRotateFrequency;
@@ -426,16 +429,16 @@
 		}
 	}
 
-	function playTonicOnQuestion() {
+	function playTonicOnQuestion(when = Tone.now() + 0.05) {
 		if (!tonicEnabled || selectedTonicDegrees.length === 0 || !droneSamplerLoaded) return;
 		const pitch = getTonicPitch();
 		droneSampler.volume.value = Tone.gainToDb(droneVolume);
 		if (tonicSustainEnabled) {
 			droneSampler.releaseAll();
-			droneSampler.triggerAttack(pitch, Tone.now() + 0.05);
+			droneSampler.triggerAttack(pitch, when);
 			dronePlaying = true;
 		} else {
-			droneSampler.triggerAttackRelease(pitch, '2n', Tone.now() + 0.05);
+			droneSampler.triggerAttackRelease(pitch, '2n', when);
 		}
 	}
 
@@ -486,7 +489,7 @@
 	}
 
 	// Play a note
-	function playNote(note: string) {
+	function playNote(note: string, when = Tone.now() + 0.19) {
 		if (isAudioInitialized && sampler && samplerLoaded) {
 			const bestOctave = getDegreeOctave(note);
 
@@ -500,7 +503,7 @@
 				duration = '4n'; // Default quarter note
 			}
 
-			sampler.triggerAttackRelease(note + bestOctave, duration, Tone.now() + 0.19);
+			sampler.triggerAttackRelease(note + bestOctave, duration, when);
 		}
 	}
 
@@ -513,13 +516,16 @@
 			const degreeText = degreeButtons[correctAnswer - 1];
 			feedback = `${degreeText}${anchorIndicator}`;
 
+			const answerTime = Tone.now() + 0.05;
+			if (tonicOnAnswer) {
+				playTonicOnQuestion(answerTime);
+			}
+
 			// Speak the degree
 			if (targetNote) {
-				setTimeout(() => {
-					if (!announceOnly) playNote(targetNote);
-				}, 1); // 800ms delay after speaking
+				if (!announceOnly) playNote(targetNote, answerTime);
 			} else {
-				speakDegree(degreeText);
+				speakDegree(degreeText, answerTime);
 			}
 
 			// Generate new question after the answer display time
@@ -845,7 +851,7 @@
 	}
 
 	// Speak the degree using Tone.js Sampler
-	function speakDegree(degree: string) {
+	function speakDegree(degree: string, when = Tone.now() + 0.05) {
 		if (!voiceEnabled || !voiceSamplerLoaded) return;
 		const note = degreeToNote[degree];
 		if (voiceSampler && note) {
@@ -856,7 +862,7 @@
 			try {
 				// Apply voice volume before playing
 				voiceSampler.volume.value = Tone.gainToDb(voiceVolume);
-				voiceSampler.triggerAttackRelease(note, '1n', Tone.now() + 0.05);
+				voiceSampler.triggerAttackRelease(note, '1n', when);
 			} catch (error) {
 				console.error(`Failed to play voice ${degree}:`, error);
 			}
@@ -1104,6 +1110,10 @@
 							.join(' → ')}
 					</p>
 				{/if}
+				<label class="flex cursor-pointer select-none items-center gap-2">
+					<input type="checkbox" bind:checked={tonicOnAnswer} class="accent-amber-500" />
+					<span class="text-sm">Play bass note again on answer phase</span>
+				</label>
 				<label class="flex cursor-pointer select-none items-center gap-2">
 					<input type="checkbox" bind:checked={tonicSustainEnabled} class="accent-amber-500" />
 					<span class="text-sm">Sustain tonic between questions</span>

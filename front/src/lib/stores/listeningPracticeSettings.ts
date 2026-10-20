@@ -20,6 +20,7 @@ export type ListeningPracticeSettings = {
 	noteSustainEnabled: boolean;
 	noteSustainMultiplier: number;
 	tonicEnabled: boolean;
+	tonicOnAnswer: boolean;
 	tonicSustainEnabled: boolean;
 	selectedTonicDegrees: number[];
 	tonicRotateFrequency: number;
@@ -52,6 +53,7 @@ export const defaultListeningPracticeSettings: ListeningPracticeSettings = {
 	noteSustainEnabled: false,
 	noteSustainMultiplier: 1,
 	tonicEnabled: false,
+	tonicOnAnswer: false,
 	tonicSustainEnabled: false,
 	selectedTonicDegrees: [1],
 	tonicRotateFrequency: 3,
@@ -125,6 +127,7 @@ function sanitize(raw: Partial<ListeningPracticeSettings>): ListeningPracticeSet
 				? raw.noteSustainMultiplier
 				: d.noteSustainMultiplier,
 		tonicEnabled: raw.tonicEnabled ?? d.tonicEnabled,
+		tonicOnAnswer: raw.tonicOnAnswer ?? d.tonicOnAnswer,
 		tonicSustainEnabled: raw.tonicSustainEnabled ?? d.tonicSustainEnabled,
 		selectedTonicDegrees: clampDegreeList(raw.selectedTonicDegrees, d.selectedTonicDegrees),
 		tonicRotateFrequency:
