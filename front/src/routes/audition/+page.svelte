@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
 	import * as Tone from 'tone';
 	import { browser, dev } from '$app/environment';
 	import MelodyEditor from '$lib/components/audition/MelodyEditor.svelte';
@@ -15,7 +15,16 @@
 		type AuditionMelody,
 		type BarCount
 	} from '$lib/audition/notation';
-	import { AUDITION_SETTINGS_KEY, loadAuditionSettings } from '$lib/stores/auditionSettings';
+	import {
+		formatPhaseSequence,
+		formatPhaseSequenceCompact,
+		parsePhaseSequenceText
+	} from '$lib/audition/phases';
+	import {
+		AUDITION_SETTINGS_KEY,
+		loadAuditionSettings,
+		type AuditionPhase
+	} from '$lib/stores/auditionSettings';
 
 	const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 	const circleOfFifths = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
@@ -50,9 +59,16 @@
 	let droneRegister = $state(initial.droneRegister);
 	let droneVolume = $state(initial.droneVolume);
 	let melodyOctave = $state(initial.melodyOctave);
-	let loop = $state(initial.loop);
-	let autoAdvance = $state(initial.autoAdvance);
 	let hideMelody = $state(initial.hideMelody);
+	let poolIdsByBars = $state<Record<BarCount, string[]>>({
+		1: initialPoolIds(1, bundledLibraries[1].melodies, initial.poolMelodyIds),
+		2: initialPoolIds(2, bundledLibraries[2].melodies, initial.poolMelodyIds),
+		3: initialPoolIds(3, bundledLibraries[3].melodies, initial.poolMelodyIds),
+		4: initialPoolIds(4, bundledLibraries[4].melodies, initial.poolMelodyIds)
+	});
+	let phaseSequence = $state<AuditionPhase[]>([...initial.phaseSequence]);
+	let phaseSequenceText = $state(formatPhaseSequenceCompact(initial.phaseSequence));
+	let phaseTextError = $state('');
 
 	let sampler: Tone.Sampler | undefined;
 	let clickSampler: Tone.Sampler | undefined;
@@ -66,18 +82,47 @@
 	let playing = $state(false);
 	let playingId = $state<string | null>(null);
 	let playheadBeat = $state<number | null>(null);
+	let activePhase = $state<AuditionPhase | null>(null);
+	let sessionMelody = $state<AuditionMelody | null>(null);
 	let playbackMessage = $state('');
 	let saving = $state(false);
 	let saveMessage = $state('');
 
+	function initialPoolIds(
+		bars: BarCount,
+		melodies: AuditionMelody[],
+		saved: Partial<Record<BarCount, string[]>>
+	): string[] {
+		const ids = new Set(melodies.map((m) => m.id));
+		const fromSaved = saved[bars]?.filter((id) => ids.has(id)) ?? [];
+		return fromSaved.length > 0 ? fromSaved : melodies.map((m) => m.id);
+	}
+
+	function sameIdList(a: string[], b: string[]): boolean {
+		return a.length === b.length && a.every((id, index) => id === b[index]);
+	}
+
+	function syncPoolWithLibrary(bars: BarCount) {
+		const ids = new Set(libraries[bars].melodies.map((m) => m.id));
+		const kept = poolIdsByBars[bars].filter((id) => ids.has(id));
+		const next =
+			kept.length > 0 ? kept : libraries[bars].melodies.map((m) => m.id);
+		if (sameIdList(poolIdsByBars[bars], next)) return;
+		poolIdsByBars[bars] = next;
+	}
+
 	const activeLibrary = $derived(libraries[barCount]);
+	const poolIds = $derived(poolIdsByBars[barCount]);
+	const poolSet = $derived(new Set(poolIds));
+	const poolMelodies = $derived(activeLibrary.melodies.filter((melody) => poolSet.has(melody.id)));
 	const activeMelody = $derived(
 		activeLibrary.melodies.find((melody) => melody.id === selectedByBars[barCount]) ??
 			activeLibrary.melodies[0] ??
 			null
 	);
+	const displayMelody = $derived(sessionMelody ?? activeMelody);
 	const activeParse = $derived(
-		activeMelody ? parseNotation(activeMelody.notation, barCount) : null
+		displayMelody ? parseNotation(displayMelody.notation, barCount) : null
 	);
 	const dirty = $derived(
 		JSON.stringify(canonicalLibrary(libraries[barCount])) !== savedJson[barCount]
@@ -130,13 +175,105 @@
 				droneRegister,
 				droneVolume,
 				melodyOctave,
-				loop,
-				autoAdvance,
 				hideMelody,
-				barCount
+				barCount,
+				poolMelodyIds: poolIdsByBars,
+				phaseSequence
 			})
 		);
 	});
+
+	$effect(() => {
+		const bars = barCount;
+		const catalogKey = libraries[bars].melodies.map((m) => m.id).join('\0');
+		void catalogKey;
+		untrack(() => syncPoolWithLibrary(bars));
+	});
+
+	function beatSeconds(): number {
+		return 60 / bpm;
+	}
+
+	function phaseDurationSeconds(): number {
+		return expectedBeats(barCount) * beatSeconds();
+	}
+
+	function pickMelodyFromPool(): AuditionMelody | null {
+		const all = activeLibrary.melodies;
+		if (all.length === 0) return null;
+		const pool = poolMelodies.length > 0 ? poolMelodies : all;
+		if (pool.length === 0) return null;
+		if (pool.length === 1) return pool[0];
+		const lastId = playingId;
+		const candidates = pool.filter((m) => m.id !== lastId);
+		const pickFrom = candidates.length > 0 ? candidates : pool;
+		return pickFrom[Math.floor(Math.random() * pickFrom.length)] ?? null;
+	}
+
+	function togglePractice() {
+		if (playing) stopPlayback();
+		else void startPractice();
+	}
+
+	function togglePoolMelody(id: string) {
+		if (poolSet.has(id)) {
+			const next = poolIds.filter((poolId) => poolId !== id);
+			const resolved =
+				next.length > 0 ? next : activeLibrary.melodies.map((m) => m.id);
+			if (!sameIdList(poolIds, resolved)) poolIdsByBars[barCount] = resolved;
+		} else {
+			const next = [...poolIds, id];
+			if (!sameIdList(poolIds, next)) poolIdsByBars[barCount] = next;
+		}
+	}
+
+	function setPoolAll() {
+		poolIdsByBars[barCount] = activeLibrary.melodies.map((m) => m.id);
+	}
+
+	function setPoolNone() {
+		if (activeLibrary.melodies.length === 0) return;
+		poolIdsByBars[barCount] = [activeLibrary.melodies[0].id];
+	}
+
+	function addPhase(phase: AuditionPhase) {
+		phaseSequence = [...phaseSequence, phase];
+		phaseSequenceText = formatPhaseSequenceCompact(phaseSequence);
+		phaseTextError = '';
+	}
+
+	function removePhase(index: number) {
+		if (phaseSequence.length <= 1) return;
+		phaseSequence = phaseSequence.filter((_, i) => i !== index);
+		phaseSequenceText = formatPhaseSequenceCompact(phaseSequence);
+	}
+
+	function movePhase(index: number, delta: -1 | 1) {
+		const target = index + delta;
+		if (target < 0 || target >= phaseSequence.length) return;
+		const next = [...phaseSequence];
+		[next[index], next[target]] = [next[target], next[index]];
+		phaseSequence = next;
+		phaseSequenceText = formatPhaseSequenceCompact(phaseSequence);
+	}
+
+	function applyPhaseSequenceText() {
+		const parsed = parsePhaseSequenceText(phaseSequenceText);
+		if (!parsed) {
+			phaseTextError = 'Use L/A or listen/audiate, separated by spaces or dashes.';
+			phaseSequenceText = formatPhaseSequenceCompact(phaseSequence);
+			return;
+		}
+		phaseSequence = parsed;
+		phaseSequenceText = formatPhaseSequenceCompact(parsed);
+		phaseTextError = '';
+	}
+
+	function setPhasePreset(sequence: AuditionPhase[]) {
+		phaseSequence = [...sequence];
+		phaseSequenceText = formatPhaseSequenceCompact(sequence);
+		phaseTextError = '';
+	}
 
 	function generateMajorScale(rootNote: string): string[] {
 		const majorScaleIntervals = [0, 2, 4, 5, 7, 9, 11];
@@ -254,6 +391,168 @@
 		playing = false;
 		playingId = null;
 		playheadBeat = null;
+		activePhase = null;
+		sessionMelody = null;
+	}
+
+	type ScheduleContext = {
+		token: number;
+		transport: ReturnType<typeof Tone.getTransport>;
+		scheduleAt: (offsetSec: number, run: (audioTime: number) => void) => void;
+		totalBeats: number;
+		secPerBeat: number;
+	};
+
+	function scheduleBassAt(
+		ctx: ScheduleContext,
+		startSec: number,
+		durationSec: number,
+		mode: 'sustain' | 'perBar'
+	) {
+		if (!bassEnabled || !droneSampler) return;
+		const pitch = getBassPitch();
+		if (mode === 'sustain') {
+			ctx.scheduleAt(startSec, (audioTime) => {
+				droneSampler?.triggerAttackRelease(pitch, durationSec * 0.98, audioTime);
+			});
+			return;
+		}
+		for (let bar = 0; bar < barCount; bar++) {
+			const barStart = startSec + bar * 4 * ctx.secPerBeat;
+			ctx.scheduleAt(barStart, (audioTime) => {
+				droneSampler?.triggerAttackRelease(pitch, 4 * ctx.secPerBeat * 0.92, audioTime);
+			});
+		}
+	}
+
+	function scheduleClicksAt(ctx: ScheduleContext, startSec: number) {
+		if (!clickEnabled || !clickSampler) return;
+		for (let beat = 0; beat < ctx.totalBeats; beat++) {
+			const when = startSec + beat * ctx.secPerBeat;
+			ctx.scheduleAt(when, (audioTime) => {
+				clickSampler?.triggerAttackRelease('C4', '16n', audioTime);
+			});
+		}
+	}
+
+	function scheduleListenPhase(
+		ctx: ScheduleContext,
+		melody: AuditionMelody,
+		startSec: number,
+		phase: AuditionPhase
+	): boolean {
+		const parsed = parseNotation(melody.notation, barCount);
+		if (!parsed.ok) return false;
+
+		const bassMode = bassSustain ? 'sustain' : 'perBar';
+		scheduleBassAt(ctx, startSec, phaseDurationSeconds(), bassMode);
+		scheduleClicksAt(ctx, startSec);
+
+		ctx.scheduleAt(startSec, (audioTime) => {
+			Tone.getDraw().schedule(() => {
+				if (ctx.token !== playToken) return;
+				activePhase = phase;
+				sessionMelody = melody;
+				playingId = melody.id;
+				selectedByBars[barCount] = melody.id;
+				playheadBeat = 0;
+			}, audioTime);
+		});
+
+		let cursor = 0;
+		for (const note of parsed.notes) {
+			const when = startSec + cursor * ctx.secPerBeat;
+			const noteBeat = cursor;
+			if (note.degree) {
+				const pitch = melodyPitch(note.degree, note.octave);
+				const duration = Math.max(0.05, note.beats * ctx.secPerBeat * 0.9);
+				ctx.scheduleAt(when, (audioTime) => {
+					sampler?.triggerAttackRelease(pitch, duration, audioTime);
+				});
+			}
+			ctx.scheduleAt(when, (audioTime) => {
+				Tone.getDraw().schedule(() => {
+					if (ctx.token !== playToken) return;
+					playheadBeat = noteBeat;
+				}, audioTime);
+			});
+			cursor += note.beats;
+		}
+
+		const endSec = startSec + phaseDurationSeconds();
+		ctx.scheduleAt(endSec, (audioTime) => {
+			Tone.getDraw().schedule(() => {
+				if (ctx.token !== playToken) return;
+				playheadBeat = null;
+			}, audioTime);
+		});
+		return true;
+	}
+
+	function scheduleAudiatePhase(
+		ctx: ScheduleContext,
+		startSec: number,
+		melody: AuditionMelody | null
+	) {
+		scheduleBassAt(ctx, startSec, phaseDurationSeconds(), 'perBar');
+		scheduleClicksAt(ctx, startSec);
+
+		ctx.scheduleAt(startSec, (audioTime) => {
+			Tone.getDraw().schedule(() => {
+				if (ctx.token !== playToken) return;
+				activePhase = 'audiate';
+				if (melody) {
+					sessionMelody = melody;
+					playingId = melody.id;
+				}
+				playheadBeat = null;
+			}, audioTime);
+		});
+	}
+
+	function finishPreviewPlayback(token: number) {
+		if (token !== playToken) return;
+		playing = false;
+		playingId = null;
+		playheadBeat = null;
+		activePhase = null;
+		sessionMelody = null;
+	}
+
+	function finishPracticeCycle(token: number) {
+		if (token !== playToken) return;
+		void startPractice();
+	}
+
+	async function ensureAudioReady(): Promise<boolean> {
+		playbackMessage = '';
+		await initAudio();
+		await waitUntilLoaded();
+		if (disposed) return false;
+		if (!sampler || !droneSampler || !samplerLoaded || !droneSamplerLoaded) {
+			playbackMessage = 'Piano sounds are still loading.';
+			return false;
+		}
+		if (clickSampler) clickSampler.volume.value = volumeToDb(clickVolume);
+		droneSampler.volume.value = volumeToDb(droneVolume);
+		return true;
+	}
+
+	function makeScheduleContext(token: number): ScheduleContext {
+		const transport = Tone.getTransport();
+		transport.bpm.value = bpm;
+		return {
+			token,
+			transport,
+			totalBeats: expectedBeats(barCount),
+			secPerBeat: beatSeconds(),
+			scheduleAt: (offsetSec, run) => {
+				transport.schedule((audioTime) => {
+					if (token !== playToken) return;
+					run(audioTime);
+				}, offsetSec);
+			}
+		};
 	}
 
 	async function startPlayback(melody: AuditionMelody) {
@@ -262,125 +561,91 @@
 			playbackMessage = parsed.error ?? 'This melody needs a valid length before it can play.';
 			return;
 		}
-		playbackMessage = '';
-		await initAudio();
-		await waitUntilLoaded();
-		if (disposed) return;
-		if (!sampler || !droneSampler || !samplerLoaded || !droneSamplerLoaded) {
-			playbackMessage = 'Piano sounds are still loading.';
-			return;
-		}
+		if (!(await ensureAudioReady())) return;
 
 		stopPlayback();
 		const token = playToken;
-		const melodyToPlay = melody;
-		const beatSeconds = 60 / bpm;
-		const total = expectedBeats(barCount);
-		const transport = Tone.getTransport();
-		transport.bpm.value = bpm;
-		transport.position = 0;
+		const ctx = makeScheduleContext(token);
+		ctx.transport.position = 0;
 
-		if (clickSampler) clickSampler.volume.value = volumeToDb(clickVolume);
-		droneSampler.volume.value = volumeToDb(droneVolume);
-
-		const schedule = (time: number, run: (audioTime: number) => void) => {
-			transport.schedule((audioTime) => {
-				if (token !== playToken) return;
-				run(audioTime);
-			}, time);
-		};
-
-		if (bassEnabled) {
-			const pitch = getBassPitch();
-			if (bassSustain) {
-				schedule(0, (audioTime) => {
-					droneSampler?.triggerAttackRelease(pitch, total * beatSeconds * 0.98, audioTime);
-				});
-			} else {
-				for (let bar = 0; bar < barCount; bar++) {
-					schedule(bar * 4 * beatSeconds, (audioTime) => {
-						droneSampler?.triggerAttackRelease(pitch, 4 * beatSeconds * 0.92, audioTime);
-					});
-				}
-			}
+		if (!scheduleListenPhase(ctx, melody, 0, 'listen')) {
+			playbackMessage = 'Could not schedule this melody.';
+			return;
 		}
 
-		if (clickEnabled && clickSampler) {
-			for (let beat = 0; beat < total; beat++) {
-				schedule(beat * beatSeconds, (audioTime) => {
-					clickSampler?.triggerAttackRelease('C4', '16n', audioTime);
-				});
-			}
-		}
-
-		let cursor = 0;
-		for (const note of parsed.notes) {
-			const when = cursor * beatSeconds;
-			const noteBeat = cursor;
-			if (note.degree) {
-				const pitch = melodyPitch(note.degree, note.octave);
-				const duration = Math.max(0.05, note.beats * beatSeconds * 0.9);
-				schedule(when, (audioTime) => {
-					sampler?.triggerAttackRelease(pitch, duration, audioTime);
-				});
-			}
-			schedule(when, (audioTime) => {
-				Tone.getDraw().schedule(() => {
-					if (token !== playToken) return;
-					playheadBeat = noteBeat;
-				}, audioTime);
-			});
-			cursor += note.beats;
-		}
-
-		schedule(total * beatSeconds, (audioTime) => {
+		const endSec = phaseDurationSeconds();
+		ctx.scheduleAt(endSec, (audioTime) => {
 			Tone.getDraw().schedule(() => {
 				if (token !== playToken) return;
-				const liveTransport = Tone.getTransport();
-				liveTransport.stop();
-				liveTransport.position = 0;
-				if (loop) {
-					void startPlayback(melodyToPlay);
-					return;
-				}
-				if (autoAdvance) {
-					void playDelta(1);
-					return;
-				}
-				playing = false;
-				playingId = null;
-				playheadBeat = null;
+				ctx.transport.stop();
+				ctx.transport.position = 0;
+				finishPreviewPlayback(token);
 			}, audioTime);
 		});
 
 		playing = true;
+		activePhase = 'listen';
+		sessionMelody = melody;
 		playingId = melody.id;
 		selectedByBars[barCount] = melody.id;
-		transport.start(Tone.now() + 0.08);
+		ctx.transport.start(Tone.now() + 0.08);
 	}
 
-	function playActive() {
+	async function startPractice() {
+		if (phaseSequence.length === 0) {
+			playbackMessage = 'Add at least one phase to the practice sequence.';
+			return;
+		}
+		if (!(await ensureAudioReady())) return;
+
+		stopPlayback();
+		const token = playToken;
+		const ctx = makeScheduleContext(token);
+		ctx.transport.position = 0;
+
+		let offsetSec = 0;
+		let carryMelody: AuditionMelody | null = null;
+		let scheduled = false;
+
+		for (const phase of phaseSequence) {
+			if (phase === 'listen') {
+				const melody = pickMelodyFromPool();
+				if (!melody) {
+					playbackMessage = 'Select at least one melody in the pool.';
+					stopPlayback();
+					return;
+				}
+				if (!scheduleListenPhase(ctx, melody, offsetSec, 'listen')) {
+					playbackMessage = `${melody.name} is invalid for this bar length.`;
+					stopPlayback();
+					return;
+				}
+				carryMelody = melody;
+				scheduled = true;
+			} else {
+				scheduleAudiatePhase(ctx, offsetSec, carryMelody);
+				scheduled = true;
+			}
+			offsetSec += phaseDurationSeconds();
+		}
+
+		if (!scheduled) return;
+
+		ctx.scheduleAt(offsetSec, (audioTime) => {
+			Tone.getDraw().schedule(() => {
+				if (token !== playToken) return;
+				ctx.transport.stop();
+				ctx.transport.position = 0;
+				finishPracticeCycle(token);
+			}, audioTime);
+		});
+
+		playing = true;
+		ctx.transport.start(Tone.now() + 0.08);
+	}
+
+	function previewMelody() {
 		if (activeMelody) void startPlayback(activeMelody);
-	}
-
-	async function playDelta(delta: number) {
-		const list = libraries[barCount].melodies;
-		if (list.length === 0) return;
-		const index = list.findIndex((melody) => melody.id === selectedByBars[barCount]);
-		const next = list[(Math.max(index, 0) + delta + list.length) % list.length];
-		selectedByBars[barCount] = next.id;
-		await startPlayback(next);
-	}
-
-	async function playRandom() {
-		const list = libraries[barCount].melodies;
-		if (list.length === 0) return;
-		const pool = list.filter((melody) => melody.id !== selectedByBars[barCount]);
-		const choice = (pool.length > 0 ? pool : list)[
-			Math.floor(Math.random() * (pool.length > 0 ? pool.length : list.length))
-		];
-		selectedByBars[barCount] = choice.id;
-		await startPlayback(choice);
 	}
 
 	function chooseBars(next: BarCount) {
@@ -465,14 +730,7 @@
 			return;
 		if (event.key === ' ') {
 			event.preventDefault();
-			if (playing) stopPlayback();
-			else playActive();
-		} else if (event.key === 'ArrowRight') {
-			event.preventDefault();
-			void playDelta(1);
-		} else if (event.key === 'ArrowLeft') {
-			event.preventDefault();
-			void playDelta(-1);
+			togglePractice();
 		}
 	}
 
@@ -673,55 +931,181 @@
 	</details>
 
 	{#if mode === 'play'}
+		<details class="mb-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700" open>
+			<summary class="cursor-pointer text-sm font-semibold">
+				Practice phases · {formatPhaseSequence(phaseSequence)}
+			</summary>
+			<div class="mt-3 flex flex-wrap gap-2">
+				{#each phaseSequence as phase, index (index)}
+					<div
+						class={[
+							'flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-bold',
+							phase === 'listen'
+								? 'border-emerald-600 bg-emerald-600 text-white'
+								: 'border-violet-600 bg-violet-600 text-white'
+						]}
+					>
+						<span>{phase === 'listen' ? 'Listen' : 'Audiate'}</span>
+						<button
+							type="button"
+							class="rounded px-1 opacity-80 hover:opacity-100"
+							disabled={index === 0}
+							onclick={() => movePhase(index, -1)}
+						>
+							↑
+						</button>
+						<button
+							type="button"
+							class="rounded px-1 opacity-80 hover:opacity-100"
+							disabled={index === phaseSequence.length - 1}
+							onclick={() => movePhase(index, 1)}
+						>
+							↓
+						</button>
+						<button
+							type="button"
+							class="rounded px-1 opacity-80 hover:opacity-100"
+							disabled={phaseSequence.length <= 1}
+							onclick={() => removePhase(index)}
+						>
+							×
+						</button>
+					</div>
+				{/each}
+			</div>
+			<div class="mt-3 flex flex-wrap gap-2">
+				<button
+					type="button"
+					class="rounded border border-emerald-600 px-3 py-1 text-sm font-medium dark:border-emerald-500"
+					onclick={() => addPhase('listen')}
+				>
+					+ Listen
+				</button>
+				<button
+					type="button"
+					class="rounded border border-violet-600 px-3 py-1 text-sm font-medium dark:border-violet-500"
+					onclick={() => addPhase('audiate')}
+				>
+					+ Audiate
+				</button>
+				<button
+					type="button"
+					class="rounded border px-2 py-1 text-xs dark:border-gray-600"
+					onclick={() => setPhasePreset(['listen', 'audiate'])}
+				>
+					L → A
+				</button>
+				<button
+					type="button"
+					class="rounded border px-2 py-1 text-xs dark:border-gray-600"
+					onclick={() => setPhasePreset(['listen', 'audiate', 'listen', 'audiate'])}
+				>
+					L-A-L-A
+				</button>
+				<button
+					type="button"
+					class="rounded border px-2 py-1 text-xs dark:border-gray-600"
+					onclick={() => setPhasePreset(['listen', 'audiate', 'audiate', 'listen'])}
+				>
+					L-A-A-L
+				</button>
+			</div>
+			<div class="mt-3 flex flex-wrap items-end gap-2">
+				<label class="flex min-w-48 flex-1 flex-col gap-1 text-xs text-gray-500">
+					Sequence text (L / A, spaces or dashes)
+					<input
+						class="rounded border border-gray-300 bg-white px-2 py-1 font-mono text-sm dark:border-gray-600 dark:bg-gray-900"
+						bind:value={phaseSequenceText}
+						onchange={applyPhaseSequenceText}
+						onkeydown={(event) => {
+							if (event.key === 'Enter') applyPhaseSequenceText();
+						}}
+					/>
+				</label>
+			</div>
+			{#if phaseTextError}
+				<p class="mt-2 text-sm text-red-600 dark:text-red-400">{phaseTextError}</p>
+			{/if}
+			<p class="mt-2 text-xs text-gray-500">
+				Listen plays the melody with bass. Audiate is silent melody time with the tonic in the bass
+				again so you can sing or audiate.
+			</p>
+		</details>
+
 		<div class="mb-4 flex flex-wrap items-center gap-2">
 			<button
 				type="button"
-				class="rounded border px-3 py-2 text-sm dark:border-gray-600"
-				onclick={() => void playDelta(-1)}>Prev</button
+				class="rounded bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-40"
+				disabled={poolMelodies.length === 0 || phaseSequence.length === 0}
+				onclick={togglePractice}
 			>
-			<button
-				type="button"
-				class="rounded bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-40"
-				disabled={!activeMelody || activeParse?.ok === false}
-				onclick={() => (playing ? stopPlayback() : playActive())}
-			>
-				{playing ? 'Stop' : 'Play'}
+				{playing ? 'Stop' : 'Practice'}
 			</button>
-			<button
-				type="button"
-				class="rounded border px-3 py-2 text-sm dark:border-gray-600"
-				onclick={() => void playDelta(1)}>Next</button
-			>
-			<button
-				type="button"
-				class="rounded border px-3 py-2 text-sm dark:border-gray-600"
-				onclick={() => void playRandom()}>Random</button
-			>
-			<label class="flex items-center gap-2 text-sm">
-				<input type="checkbox" bind:checked={loop} class="accent-blue-500" />
-				Loop
-			</label>
-			<label class="flex items-center gap-2 text-sm">
-				<input type="checkbox" bind:checked={autoAdvance} class="accent-blue-500" />
-				Auto-next
-			</label>
 			<label class="flex items-center gap-2 text-sm">
 				<input type="checkbox" bind:checked={hideMelody} class="accent-blue-500" />
 				Hide melody
 			</label>
 		</div>
 
-		{#if activeMelody}
+		<div class="mb-4 rounded-lg bg-slate-50 p-4 dark:bg-slate-800/60">
+			<div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+				<span class="text-sm font-semibold">
+					Random pool · {poolMelodies.length} / {activeLibrary.melodies.length} selected
+				</span>
+				<div class="flex gap-2">
+					<button
+						type="button"
+						class="rounded border px-2 py-1 text-xs dark:border-gray-600"
+						onclick={setPoolAll}
+					>
+						All
+					</button>
+					<button
+						type="button"
+						class="rounded border px-2 py-1 text-xs dark:border-gray-600"
+						onclick={setPoolNone}
+					>
+						One only
+					</button>
+				</div>
+			</div>
+			<p class="text-sm text-gray-600 dark:text-gray-300">
+				{#if poolMelodies.length === 1}
+					One exercise selected — it repeats every Listen step.
+				{:else}
+					Each Listen step picks a random melody from the checked pool.
+				{/if}
+			</p>
+		</div>
+
+		{#if displayMelody}
 			<div class="mb-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
 				<div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-					<h2 class="text-xl font-semibold">{hideMelody ? 'Listening' : activeMelody.name}</h2>
-					{#if !hideMelody && playheadLabel}
+					<div>
+						{#if activePhase === 'audiate'}
+							<p
+								class="text-xs font-semibold tracking-wide text-violet-600 uppercase dark:text-violet-300"
+							>
+								Audiate
+							</p>
+						{:else if activePhase === 'listen'}
+							<p
+								class="text-xs font-semibold tracking-wide text-emerald-600 uppercase dark:text-emerald-300"
+							>
+								Listen
+							</p>
+						{/if}
+						<h2 class="text-xl font-semibold">
+							{hideMelody && activePhase !== 'audiate' ? 'Listening' : displayMelody.name}
+						</h2>
+					</div>
+					{#if !hideMelody && activePhase === 'listen' && playheadLabel}
 						<p class="text-2xl font-bold tabular-nums">{playheadLabel}</p>
 					{/if}
 				</div>
-				{#if !hideMelody}
+				{#if !hideMelody || activePhase === 'audiate'}
 					<p class="mb-3 font-mono text-sm text-gray-600 dark:text-gray-300">
-						{activeMelody.notation}
+						{activePhase === 'audiate' ? 'Sing or audiate — tonic only.' : displayMelody.notation}
 					</p>
 				{/if}
 				{#if activeParse?.ok}
@@ -730,7 +1114,7 @@
 						expectedBeats={expectedBeats(barCount)}
 						totalBeats={expectedBeats(barCount)}
 						{playheadBeat}
-						conceal={hideMelody}
+						conceal={hideMelody || activePhase === 'audiate'}
 					/>
 				{:else}
 					<p class="text-sm text-red-600">{activeParse?.error}</p>
@@ -748,36 +1132,54 @@
 		<ul class="grid gap-2 sm:grid-cols-2">
 			{#each activeLibrary.melodies as melody (melody.id)}
 				<li>
-					<button
-						type="button"
+					<div
 						class={[
-							'w-full rounded-lg border px-3 py-3 text-left',
-							melody.id === activeMelody?.id
+							'flex w-full items-stretch overflow-hidden rounded-lg border',
+							melody.id === displayMelody?.id
 								? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40'
-								: 'border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800'
+								: 'border-gray-200 dark:border-gray-700'
 						]}
-						onclick={() => {
-							selectedByBars[barCount] = melody.id;
-							void startPlayback(melody);
-						}}
 					>
-						<span class="flex items-center justify-between gap-2">
-							<span class="font-semibold">{melody.name}</span>
-							{#if playingId === melody.id}
-								<span class="text-xs font-medium text-emerald-600">Playing</span>
+						<label
+							class="flex cursor-pointer items-center border-r border-gray-200 px-3 dark:border-gray-700"
+							title="Include in random pool"
+						>
+							<input
+								type="checkbox"
+								class="accent-blue-500"
+								checked={poolSet.has(melody.id)}
+								onchange={() => togglePoolMelody(melody.id)}
+							/>
+						</label>
+						<button
+							type="button"
+							class="min-w-0 flex-1 px-3 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800"
+							onclick={() => {
+								selectedByBars[barCount] = melody.id;
+								if (!playing) sessionMelody = null;
+							}}
+						>
+							<span class="flex items-center justify-between gap-2">
+								<span class="font-semibold">{melody.name}</span>
+								{#if playingId === melody.id}
+									<span class="text-xs font-medium text-emerald-600">
+										{activePhase === 'audiate' ? 'Audiate' : 'Playing'}
+									</span>
+								{/if}
+							</span>
+							{#if !hideMelody}
+								<span class="mt-1 block truncate font-mono text-xs text-gray-500"
+									>{melody.notation}</span
+								>
 							{/if}
-						</span>
-						{#if !hideMelody}
-							<span class="mt-1 block truncate font-mono text-xs text-gray-500"
-								>{melody.notation}</span
-							>
-						{/if}
-					</button>
+						</button>
+					</div>
 				</li>
 			{/each}
 		</ul>
 		<p class="mt-4 text-xs text-gray-500">
-			Space plays and stops. Arrow keys move through the list.
+			Check melodies for the pool. Practice repeats your phase sequence until you stop. Space toggles
+			practice.
 		</p>
 	{:else}
 		{#key barCount}
@@ -790,7 +1192,7 @@
 				{dirty}
 				{saving}
 				{saveMessage}
-				play={playActive}
+				play={previewMelody}
 				stop={stopPlayback}
 				save={saveLibrary}
 				download={downloadLibrary}

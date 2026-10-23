@@ -3,6 +3,8 @@ import { isBarCount, type BarCount } from '$lib/audition/notation';
 
 export const AUDITION_SETTINGS_KEY = 'auditionSettings';
 
+export type AuditionPhase = 'listen' | 'audiate';
+
 export type AuditionSettings = {
 	selectedKey: string;
 	bpm: number;
@@ -14,10 +16,11 @@ export type AuditionSettings = {
 	droneRegister: string;
 	droneVolume: number;
 	melodyOctave: number;
-	loop: boolean;
-	autoAdvance: boolean;
 	hideMelody: boolean;
 	barCount: BarCount;
+	/** Melody ids in the random pool for each bar file (empty = all). */
+	poolMelodyIds: Partial<Record<BarCount, string[]>>;
+	phaseSequence: AuditionPhase[];
 };
 
 export const defaultAuditionSettings: AuditionSettings = {
@@ -31,11 +34,33 @@ export const defaultAuditionSettings: AuditionSettings = {
 	droneRegister: 'C2',
 	droneVolume: 0.45,
 	melodyOctave: 0,
-	loop: false,
-	autoAdvance: false,
 	hideMelody: false,
-	barCount: 1
+	barCount: 1,
+	poolMelodyIds: {},
+	phaseSequence: ['listen', 'audiate']
 };
+
+function sanitizePhaseSequence(raw: unknown): AuditionPhase[] {
+	if (!Array.isArray(raw) || raw.length === 0) return [...defaultAuditionSettings.phaseSequence];
+	const out: AuditionPhase[] = [];
+	for (const item of raw) {
+		if (item === 'listen' || item === 'audiate') out.push(item);
+	}
+	return out.length > 0 ? out : [...defaultAuditionSettings.phaseSequence];
+}
+
+function sanitizePoolIds(raw: unknown): Partial<Record<BarCount, string[]>> {
+	if (!raw || typeof raw !== 'object') return {};
+	const out: Partial<Record<BarCount, string[]>> = {};
+	for (const bars of [1, 2, 3, 4] as const) {
+		const key = String(bars);
+		const list = (raw as Record<string, unknown>)[key] ?? (raw as Record<number, unknown>)[bars];
+		if (!Array.isArray(list)) continue;
+		const ids = list.filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
+		if (ids.length > 0) out[bars] = [...new Set(ids)];
+	}
+	return out;
+}
 
 function sanitize(raw: Partial<AuditionSettings>): AuditionSettings {
 	const defaults = defaultAuditionSettings;
@@ -64,10 +89,10 @@ function sanitize(raw: Partial<AuditionSettings>): AuditionSettings {
 			typeof raw.melodyOctave === 'number' && raw.melodyOctave >= -1 && raw.melodyOctave <= 2
 				? raw.melodyOctave
 				: defaults.melodyOctave,
-		loop: raw.loop ?? defaults.loop,
-		autoAdvance: raw.autoAdvance ?? defaults.autoAdvance,
 		hideMelody: raw.hideMelody ?? defaults.hideMelody,
-		barCount: isBarCount(barCount) ? barCount : defaults.barCount
+		barCount: isBarCount(barCount) ? barCount : defaults.barCount,
+		poolMelodyIds: sanitizePoolIds(raw.poolMelodyIds),
+		phaseSequence: sanitizePhaseSequence(raw.phaseSequence)
 	};
 }
 
