@@ -198,13 +198,13 @@
 		return expectedBeats(barCount) * beatSeconds();
 	}
 
-	function pickMelodyFromPool(): AuditionMelody | null {
+	function pickMelodyFromPool(avoidId?: string | null): AuditionMelody | null {
 		const all = activeLibrary.melodies;
 		if (all.length === 0) return null;
 		const pool = poolMelodies.length > 0 ? poolMelodies : all;
 		if (pool.length === 0) return null;
 		if (pool.length === 1) return pool[0];
-		const lastId = playingId;
+		const lastId = avoidId ?? playingId;
 		const candidates = pool.filter((m) => m.id !== lastId);
 		const pickFrom = candidates.length > 0 ? candidates : pool;
 		return pickFrom[Math.floor(Math.random() * pickFrom.length)] ?? null;
@@ -519,9 +519,80 @@
 		sessionMelody = null;
 	}
 
-	function finishPracticeCycle(token: number) {
-		if (token !== playToken) return;
-		void startPractice();
+	type PracticeCycleSchedule = { endSec: number; lastListenId: string | null };
+
+	type PracticeScheduleState = {
+		scheduledUntilSec: number;
+		lastListenId: string | null;
+	};
+
+	const PRACTICE_LOOKAHEAD_CYCLES = 4;
+	const PRACTICE_TOP_UP_LEAD_CYCLES = 2;
+
+	function sessionCycleDurationSec(): number {
+		return phaseSequence.length * phaseDurationSeconds();
+	}
+
+	/** Schedule one full phase sequence; returns end time on the transport timeline. */
+	function schedulePracticeCycle(
+		ctx: ScheduleContext,
+		startSec: number,
+		avoidMelodyId?: string | null
+	): PracticeCycleSchedule | null {
+		let offsetSec = startSec;
+		let carryMelody: AuditionMelody | null = null;
+		let lastListenId: string | null = avoidMelodyId ?? null;
+
+		for (const phase of phaseSequence) {
+			if (phase === 'listen') {
+				const melody = pickMelodyFromPool(lastListenId);
+				if (!melody) return null;
+				if (!scheduleListenPhase(ctx, melody, offsetSec, 'listen')) {
+					if (startSec === 0) {
+						playbackMessage = `${melody.name} is invalid for this bar length.`;
+					}
+					return null;
+				}
+				carryMelody = melody;
+				lastListenId = melody.id;
+			} else {
+				scheduleAudiatePhase(ctx, offsetSec, carryMelody);
+			}
+			offsetSec += phaseDurationSeconds();
+		}
+
+		return { endSec: offsetSec, lastListenId };
+	}
+
+	function extendPracticeSchedule(
+		ctx: ScheduleContext,
+		state: PracticeScheduleState,
+		minUntilSec: number
+	): boolean {
+		while (state.scheduledUntilSec + 1e-6 < minUntilSec) {
+			const result = schedulePracticeCycle(ctx, state.scheduledUntilSec, state.lastListenId);
+			if (!result) return false;
+			state.lastListenId = result.lastListenId;
+			state.scheduledUntilSec = result.endSec;
+		}
+		return true;
+	}
+
+	/** Top up cycles on the timeline tail so new Listen steps are never scheduled in the past. */
+	function schedulePracticeTopUp(
+		ctx: ScheduleContext,
+		token: number,
+		state: PracticeScheduleState
+	) {
+		const cycleSec = sessionCycleDurationSec();
+		const triggerAt = Math.max(0, state.scheduledUntilSec - cycleSec * PRACTICE_TOP_UP_LEAD_CYCLES);
+
+		ctx.scheduleAt(triggerAt, () => {
+			if (token !== playToken) return;
+			const horizon = ctx.transport.seconds + cycleSec * PRACTICE_LOOKAHEAD_CYCLES;
+			if (!extendPracticeSchedule(ctx, state, horizon)) return;
+			schedulePracticeTopUp(ctx, token, state);
+		});
 	}
 
 	async function ensureAudioReady(): Promise<boolean> {
@@ -603,45 +674,22 @@
 		const ctx = makeScheduleContext(token);
 		ctx.transport.position = 0;
 
-		let offsetSec = 0;
-		let carryMelody: AuditionMelody | null = null;
-		let scheduled = false;
-
-		for (const phase of phaseSequence) {
-			if (phase === 'listen') {
-				const melody = pickMelodyFromPool();
-				if (!melody) {
-					playbackMessage = 'Select at least one melody in the pool.';
-					stopPlayback();
-					return;
-				}
-				if (!scheduleListenPhase(ctx, melody, offsetSec, 'listen')) {
-					playbackMessage = `${melody.name} is invalid for this bar length.`;
-					stopPlayback();
-					return;
-				}
-				carryMelody = melody;
-				scheduled = true;
-			} else {
-				scheduleAudiatePhase(ctx, offsetSec, carryMelody);
-				scheduled = true;
+		const scheduleState: PracticeScheduleState = {
+			scheduledUntilSec: 0,
+			lastListenId: playingId
+		};
+		const cycleSec = sessionCycleDurationSec();
+		if (!extendPracticeSchedule(ctx, scheduleState, cycleSec * PRACTICE_LOOKAHEAD_CYCLES)) {
+			if (scheduleState.scheduledUntilSec === 0) {
+				playbackMessage = 'Select at least one valid melody in the pool.';
 			}
-			offsetSec += phaseDurationSeconds();
+			stopPlayback();
+			return;
 		}
-
-		if (!scheduled) return;
-
-		ctx.scheduleAt(offsetSec, (audioTime) => {
-			Tone.getDraw().schedule(() => {
-				if (token !== playToken) return;
-				ctx.transport.stop();
-				ctx.transport.position = 0;
-				finishPracticeCycle(token);
-			}, audioTime);
-		});
+		schedulePracticeTopUp(ctx, token, scheduleState);
 
 		playing = true;
-		ctx.transport.start(Tone.now() + 0.08);
+		ctx.transport.start(Tone.now() + 0.05);
 	}
 
 	function previewMelody() {
