@@ -1,52 +1,218 @@
+
 {
 	"bars": 1,
 	"beatsPerBar": 4,
-	"notationHelp": "Space-separated notes. 1-7 = scale degree, r = rest. Add ' per octave up or , per octave down. Add :beats for length (default 1; 0.5 eighth, 1.5 dotted quarter, 2 half, 4 whole). | marks a bar. Each bar is 4 beats.",
 	"melodies": [
-		{
-			"id": "do-re-mi-sol",
-			"name": "Do re mi sol",
-			"notation": "1 2 3 5"
-		},
-		{
-			"id": "sol-fa-mi-re",
-			"name": "Sol fa mi re",
-			"notation": "5 4 3 2"
-		},
-		{
-			"id": "tonic-triad",
-			"name": "Tonic triad",
-			"notation": "1 3 5 1'"
-		},
-		{
-			"id": "lower-neighbor",
-			"name": "Lower neighbor",
-			"notation": "3 2 1 2"
-		},
-		{
-			"id": "sol-to-do",
-			"name": "Sol to do",
-			"notation": "5:2 1:2"
-		},
-		{
-			"id": "eighths-to-sol",
-			"name": "Eighths to sol",
-			"notation": "1:0.5 2:0.5 3:0.5 4:0.5 5 3"
-		},
-		{
-			"id": "rest-and-neighbor",
-			"name": "Rest and neighbor",
-			"notation": "r 5 6 5"
-		},
-		{
-			"id": "falling-cadence",
-			"name": "Falling cadence",
-			"notation": "5 4 2 1"
-		},
-		{
-			"id": "dotted-do",
-			"name": "Dotted do",
-			"notation": "1:1.5 2:0.5 3:2"
-		}
+	  {
+		"id": "ea01-tonic-steps-up",
+		"name": "Tonic Steps Up",
+		"notation": "1 2 3 4",
+		"stage": 1,
+		"skill": "ascending steps"
+	  },
+	  {
+		"id": "ea02-tonic-steps-down",
+		"name": "Tonic Steps Down",
+		"notation": "4 3 2 1",
+		"stage": 1,
+		"skill": "descending steps"
+	  },
+	  {
+		"id": "ea03-tonic-triad-up",
+		"name": "Tonic Triad Up",
+		"notation": "1 3 5 1'",
+		"stage": 1,
+		"skill": "triad and octave"
+	  },
+	  {
+		"id": "ea04-tonic-triad-down",
+		"name": "Tonic Triad Down",
+		"notation": "1' 5 3 1",
+		"stage": 1,
+		"skill": "descending triad"
+	  },
+	  {
+		"id": "ea05-third-neighbor",
+		"name": "Third Neighbor",
+		"notation": "3 2 3 1",
+		"stage": 1,
+		"skill": "neighbor tone"
+	  },
+	  {
+		"id": "ea06-fifth-home",
+		"name": "Fifth Home",
+		"notation": "5 3 2 1",
+		"stage": 1,
+		"skill": "tonic resolution"
+	  },
+	  {
+		"id": "ea07-tonic-repeated",
+		"name": "Tonic Repeated",
+		"notation": "1 1 3 1",
+		"stage": 1,
+		"skill": "pitch repetition"
+	  },
+	  {
+		"id": "ea08-third-return",
+		"name": "Third Return",
+		"notation": "1 3 2 3",
+		"stage": 1,
+		"skill": "small interval changes"
+	  },
+	  {
+		"id": "ea09-sol-fa-mi-re",
+		"name": "Sol Fa Mi Re",
+		"notation": "5 4 3 2",
+		"stage": 1,
+		"skill": "descending contour"
+	  },
+	  {
+		"id": "ea10-home-again",
+		"name": "Home Again",
+		"notation": "2 3 2 1",
+		"stage": 1,
+		"skill": "tonic approach"
+	  },
+	  {
+		"id": "ea11-fourth-leap",
+		"name": "Fourth Leap",
+		"notation": "1 4 3 2",
+		"stage": 2,
+		"skill": "perfect fourth"
+	  },
+	  {
+		"id": "ea12-fifth-leap",
+		"name": "Fifth Leap",
+		"notation": "1 5 4 2",
+		"stage": 2,
+		"skill": "perfect fifth"
+	  },
+	  {
+		"id": "ea13-leap-and-return",
+		"name": "Leap and Return",
+		"notation": "3 6 3 2",
+		"stage": 2,
+		"skill": "sixth and reversal"
+	  },
+	  {
+		"id": "ea14-wide-then-step",
+		"name": "Wide Then Step",
+		"notation": "1 5 6 5",
+		"stage": 2,
+		"skill": "leap and step"
+	  },
+	  {
+		"id": "ea15-sol-to-tonic",
+		"name": "Sol to Tonic",
+		"notation": "5:2 1:2",
+		"stage": 2,
+		"skill": "long-note resolution"
+	  },
+	  {
+		"id": "ea16-neighbor-around-five",
+		"name": "Neighbor Around Five",
+		"notation": "5 6 5 4",
+		"stage": 2,
+		"skill": "upper neighbor"
+	  },
+	  {
+		"id": "ea17-skip-and-fill",
+		"name": "Skip and Fill",
+		"notation": "1 3 2 4",
+		"stage": 2,
+		"skill": "thirds and steps"
+	  },
+	  {
+		"id": "ea18-reverse-contour",
+		"name": "Reverse Contour",
+		"notation": "5 2 4 1",
+		"stage": 2,
+		"skill": "mixed interval direction"
+	  },
+	  {
+		"id": "ea19-upper-register",
+		"name": "Upper Register",
+		"notation": "5 1' 7 1'",
+		"stage": 2,
+		"skill": "octave and leading tone"
+	  },
+	  {
+		"id": "ea20-leap-to-resolution",
+		"name": "Leap to Resolution",
+		"notation": "6 4 2 1",
+		"stage": 2,
+		"skill": "non-tonic opening"
+	  },
+	  {
+		"id": "ea21-eighths-up",
+		"name": "Eighths Up",
+		"notation": "1:0.5 2:0.5 3:0.5 4:0.5 5 3",
+		"stage": 3,
+		"skill": "eighth-note grouping"
+	  },
+	  {
+		"id": "ea22-eighths-down",
+		"name": "Eighths Down",
+		"notation": "5:0.5 4:0.5 3:0.5 2:0.5 1 3",
+		"stage": 3,
+		"skill": "rhythm and descent"
+	  },
+	  {
+		"id": "ea23-dotted-opening",
+		"name": "Dotted Opening",
+		"notation": "1:1.5 2:0.5 3:2",
+		"stage": 3,
+		"skill": "dotted-quarter duration"
+	  },
+	  {
+		"id": "ea24-rest-first",
+		"name": "Rest First",
+		"notation": "r 5 6 5",
+		"stage": 3,
+		"skill": "internal pulse after rest"
+	  },
+	  {
+		"id": "ea25-rest-in-middle",
+		"name": "Rest in the Middle",
+		"notation": "1 3 r 2",
+		"stage": 3,
+		"skill": "rhythmic interruption"
+	  },
+	  {
+		"id": "ea26-held-note",
+		"name": "Held Note",
+		"notation": "1:2 3 2",
+		"stage": 3,
+		"skill": "sustained pitch memory"
+	  },
+	  {
+		"id": "ea27-syncopated-neighbor",
+		"name": "Syncopated Neighbor",
+		"notation": "1:0.5 3:1.5 2 1",
+		"stage": 3,
+		"skill": "offbeat duration"
+	  },
+	  {
+		"id": "ea28-two-pairs",
+		"name": "Two Pairs",
+		"notation": "1:0.5 3:0.5 2:0.5 4:0.5 3 1",
+		"stage": 3,
+		"skill": "grouping and interval memory"
+	  },
+	  {
+		"id": "ea29-open-ending",
+		"name": "Open Ending",
+		"notation": "1 3 5 2",
+		"stage": 3,
+		"skill": "non-tonic ending"
+	  },
+	  {
+		"id": "ea30-leading-tone-home",
+		"name": "Leading Tone Home",
+		"notation": "5 7 2 1",
+		"stage": 3,
+		"skill": "leading-tone resolution"
+	  }
 	]
-}
+  }
+  

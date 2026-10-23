@@ -1,32 +1,109 @@
+
 {
 	"bars": 3,
 	"beatsPerBar": 4,
 	"notationHelp": "Space-separated notes. 1-7 = scale degree, r = rest. Add ' per octave up or , per octave down. Add :beats for length (default 1; 0.5 eighth, 1.5 dotted quarter, 2 half, 4 whole). | marks a bar. Each bar is 4 beats.",
 	"melodies": [
-		{
-			"id": "long-scale",
-			"name": "Long scale",
-			"notation": "1 2 3 4 | 5 6 5 4 | 3 2 1:2"
-		},
-		{
-			"id": "question-and-answer",
-			"name": "Question and answer",
-			"notation": "1 3 5 1' | 7 5 4 3 | 2 7, 1:2"
-		},
-		{
-			"id": "repeated-sol",
-			"name": "Repeated sol",
-			"notation": "5:2 5:2 | 6 5 4 3 | 2 2 1:2"
-		},
-		{
-			"id": "run-arpeggio-descent",
-			"name": "Run, arpeggio, descent",
-			"notation": "1:0.5 2:0.5 3:0.5 4:0.5 5:0.5 4:0.5 3:0.5 2:0.5 | 1 3 5 1' | 7 5 4 3"
-		},
-		{
-			"id": "lift-to-high-do",
-			"name": "Lift to high do",
-			"notation": "3 4 5:2 | r 5 6 7 | 1':2 5 1'"
-		}
+	  {
+		"id": "ea3-01-stepwise-arc",
+		"name": "Stepwise Arc",
+		"notation": "1 2 3 4 | 5 4 3 2 | 3 2 1 1"
+	  },
+	  {
+		"id": "ea3-02-motif-development",
+		"name": "Motif Development",
+		"notation": "1 3 2 3 | 2 4 3 4 | 3 2 7 1"
+	  },
+	  {
+		"id": "ea3-03-triad-journey",
+		"name": "Triad Journey",
+		"notation": "1 3 5 1' | 7 5 3 5 | 4 3 2 1"
+	  },
+	  {
+		"id": "ea3-04-sequence-up",
+		"name": "Sequence Up",
+		"notation": "1 2 3 1 | 2 3 4 2 | 3 4 5 1'"
+	  },
+	  {
+		"id": "ea3-05-sequence-down",
+		"name": "Sequence Down",
+		"notation": "5 4 3 5 | 4 3 2 4 | 3 2 1 1"
+	  },
+	  {
+		"id": "ea3-06-leap-and-fill",
+		"name": "Leap and Fill",
+		"notation": "1 5 4 3 | 2 6 5 4 | 3 2 7 1"
+	  },
+	  {
+		"id": "ea3-07-wide-intervals",
+		"name": "Wide Intervals",
+		"notation": "1 5 2' 7 | 6 3 5 2 | 4 2 7 1"
+	  },
+	  {
+		"id": "ea3-08-register-journey",
+		"name": "Register Journey",
+		"notation": "1 3 5 1' | 6 4 2 5 | 3 2 7 1"
+	  },
+	  {
+		"id": "ea3-09-rhythm-return",
+		"name": "Rhythm and Return",
+		"notation": "1:0.5 2:0.5 3:0.5 4:0.5 5 3 | 4:2 2:2 | 3 2 1:2"
+	  },
+	  {
+		"id": "ea3-10-dotted-motif",
+		"name": "Dotted Motif",
+		"notation": "1:1.5 2:0.5 3:2 | 5:1.5 4:0.5 3:2 | 2:1.5 7:0.5 1:2"
+	  },
+	  {
+		"id": "ea3-11-rested-phrase",
+		"name": "Rested Phrase",
+		"notation": "r 1 3 5 | r 6 5 3 | 2 7 1:2"
+	  },
+	  {
+		"id": "ea3-12-repeated-note-memory",
+		"name": "Repeated Note Memory",
+		"notation": "1 1 3 3 | 5 5 4 4 | 2 2 1:2"
+	  },
+	  {
+		"id": "ea3-13-open-middle",
+		"name": "Open Middle",
+		"notation": "1 3 5 2 | 4 6 5 3 | 2 4 2 1"
+	  },
+	  {
+		"id": "ea3-14-unresolved-phrase",
+		"name": "Unresolved Phrase",
+		"notation": "1 3 5 6 | 5 4 2 5 | 6 4 2 5"
+	  },
+	  {
+		"id": "ea3-15-leading-tone-arc",
+		"name": "Leading Tone Arc",
+		"notation": "5 7 1' 7 | 6 4 5 3 | 2 7 1:2"
+	  },
+	  {
+		"id": "ea3-16-contrary-motion",
+		"name": "Contrary Motion",
+		"notation": "1 3 5 4 | 6 4 2 3 | 5 3 2 1"
+	  },
+	  {
+		"id": "ea3-17-eighth-note-run",
+		"name": "Eighth Note Run",
+		"notation": "1:0.5 2:0.5 3:0.5 4:0.5 5:0.5 6:0.5 5:0.5 3:0.5 | 4 2 3 5 | 4 2 7 1"
+	  },
+	  {
+		"id": "ea3-18-sustained-memory",
+		"name": "Sustained Memory",
+		"notation": "1:2 3 5 | 6:2 5 4 | 3:2 2 1"
+	  },
+	  {
+		"id": "ea3-19-motif-transformed",
+		"name": "Motif Transformed",
+		"notation": "1 3 2 3 | 5 3 4 2 | 1 2 7 1"
+	  },
+	  {
+		"id": "ea3-20-memory-test",
+		"name": "Three Bar Memory Test",
+		"notation": "6 4 2 5 | 3 5 1' 7 | 6 4 2 1"
+	  }
 	]
-}
+  }
+  

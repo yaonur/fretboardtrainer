@@ -1,42 +1,109 @@
+
 {
 	"bars": 2,
 	"beatsPerBar": 4,
 	"notationHelp": "Space-separated notes. 1-7 = scale degree, r = rest. Add ' per octave up or , per octave down. Add :beats for length (default 1; 0.5 eighth, 1.5 dotted quarter, 2 half, 4 whole). | marks a bar. Each bar is 4 beats.",
 	"melodies": [
-		{
-			"id": "scale-and-cadence",
-			"name": "Scale and cadence",
-			"notation": "1 2 3 4 | 5 3 2 1"
-		},
-		{
-			"id": "arpeggio-leading-tone",
-			"name": "Arpeggio and leading tone",
-			"notation": "1 3 5 3 | 4 2 7 1"
-		},
-		{
-			"id": "climb-to-high-do",
-			"name": "Climb to high do",
-			"notation": "5:2 3 4 | 5 6 7 1'"
-		},
-		{
-			"id": "repeated-notes",
-			"name": "Repeated notes",
-			"notation": "1 1 5 5 | 6 5 4 3"
-		},
-		{
-			"id": "eighth-run",
-			"name": "Eighth run",
-			"notation": "3:0.5 4:0.5 5:0.5 6:0.5 5 4 | 3 2 1:2"
-		},
-		{
-			"id": "held-notes",
-			"name": "Held notes",
-			"notation": "1:2 r 5 | 4:2 3 2"
-		},
-		{
-			"id": "dotted-neighbors",
-			"name": "Dotted neighbors",
-			"notation": "1:1.5 7,:0.5 1:2 | 2:1.5 1:0.5 7,:2"
-		}
+	  {
+		"id": "ea2-01-stepwise-answer",
+		"name": "Stepwise Answer",
+		"notation": "1 2 3 4 | 5 4 3 2"
+	  },
+	  {
+		"id": "ea2-02-tonic-return",
+		"name": "Tonic Return",
+		"notation": "1 3 5 3 | 2 4 2 1"
+	  },
+	  {
+		"id": "ea2-03-triad-sequence",
+		"name": "Triad Sequence",
+		"notation": "1 3 5 1' | 5 3 2 1"
+	  },
+	  {
+		"id": "ea2-04-descending-question",
+		"name": "Descending Question",
+		"notation": "5 4 3 2 | 4 3 2 1"
+	  },
+	  {
+		"id": "ea2-05-motif-repeat",
+		"name": "Motif Repeat",
+		"notation": "1 3 2 3 | 1 3 2 3"
+	  },
+	  {
+		"id": "ea2-06-motif-resolution",
+		"name": "Motif Resolution",
+		"notation": "1 3 2 3 | 5 4 2 1"
+	  },
+	  {
+		"id": "ea2-07-fifth-and-step",
+		"name": "Fifth and Step",
+		"notation": "1 5 4 3 | 2 3 2 1"
+	  },
+	  {
+		"id": "ea2-08-neighbor-tone",
+		"name": "Neighbor Tone",
+		"notation": "3 2 3 5 | 4 3 2 1"
+	  },
+	  {
+		"id": "ea2-09-leap-and-return",
+		"name": "Leap and Return",
+		"notation": "1 5 3 5 | 4 2 3 1"
+	  },
+	  {
+		"id": "ea2-10-upper-register",
+		"name": "Upper Register",
+		"notation": "5 1' 7 6 | 5 3 2 1"
+	  },
+	  {
+		"id": "ea2-11-repeated-tonic",
+		"name": "Repeated Tonic",
+		"notation": "1 1 3 3 | 2 2 1:2"
+	  },
+	  {
+		"id": "ea2-12-held-tonic",
+		"name": "Held Tonic",
+		"notation": "1:2 3 5 | 4:2 2 1"
+	  },
+	  {
+		"id": "ea2-13-eighth-note-bridge",
+		"name": "Eighth Note Bridge",
+		"notation": "1:0.5 2:0.5 3:0.5 4:0.5 5 3 | 4 2 3 1"
+	  },
+	  {
+		"id": "ea2-14-rhythmic-echo",
+		"name": "Rhythmic Echo",
+		"notation": "1:1.5 2:0.5 3:2 | 3:1.5 2:0.5 1:2"
+	  },
+	  {
+		"id": "ea2-15-rest-and-response",
+		"name": "Rest and Response",
+		"notation": "r 1 3 5 | 4 3 2 1"
+	  },
+	  {
+		"id": "ea2-16-syncopated-leap",
+		"name": "Syncopated Leap",
+		"notation": "1:0.5 3:1.5 5:1 4:1 | 3:2 2 1"
+	  },
+	  {
+		"id": "ea2-17-open-ending",
+		"name": "Open Ending",
+		"notation": "1 3 5 6 | 5 4 2 5"
+	  },
+	  {
+		"id": "ea2-18-leading-tone",
+		"name": "Leading Tone",
+		"notation": "5 7 2' 7 | 6 4 2 1"
+	  },
+	  {
+		"id": "ea2-19-contrary-contour",
+		"name": "Contrary Contour",
+		"notation": "1 3 5 4 | 2 4 3 1"
+	  },
+	  {
+		"id": "ea2-20-memory-challenge",
+		"name": "Memory Challenge",
+		"notation": "6 4 5 1' | 7 5 2 1"
+	  }
 	]
-}
+  }
+  

@@ -1,32 +1,109 @@
+
 {
 	"bars": 4,
 	"beatsPerBar": 4,
 	"notationHelp": "Space-separated notes. 1-7 = scale degree, r = rest. Add ' per octave up or , per octave down. Add :beats for length (default 1; 0.5 eighth, 1.5 dotted quarter, 2 half, 4 whole). | marks a bar. Each bar is 4 beats.",
 	"melodies": [
-		{
-			"id": "four-bar-cadence",
-			"name": "Four-bar cadence",
-			"notation": "1 2 3 4 | 5 3 4 2 | 3 1 2 7, | 1:4"
-		},
-		{
-			"id": "arch-phrase",
-			"name": "Arch phrase",
-			"notation": "1 3 5 3 | 4 6 5 4 | 3 5 4 2 | 3 2 1:2"
-		},
-		{
-			"id": "sequence-up",
-			"name": "Sequence up",
-			"notation": "5:2 3 4 | 5:2 6 7 | 1':2 7 6 | 5:2 4 3"
-		},
-		{
-			"id": "running-start",
-			"name": "Running start",
-			"notation": "1:0.5 2:0.5 3:0.5 2:0.5 1:0.5 2:0.5 3:0.5 4:0.5 | 5 6 5 4 | 3 4 3 2 | 1:4"
-		},
-		{
-			"id": "high-do-return",
-			"name": "High do and return",
-			"notation": "1 5 1' 7 | 6 5 4 3 | 2 5 4 3 | 2 7, 1:2"
-		}
+	  {
+		"id": "ea4-01-basic-phrase",
+		"name": "Basic Phrase",
+		"notation": "1 2 3 5 | 5 4 3 2 | 3 4 5 3 | 2 7 1:2"
+	  },
+	  {
+		"id": "ea4-02-motif-and-answer",
+		"name": "Motif and Answer",
+		"notation": "1 3 2 3 | 1 3 5 3 | 4 6 5 4 | 3 2 7 1"
+	  },
+	  {
+		"id": "ea4-03-ascending-journey",
+		"name": "Ascending Journey",
+		"notation": "1 2 3 4 | 3 4 5 6 | 5 6 7 1' | 7 5 2 1"
+	  },
+	  {
+		"id": "ea4-04-descending-journey",
+		"name": "Descending Journey",
+		"notation": "1' 7 6 5 | 6 5 4 3 | 5 4 3 2 | 3 2 7 1"
+	  },
+	  {
+		"id": "ea4-05-triad-development",
+		"name": "Triad Development",
+		"notation": "1 3 5 1' | 5 3 1 3 | 4 6 1' 6 | 5 3 2 1"
+	  },
+	  {
+		"id": "ea4-06-sequence-and-cadence",
+		"name": "Sequence and Cadence",
+		"notation": "1 2 3 1 | 2 3 4 2 | 3 4 5 3 | 2 7 1:2"
+	  },
+	  {
+		"id": "ea4-07-leap-and-recovery",
+		"name": "Leap and Recovery",
+		"notation": "1 5 4 3 | 6 3 2 4 | 5 2 3 1 | 2 7 1:2"
+	  },
+	  {
+		"id": "ea4-08-register-expansion",
+		"name": "Register Expansion",
+		"notation": "1 3 5 1' | 6 4 2 5 | 1 5 1' 7 | 6 4 2 1"
+	  },
+	  {
+		"id": "ea4-09-rhythmic-contrast",
+		"name": "Rhythmic Contrast",
+		"notation": "1:0.5 2:0.5 3:0.5 4:0.5 5 3 | 4:2 2:2 | 3:1.5 2:0.5 1:2 | 5 4 2 1"
+	  },
+	  {
+		"id": "ea4-10-dotted-phrase",
+		"name": "Dotted Phrase",
+		"notation": "1:1.5 2:0.5 3:2 | 5:1.5 4:0.5 3:2 | 2:1.5 7:0.5 1:2 | 5:2 1:2"
+	  },
+	  {
+		"id": "ea4-11-rest-and-continuation",
+		"name": "Rest and Continuation",
+		"notation": "r 1 3 5 | 6 5 3 2 | r 4 3 2 | 5 7 1':2"
+	  },
+	  {
+		"id": "ea4-12-repeated-motif",
+		"name": "Repeated Motif",
+		"notation": "1 3 2 3 | 1 3 2 3 | 4 6 5 6 | 5 4 2 1"
+	  },
+	  {
+		"id": "ea4-13-motif-transposition",
+		"name": "Motif Transposition",
+		"notation": "1 3 2 3 | 2 4 3 4 | 3 5 4 5 | 2 7 1:2"
+	  },
+	  {
+		"id": "ea4-14-open-cadence",
+		"name": "Open Cadence",
+		"notation": "1 3 5 6 | 5 4 2 5 | 6 4 2 5 | 4 2 7 5"
+	  },
+	  {
+		"id": "ea4-15-leading-tone-resolution",
+		"name": "Leading Tone Resolution",
+		"notation": "5 7 1' 7 | 6 4 5 3 | 4 6 5 2 | 2 7 1:2"
+	  },
+	  {
+		"id": "ea4-16-contrary-contours",
+		"name": "Contrary Contours",
+		"notation": "1 3 5 4 | 6 4 2 3 | 1 5 3 6 | 5 3 2 1"
+	  },
+	  {
+		"id": "ea4-17-eighth-note-arc",
+		"name": "Eighth Note Arc",
+		"notation": "1:0.5 2:0.5 3:0.5 4:0.5 5:0.5 6:0.5 5:0.5 3:0.5 | 4 2 3 5 | 6:0.5 5:0.5 4:0.5 3:0.5 2:0.5 3:0.5 4:0.5 2:0.5 | 5 3 2 1"
+	  },
+	  {
+		"id": "ea4-18-sustained-tonal-memory",
+		"name": "Sustained Tonal Memory",
+		"notation": "1:2 3 5 | 6:2 5 4 | 3:2 2 7 | 1:4"
+	  },
+	  {
+		"id": "ea4-19-varied-motif",
+		"name": "Varied Motif",
+		"notation": "1 3 2 3 | 5 3 2 3 | 4 6 5 4 | 3 2 7 1"
+	  },
+	  {
+		"id": "ea4-20-four-bar-memory-test",
+		"name": "Four Bar Memory Test",
+		"notation": "6 4 2 5 | 3 5 1' 7 | 6 4 2 3 | 5 3 2 1"
+	  }
 	]
-}
+  }
+  
