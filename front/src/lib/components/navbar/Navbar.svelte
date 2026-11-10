@@ -89,6 +89,10 @@
 			<a href="/audition" class="font-medium transition-colors duration-200 hover:text-blue-400"
 				>Audition</a
 			>
+			<a
+				href="/chord-audition"
+				class="font-medium transition-colors duration-200 hover:text-blue-400">Chord audition</a
+			>
 			<a href="/intervals" class="font-medium transition-colors duration-200 hover:text-blue-400"
 				>Intervals</a
 			>
@@ -151,6 +155,11 @@
 					href="/audition"
 					onclick={closeMenu}
 					class="font-medium transition-colors duration-200 hover:text-blue-400">Audition</a
+				>
+				<a
+					href="/chord-audition"
+					onclick={closeMenu}
+					class="font-medium transition-colors duration-200 hover:text-blue-400">Chord audition</a
 				>
 				<a href="/intervals" class="font-medium transition-colors duration-200 hover:text-blue-400"
 					>Intervals</a

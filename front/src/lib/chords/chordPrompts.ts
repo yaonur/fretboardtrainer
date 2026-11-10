@@ -2,19 +2,24 @@
  * Chord prompts: diatonic chords, each pool item stores its own tonality; multiple named profiles.
  */
 
-export const CIRCLE_OF_FIFTHS = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'] as const;
+export const CIRCLE_OF_FIFTHS = [
+	'C',
+	'G',
+	'D',
+	'A',
+	'E',
+	'B',
+	'F#',
+	'Db',
+	'Ab',
+	'Eb',
+	'Bb',
+	'F'
+] as const;
 export type CircleRoot = (typeof CIRCLE_OF_FIFTHS)[number];
 
 export const TONALITY_MODES = ['major', 'naturalMinor', 'harmonicMinor'] as const;
 export type TonalityMode = (typeof TONALITY_MODES)[number];
-
-const FLAT_TO_SHARP: Record<string, string> = {
-	Db: 'C#',
-	Eb: 'D#',
-	Gb: 'F#',
-	Ab: 'G#',
-	Bb: 'A#'
-};
 
 const LETTER_CYCLE = ['C', 'D', 'E', 'F', 'G', 'A', 'B'] as const;
 const NATURAL_PC: Record<string, number> = {
@@ -34,14 +39,18 @@ function newProfileId(): string {
 	return `p-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function toSharpName(note: string): string {
-	return FLAT_TO_SHARP[note] ?? note;
-}
-
 export function noteToPc(note: string): number | null {
-	const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-	const i = names.indexOf(toSharpName(note));
-	return i === -1 ? null : i;
+	const match = /^([A-G])(#{1,2}|b{1,2})?$/.exec(note);
+	if (!match) return null;
+	const natural = NATURAL_PC[match[1] ?? ''];
+	if (natural === undefined) return null;
+	const accidental = match[2] ?? '';
+	const shift = accidental.startsWith('#')
+		? accidental.length
+		: accidental.startsWith('b')
+			? -accidental.length
+			: 0;
+	return (natural + shift + 12) % 12;
 }
 
 const MODE_STEPS: Record<TonalityMode, number[]> = {
@@ -160,8 +169,7 @@ function classifyChordSymbol(
 ): { triadSuffix: string; seventhSuffix: string | null } {
 	const i3 = (thirdPc - rootPc + 12) % 12;
 	const i5 = (fifthPc - rootPc + 12) % 12;
-	const i7 =
-		seventhPc === null ? null : (seventhPc - rootPc + 12) % 12;
+	const i7 = seventhPc === null ? null : (seventhPc - rootPc + 12) % 12;
 
 	let triadSuffix = '';
 	if (i3 === 4 && i5 === 7) triadSuffix = '';
@@ -251,7 +259,12 @@ export function diatonicDegreePreview(
 	mode: TonalityMode,
 	degree: number
 ): { roman: string; triad: string; seventh: string } {
-	const triad: PooledChordEntry = { tonalityRoot: tonic, tonalityMode: mode, degree, kind: 'triad' };
+	const triad: PooledChordEntry = {
+		tonalityRoot: tonic,
+		tonalityMode: mode,
+		degree,
+		kind: 'triad'
+	};
 	const seventh: PooledChordEntry = {
 		tonalityRoot: tonic,
 		tonalityMode: mode,
@@ -303,13 +316,19 @@ export function pickRandomChordFromPool(options: {
 	return { label: formatPoolEntryLabel(entry), entry };
 }
 
-export function addPoolEntry(pool: PooledChordEntry[], entry: PooledChordEntry): PooledChordEntry[] {
+export function addPoolEntry(
+	pool: PooledChordEntry[],
+	entry: PooledChordEntry
+): PooledChordEntry[] {
 	const k = poolEntryKey(entry);
 	const next = pool.filter((e) => poolEntryKey(e) !== k);
 	return [...next, entry];
 }
 
-export function removePoolEntry(pool: PooledChordEntry[], entry: PooledChordEntry): PooledChordEntry[] {
+export function removePoolEntry(
+	pool: PooledChordEntry[],
+	entry: PooledChordEntry
+): PooledChordEntry[] {
 	const k = poolEntryKey(entry);
 	return pool.filter((e) => poolEntryKey(e) !== k);
 }
@@ -369,13 +388,15 @@ function sanitizeProfile(raw: unknown, fallbackName: string): ChordPromptProfile
 		builderTonalityMode,
 		poolEntries,
 		bpm: clamp(Number(o.bpm ?? ref.bpm), 40, 240, ref.bpm),
-		clicksPerChord: clamp(Number(o.clicksPerChord ?? ref.clicksPerChord), 1, 32, ref.clicksPerChord),
+		clicksPerChord: clamp(
+			Number(o.clicksPerChord ?? ref.clicksPerChord),
+			1,
+			32,
+			ref.clicksPerChord
+		),
 		clickVolume: Math.min(
 			1,
-			Math.max(
-				0,
-				Number.isFinite(Number(o.clickVolume)) ? Number(o.clickVolume) : ref.clickVolume
-			)
+			Math.max(0, Number.isFinite(Number(o.clickVolume)) ? Number(o.clickVolume) : ref.clickVolume)
 		),
 		metronomeEnabled:
 			typeof o.metronomeEnabled === 'boolean' ? o.metronomeEnabled : ref.metronomeEnabled
@@ -444,8 +465,7 @@ export function sanitizeChordPromptsSettings(
 				1,
 				Math.max(0, Number.isFinite(Number(raw.clickVolume)) ? Number(raw.clickVolume) : 1)
 			),
-			metronomeEnabled:
-				typeof raw.metronomeEnabled === 'boolean' ? raw.metronomeEnabled : true
+			metronomeEnabled: typeof raw.metronomeEnabled === 'boolean' ? raw.metronomeEnabled : true
 		});
 		return { profiles: [p], activeProfileId: p.id };
 	}
