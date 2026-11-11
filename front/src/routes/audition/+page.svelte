@@ -20,6 +20,7 @@
 		formatPhaseSequenceCompact,
 		parsePhaseSequenceText
 	} from '$lib/audition/phases';
+	import { createDegreeVoiceSampler, triggerDegreeVoice } from '$lib/audition/degreeVoice';
 	import {
 		AUDITION_SETTINGS_KEY,
 		loadAuditionSettings,
@@ -69,12 +70,16 @@
 	let phaseSequence = $state<AuditionPhase[]>([...initial.phaseSequence]);
 	let phaseSequenceText = $state(formatPhaseSequenceCompact(initial.phaseSequence));
 	let phaseTextError = $state('');
+	let announceDegreesListen = $state(initial.announceDegreesListen);
+	let announceDegreesAudiate = $state(initial.announceDegreesAudiate);
 
 	let sampler: Tone.Sampler | undefined;
 	let clickSampler: Tone.Sampler | undefined;
 	let droneSampler: Tone.Sampler | undefined;
+	let voiceSampler: Tone.Sampler | undefined;
 	let samplerLoaded = $state(false);
 	let droneSamplerLoaded = $state(false);
+	let voiceSamplerLoaded = $state(false);
 	let creatingAudio: Promise<void> | null = null;
 	let playToken = 0;
 	let disposed = false;
@@ -178,7 +183,9 @@
 				hideMelody,
 				barCount,
 				poolMelodyIds: poolIdsByBars,
-				phaseSequence
+				phaseSequence,
+				announceDegreesListen,
+				announceDegreesAudiate
 			})
 		);
 	});
@@ -349,11 +356,15 @@
 				droneSamplerLoaded = true;
 			}
 		}).toDestination();
+
+		voiceSampler = createDegreeVoiceSampler(() => {
+			voiceSamplerLoaded = true;
+		});
 	}
 
 	async function initAudio() {
 		await Tone.start();
-		if (sampler && clickSampler && droneSampler) return;
+		if (sampler && clickSampler && droneSampler && voiceSampler) return;
 		if (!creatingAudio) {
 			creatingAudio = Promise.resolve()
 				.then(() => createSamplers())
@@ -367,7 +378,10 @@
 
 	async function waitUntilLoaded() {
 		const started = Date.now();
-		while ((!samplerLoaded || !droneSamplerLoaded) && Date.now() - started < 10000) {
+		while (
+			(!samplerLoaded || !droneSamplerLoaded || !voiceSamplerLoaded) &&
+			Date.now() - started < 10000
+		) {
 			await new Promise((resolve) => setTimeout(resolve, 40));
 		}
 	}
@@ -468,6 +482,7 @@
 				const duration = Math.max(0.05, note.beats * ctx.secPerBeat * 0.9);
 				ctx.scheduleAt(when, (audioTime) => {
 					sampler?.triggerAttackRelease(pitch, duration, audioTime);
+					if (announceDegreesListen) triggerDegreeVoice(voiceSampler, note.degree!, audioTime);
 				});
 			}
 			ctx.scheduleAt(when, (audioTime) => {
@@ -505,6 +520,37 @@
 					sessionMelody = melody;
 					playingId = melody.id;
 				}
+				playheadBeat = announceDegreesAudiate && melody ? 0 : null;
+			}, audioTime);
+		});
+
+		if (!melody || !announceDegreesAudiate) return;
+
+		const parsed = parseNotation(melody.notation, barCount);
+		if (!parsed.ok) return;
+
+		let cursor = 0;
+		for (const note of parsed.notes) {
+			const when = startSec + cursor * ctx.secPerBeat;
+			const noteBeat = cursor;
+			if (note.degree) {
+				ctx.scheduleAt(when, (audioTime) => {
+					triggerDegreeVoice(voiceSampler, note.degree!, audioTime);
+				});
+			}
+			ctx.scheduleAt(when, (audioTime) => {
+				Tone.getDraw().schedule(() => {
+					if (ctx.token !== playToken) return;
+					playheadBeat = noteBeat;
+				}, audioTime);
+			});
+			cursor += note.beats;
+		}
+
+		const endSec = startSec + phaseDurationSeconds();
+		ctx.scheduleAt(endSec, (audioTime) => {
+			Tone.getDraw().schedule(() => {
+				if (ctx.token !== playToken) return;
 				playheadBeat = null;
 			}, audioTime);
 		});
@@ -545,7 +591,7 @@
 
 		for (const phase of phaseSequence) {
 			if (phase === 'listen') {
-				const melody = pickMelodyFromPool(lastListenId);
+				const melody = carryMelody ?? pickMelodyFromPool(lastListenId);
 				if (!melody) return null;
 				if (!scheduleListenPhase(ctx, melody, offsetSec, 'listen')) {
 					if (startSec === 0) {
@@ -554,14 +600,14 @@
 					return null;
 				}
 				carryMelody = melody;
-				lastListenId = melody.id;
 			} else {
+				if (!carryMelody) return null;
 				scheduleAudiatePhase(ctx, offsetSec, carryMelody);
 			}
 			offsetSec += phaseDurationSeconds();
 		}
 
-		return { endSec: offsetSec, lastListenId };
+		return { endSec: offsetSec, lastListenId: carryMelody?.id ?? lastListenId };
 	}
 
 	function extendPracticeSchedule(
@@ -794,6 +840,7 @@
 		sampler?.dispose();
 		clickSampler?.dispose();
 		droneSampler?.dispose();
+		voiceSampler?.dispose();
 	});
 </script>
 
@@ -1078,6 +1125,16 @@
 				Listen plays the melody with bass. Audiate is silent melody time with the tonic in the bass
 				again so you can sing or audiate.
 			</p>
+			<div class="mt-3 flex flex-wrap gap-4 text-sm">
+				<label class="flex items-center gap-2">
+					<input type="checkbox" bind:checked={announceDegreesListen} class="accent-emerald-500" />
+					Announce degrees on Listen
+				</label>
+				<label class="flex items-center gap-2">
+					<input type="checkbox" bind:checked={announceDegreesAudiate} class="accent-violet-500" />
+					Announce degrees on Audiate
+				</label>
+			</div>
 		</details>
 
 		<div class="mb-4 flex flex-wrap items-center gap-2">

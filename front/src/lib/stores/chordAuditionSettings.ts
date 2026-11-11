@@ -19,6 +19,8 @@ export type ChordAuditionSettings = {
 	length: number;
 	poolIdsByLength: Partial<Record<number, string[]>>;
 	phaseSequence: AuditionPhase[];
+	announceDegreesListen: boolean;
+	announceDegreesAudiate: boolean;
 };
 
 export const defaultChordAuditionSettings: ChordAuditionSettings = {
@@ -32,7 +34,9 @@ export const defaultChordAuditionSettings: ChordAuditionSettings = {
 	hideProgression: false,
 	length: 4,
 	poolIdsByLength: {},
-	phaseSequence: ['listen', 'audiate']
+	phaseSequence: ['listen', 'audiate'],
+	announceDegreesListen: false,
+	announceDegreesAudiate: false
 };
 
 function sanitizePhaseSequence(raw: unknown): AuditionPhase[] {
@@ -86,8 +90,28 @@ function sanitize(raw: Partial<ChordAuditionSettings>): ChordAuditionSettings {
 		hideProgression: raw.hideProgression ?? defaults.hideProgression,
 		length: Number.isInteger(length) && length >= 1 && length <= 32 ? length : defaults.length,
 		poolIdsByLength: sanitizePool(raw.poolIdsByLength),
-		phaseSequence: sanitizePhaseSequence(raw.phaseSequence)
+		phaseSequence: sanitizePhaseSequence(raw.phaseSequence),
+		announceDegreesListen: chordAnnounceListenFromRaw(raw, defaults),
+		announceDegreesAudiate: chordAnnounceAudiateFromRaw(raw, defaults)
 	};
+}
+
+function chordAnnounceListenFromRaw(
+	raw: Partial<ChordAuditionSettings> & { announceDegrees?: boolean },
+	defaults: ChordAuditionSettings
+): boolean {
+	if (typeof raw.announceDegreesListen === 'boolean') return raw.announceDegreesListen;
+	if (typeof raw.announceDegrees === 'boolean') return raw.announceDegrees;
+	return defaults.announceDegreesListen;
+}
+
+function chordAnnounceAudiateFromRaw(
+	raw: Partial<ChordAuditionSettings> & { announceDegrees?: boolean },
+	defaults: ChordAuditionSettings
+): boolean {
+	if (typeof raw.announceDegreesAudiate === 'boolean') return raw.announceDegreesAudiate;
+	if (typeof raw.announceDegrees === 'boolean') return raw.announceDegrees;
+	return defaults.announceDegreesAudiate;
 }
 
 export function loadChordAuditionSettings(): ChordAuditionSettings {

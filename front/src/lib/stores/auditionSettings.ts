@@ -21,6 +21,10 @@ export type AuditionSettings = {
 	/** Melody ids in the random pool for each bar file (empty = all). */
 	poolMelodyIds: Partial<Record<BarCount, string[]>>;
 	phaseSequence: AuditionPhase[];
+	/** Spoken scale-degree samples (1–7) during Listen. */
+	announceDegreesListen: boolean;
+	/** Spoken scale-degree samples (1–7) during Audiate. */
+	announceDegreesAudiate: boolean;
 };
 
 export const defaultAuditionSettings: AuditionSettings = {
@@ -37,7 +41,9 @@ export const defaultAuditionSettings: AuditionSettings = {
 	hideMelody: false,
 	barCount: 1,
 	poolMelodyIds: {},
-	phaseSequence: ['listen', 'audiate']
+	phaseSequence: ['listen', 'audiate'],
+	announceDegreesListen: false,
+	announceDegreesAudiate: false
 };
 
 function sanitizePhaseSequence(raw: unknown): AuditionPhase[] {
@@ -92,8 +98,28 @@ function sanitize(raw: Partial<AuditionSettings>): AuditionSettings {
 		hideMelody: raw.hideMelody ?? defaults.hideMelody,
 		barCount: isBarCount(barCount) ? barCount : defaults.barCount,
 		poolMelodyIds: sanitizePoolIds(raw.poolMelodyIds),
-		phaseSequence: sanitizePhaseSequence(raw.phaseSequence)
+		phaseSequence: sanitizePhaseSequence(raw.phaseSequence),
+		announceDegreesListen: announceDegreesListenFromRaw(raw, defaults),
+		announceDegreesAudiate: announceDegreesAudiateFromRaw(raw, defaults)
 	};
+}
+
+function announceDegreesListenFromRaw(
+	raw: Partial<AuditionSettings> & { announceDegrees?: boolean },
+	defaults: AuditionSettings
+): boolean {
+	if (typeof raw.announceDegreesListen === 'boolean') return raw.announceDegreesListen;
+	if (typeof raw.announceDegrees === 'boolean') return raw.announceDegrees;
+	return defaults.announceDegreesListen;
+}
+
+function announceDegreesAudiateFromRaw(
+	raw: Partial<AuditionSettings> & { announceDegrees?: boolean },
+	defaults: AuditionSettings
+): boolean {
+	if (typeof raw.announceDegreesAudiate === 'boolean') return raw.announceDegreesAudiate;
+	if (typeof raw.announceDegrees === 'boolean') return raw.announceDegrees;
+	return defaults.announceDegreesAudiate;
 }
 
 export function loadAuditionSettings(): AuditionSettings {

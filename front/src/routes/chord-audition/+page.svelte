@@ -18,6 +18,7 @@
 		diatonicDegreePreview,
 		type CircleRoot
 	} from '$lib/chords/chordPrompts';
+	import { createDegreeVoiceSampler, triggerDegreeVoice } from '$lib/audition/degreeVoice';
 	import {
 		formatPhaseSequence,
 		formatPhaseSequenceCompact,
@@ -56,10 +57,14 @@
 	let phaseSequenceText = $state(formatPhaseSequenceCompact(initial.phaseSequence));
 	let phaseTextError = $state('');
 	let selectedId = $state<string | null>(null);
+	let announceDegreesListen = $state(initial.announceDegreesListen);
+	let announceDegreesAudiate = $state(initial.announceDegreesAudiate);
 
 	let sampler: Tone.Sampler | undefined;
 	let clickSampler: Tone.Sampler | undefined;
+	let voiceSampler: Tone.Sampler | undefined;
 	let samplerLoaded = $state(false);
+	let voiceSamplerLoaded = $state(false);
 	let creatingAudio: Promise<void> | null = null;
 	let playToken = 0;
 	let disposed = false;
@@ -119,7 +124,9 @@
 				hideProgression,
 				length,
 				poolIdsByLength,
-				phaseSequence
+				phaseSequence,
+				announceDegreesListen,
+				announceDegreesAudiate
 			})
 		);
 	});
@@ -216,11 +223,15 @@
 		clickSampler = new Tone.Sampler({
 			urls: { C4: '/sounds/Click.wav' }
 		}).toDestination();
+
+		voiceSampler = createDegreeVoiceSampler(() => {
+			voiceSamplerLoaded = true;
+		});
 	}
 
 	async function initAudio() {
 		await Tone.start();
-		if (sampler && clickSampler) return;
+		if (sampler && clickSampler && voiceSampler) return;
 		if (!creatingAudio) {
 			creatingAudio = Promise.resolve()
 				.then(() => createSamplers())
@@ -234,7 +245,7 @@
 
 	async function waitUntilLoaded() {
 		const started = Date.now();
-		while (!samplerLoaded && Date.now() - started < 10000) {
+		while ((!samplerLoaded || !voiceSamplerLoaded) && Date.now() - started < 10000) {
 			await new Promise((resolve) => setTimeout(resolve, 40));
 		}
 	}
@@ -321,6 +332,13 @@
 					for (const pitch of notes) sampler?.triggerAttackRelease(pitch, duration, audioTime);
 				});
 			}
+			const announce =
+				phase === 'listen' ? announceDegreesListen : announceDegreesAudiate;
+			if (announce) {
+				ctx.scheduleAt(when, (audioTime) => {
+					triggerDegreeVoice(voiceSampler, chord.degree, audioTime);
+				});
+			}
 			const chordIndex = index;
 			ctx.scheduleAt(when, (audioTime) => {
 				Tone.getDraw().schedule(() => {
@@ -356,21 +374,25 @@
 		let lastListenId = avoidId ?? null;
 
 		for (const phase of phaseSequence) {
-			const progression: ChordProgression | null =
-				phase === 'listen'
-					? pickProgression(lastListenId)
-					: (carry ?? pickProgression(lastListenId));
-			if (!progression) return null;
-			if (!schedulePhase(ctx, progression, offsetSec, phase)) {
-				if (startSec === 0) playbackMessage = `${progression.name} could not be played.`;
-				return null;
+			if (phase === 'listen') {
+				const progression = carry ?? pickProgression(lastListenId);
+				if (!progression) return null;
+				if (!schedulePhase(ctx, progression, offsetSec, 'listen')) {
+					if (startSec === 0) playbackMessage = `${progression.name} could not be played.`;
+					return null;
+				}
+				carry = progression;
+			} else {
+				if (!carry) return null;
+				if (!schedulePhase(ctx, carry, offsetSec, 'audiate')) {
+					if (startSec === 0) playbackMessage = `${carry.name} could not be played.`;
+					return null;
+				}
 			}
-			if (phase === 'listen') lastListenId = progression.id;
-			carry = progression;
-			offsetSec += progressionSeconds(progression, ctx.secPerBeat);
+			offsetSec += progressionSeconds(carry, ctx.secPerBeat);
 		}
 
-		return { endSec: offsetSec, lastListenId };
+		return { endSec: offsetSec, lastListenId: carry?.id ?? lastListenId };
 	}
 
 	function extendPracticeSchedule(
@@ -524,6 +546,7 @@
 		stopPlayback();
 		sampler?.dispose();
 		clickSampler?.dispose();
+		voiceSampler?.dispose();
 	});
 </script>
 
@@ -758,6 +781,16 @@
 			Listen plays each triad. Audiate keeps the click and the bass you chose so you can hear the
 			changes in your head.
 		</p>
+		<div class="mt-3 flex flex-wrap gap-4 text-sm">
+			<label class="flex items-center gap-2">
+				<input type="checkbox" bind:checked={announceDegreesListen} class="accent-emerald-500" />
+				Announce degrees on Listen
+			</label>
+			<label class="flex items-center gap-2">
+				<input type="checkbox" bind:checked={announceDegreesAudiate} class="accent-violet-500" />
+				Announce degrees on Audiate
+			</label>
+		</div>
 	</details>
 
 	<div class="mb-4 flex flex-wrap items-center gap-2">
