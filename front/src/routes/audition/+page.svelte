@@ -21,6 +21,7 @@
 		parsePhaseSequenceText
 	} from '$lib/audition/phases';
 	import { createDegreeVoiceSampler, triggerDegreeVoice } from '$lib/audition/degreeVoice';
+	import { getBestOctaveForReference, melodyPitchFromTonic } from '$lib/audition/pitch';
 	import {
 		AUDITION_SETTINGS_KEY,
 		loadAuditionSettings,
@@ -149,7 +150,7 @@
 						: note.octave < 0
 							? ','.repeat(-note.octave)
 							: '';
-				return `${note.degree}${mark}  ${name}`;
+				return `${note.degree}${mark}  ${name}  ${melodyPitch(note.degree, note.octave)}`;
 			}
 			beat += note.beats;
 		}
@@ -297,35 +298,13 @@
 		return majorScaleIntervals.map((interval) => noteNames[(start + interval) % 12]);
 	}
 
-	function getBestOctaveForReference(noteName: string, referenceNote: string): number {
-		const reference = parsePitch(referenceNote);
-		const targetIndex = noteNames.indexOf(noteName);
-		const referenceIndex = noteNames.indexOf(reference.noteName);
-		if (targetIndex === -1 || referenceIndex === -1) return 4;
-		if (targetIndex < referenceIndex) return reference.octave + 1;
-		return reference.octave;
-	}
-
-	function parsePitch(pitch: string): { noteName: string; octave: number } {
-		const match = /^([A-G]#?)(-?\d+)$/.exec(pitch);
-		if (!match) return { noteName: 'C', octave: 3 };
-		return { noteName: match[1], octave: Number(match[2]) };
-	}
-
 	function getBassPitch(): string {
 		const noteName = currentScale[bassDegree - 1] ?? 'C';
 		return `${noteName}${getBestOctaveForReference(noteName, droneRegister)}`;
 	}
 
 	function melodyPitch(degree: number, octaveOffset: number): string {
-		const noteName = currentScale[degree - 1] ?? 'C';
-		const bass = parsePitch(getBassPitch());
-		const reference = `${bass.noteName}${bass.octave + 1 + melodyOctave}`;
-		const octave = Math.max(
-			1,
-			Math.min(6, getBestOctaveForReference(noteName, reference) + octaveOffset)
-		);
-		return `${noteName}${octave}`;
+		return melodyPitchFromTonic(currentScale, degree, droneRegister, melodyOctave, octaveOffset);
 	}
 
 	function volumeToDb(volume: number): number {
