@@ -1,7 +1,14 @@
 import { browser } from '$app/environment';
-import { CIRCLE_OF_FIFTHS, type CircleRoot } from '$lib/chords/chordPrompts';
+import { midiToPitch, pitchToMidi } from '$lib/chord-audition/harmony';
 import { isBeatsPerChord, type BeatsPerChord } from '$lib/chord-audition/notation';
+import { CIRCLE_OF_FIFTHS, type CircleRoot } from '$lib/chords/chordPrompts';
 import type { AuditionPhase } from '$lib/stores/auditionSettings';
+
+const REGISTER = /^[A-G]#?\d$/;
+
+function chordsRegisterFromBass(bassRegister: string): string {
+	return midiToPitch(pitchToMidi(bassRegister) + 12);
+}
 
 export const CHORD_AUDITION_SETTINGS_KEY = 'chordAuditionSettings';
 
@@ -15,6 +22,8 @@ export type ChordAuditionSettings = {
 	clickVolume: number;
 	audiateBass: AudiateBass;
 	bassRegister: string;
+	/** Lower bound for chord upper voices (close voicing / voice-leading). */
+	chordsRegister: string;
 	hideProgression: boolean;
 	length: number;
 	poolIdsByLength: Partial<Record<number, string[]>>;
@@ -30,7 +39,8 @@ export const defaultChordAuditionSettings: ChordAuditionSettings = {
 	clickEnabled: true,
 	clickVolume: 0.35,
 	audiateBass: 'roots',
-	bassRegister: 'C3',
+	bassRegister: 'C2',
+	chordsRegister: 'C3',
 	hideProgression: false,
 	length: 4,
 	poolIdsByLength: {},
@@ -84,9 +94,19 @@ function sanitize(raw: Partial<ChordAuditionSettings>): ChordAuditionSettings {
 				: defaults.clickVolume,
 		audiateBass: bass,
 		bassRegister:
-			typeof raw.bassRegister === 'string' && /^[A-G]#?\d$/.test(raw.bassRegister)
+			typeof raw.bassRegister === 'string' && REGISTER.test(raw.bassRegister)
 				? raw.bassRegister
 				: defaults.bassRegister,
+		chordsRegister: (() => {
+			if (typeof raw.chordsRegister === 'string' && REGISTER.test(raw.chordsRegister)) {
+				return raw.chordsRegister;
+			}
+			const bass =
+				typeof raw.bassRegister === 'string' && REGISTER.test(raw.bassRegister)
+					? raw.bassRegister
+					: defaults.bassRegister;
+			return chordsRegisterFromBass(bass);
+		})(),
 		hideProgression: raw.hideProgression ?? defaults.hideProgression,
 		length: Number.isInteger(length) && length >= 1 && length <= 32 ? length : defaults.length,
 		poolIdsByLength: sanitizePool(raw.poolIdsByLength),

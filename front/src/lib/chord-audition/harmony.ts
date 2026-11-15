@@ -111,10 +111,11 @@ function voiceLead(pcs: number[], previous: number[]): number[] {
 export function voiceProgression(
 	scale: string[],
 	chords: ChordEvent[],
-	bassRegister: string
+	bassRegister: string,
+	chordsRegister: string
 ): VoicedChord[] {
-	const floor = pitchToMidi(bassRegister);
-	const upperFloor = floor + 12;
+	const bassFloor = pitchToMidi(bassRegister);
+	const upperFloor = pitchToMidi(chordsRegister);
 	let previous: number[] | null = null;
 	const voiced: VoicedChord[] = [];
 
@@ -128,7 +129,7 @@ export function voiceProgression(
 		voiced.push({
 			degree: chord.degree,
 			beats: chord.beats,
-			bass: midiToPitch(lowestAtOrAbove(pcs[0]!, floor)),
+			bass: midiToPitch(lowestAtOrAbove(pcs[0]!, bassFloor)),
 			upper: upper.map(midiToPitch)
 		});
 	}

@@ -202,6 +202,10 @@
 		return 60 / bpm;
 	}
 
+	function nudgeBpm(delta: number) {
+		bpm = Math.min(200, Math.max(40, bpm + delta));
+	}
+
 	function phaseDurationSeconds(): number {
 		return expectedBeats(barCount) * beatSeconds();
 	}
@@ -899,8 +903,13 @@
 					onclick={() => shiftKey(1)}>&gt;</button
 				>
 			</div>
-			<label class="flex items-center gap-2 text-sm">
-				Tempo
+			<div class="flex flex-wrap items-center gap-2 text-sm">
+				<span>Tempo</span>
+				<button
+					type="button"
+					class="rounded border px-2 py-1 text-sm font-bold dark:border-gray-600"
+					onclick={() => nudgeBpm(-5)}>−5</button
+				>
 				<input
 					type="range"
 					min="40"
@@ -908,9 +917,15 @@
 					step="1"
 					bind:value={bpm}
 					class="w-28 accent-blue-500"
+					aria-label="Tempo"
 				/>
-				<span class="w-14">{bpm} bpm</span>
-			</label>
+				<button
+					type="button"
+					class="rounded border px-2 py-1 text-sm font-bold dark:border-gray-600"
+					onclick={() => nudgeBpm(5)}>+5</button
+				>
+				<span class="w-14 tabular-nums">{bpm} bpm</span>
+			</div>
 			<label class="flex items-center gap-2 text-sm">
 				<input type="checkbox" bind:checked={clickEnabled} class="accent-blue-500" />
 				Click

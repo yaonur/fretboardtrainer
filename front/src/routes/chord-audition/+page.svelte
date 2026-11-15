@@ -50,6 +50,7 @@
 	let clickVolume = $state(initial.clickVolume);
 	let audiateBass = $state<AudiateBass>(initial.audiateBass);
 	let bassRegister = $state(initial.bassRegister);
+	let chordsRegister = $state(initial.chordsRegister);
 	let hideProgression = $state(initial.hideProgression);
 	let length = $state(lengthOptions.includes(initial.length) ? initial.length : 4);
 	let poolIdsByLength = $state<Partial<Record<number, string[]>>>({ ...initial.poolIdsByLength });
@@ -121,6 +122,7 @@
 				clickVolume,
 				audiateBass,
 				bassRegister,
+				chordsRegister,
 				hideProgression,
 				length,
 				poolIdsByLength,
@@ -136,6 +138,10 @@
 		const start = index === -1 ? 0 : index;
 		selectedKey =
 			CIRCLE_OF_FIFTHS[(start + delta + CIRCLE_OF_FIFTHS.length) % CIRCLE_OF_FIFTHS.length];
+	}
+
+	function nudgeBpm(delta: number) {
+		bpm = Math.min(200, Math.max(40, bpm + delta));
 	}
 
 	function chooseLength(next: number) {
@@ -306,10 +312,11 @@
 	): boolean {
 		const parsed = parseProgression(progression.notation, beatsPerChord);
 		if (!parsed.ok) return false;
-		const voiced = voiceProgression(scale, parsed.chords, bassRegister);
+		const voiced = voiceProgression(scale, parsed.chords, bassRegister, chordsRegister);
 		if (voiced.length !== parsed.chords.length) return false;
 
-		const tonic = voiceProgression(scale, [{ degree: 1, beats: 1 }], bassRegister)[0]?.bass;
+		const tonic = voiceProgression(scale, [{ degree: 1, beats: 1 }], bassRegister, chordsRegister)[0]
+			?.bass;
 		let beat = 0;
 		for (let index = 0; index < voiced.length; index++) {
 			const chord = voiced[index]!;
@@ -606,8 +613,13 @@
 					onclick={() => shiftKey(1)}>&gt;</button
 				>
 			</div>
-			<label class="flex items-center gap-2 text-sm">
-				Tempo
+			<div class="flex flex-wrap items-center gap-2 text-sm">
+				<span>Tempo</span>
+				<button
+					type="button"
+					class="rounded border px-2 py-1 text-sm font-bold dark:border-gray-600"
+					onclick={() => nudgeBpm(-5)}>−5</button
+				>
 				<input
 					type="range"
 					min="40"
@@ -615,9 +627,15 @@
 					step="1"
 					bind:value={bpm}
 					class="w-28 accent-blue-500"
+					aria-label="Tempo"
 				/>
-				<span class="w-14">{bpm} bpm</span>
-			</label>
+				<button
+					type="button"
+					class="rounded border px-2 py-1 text-sm font-bold dark:border-gray-600"
+					onclick={() => nudgeBpm(5)}>+5</button
+				>
+				<span class="w-14 tabular-nums">{bpm} bpm</span>
+			</div>
 			<label class="flex items-center gap-2 text-sm">
 				<input type="checkbox" bind:checked={clickEnabled} class="accent-blue-500" />
 				Click
@@ -677,17 +695,33 @@
 					</button>
 				{/each}
 			</div>
-			<label class="mt-3 flex items-center gap-2 text-sm">
-				Bass register
-				<select
-					bind:value={bassRegister}
-					class="rounded border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900"
-				>
-					{#each registerOptions as register (register)}
-						<option value={register}>{register}</option>
-					{/each}
-				</select>
-			</label>
+			<div class="mt-3 flex flex-wrap items-center gap-4">
+				<label class="flex items-center gap-2 text-sm">
+					Bass register
+					<select
+						bind:value={bassRegister}
+						class="rounded border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900"
+					>
+						{#each registerOptions as register (register)}
+							<option value={register}>{register}</option>
+						{/each}
+					</select>
+				</label>
+				<label class="flex items-center gap-2 text-sm">
+					Chord register
+					<select
+						bind:value={chordsRegister}
+						class="rounded border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900"
+					>
+						{#each registerOptions as register (register)}
+							<option value={register}>{register}</option>
+						{/each}
+					</select>
+				</label>
+			</div>
+			<p class="mt-1 text-xs text-gray-600 dark:text-gray-300">
+				Bass is the root of each chord; chord register sets where the upper voices sit.
+			</p>
 		</div>
 	</details>
 
