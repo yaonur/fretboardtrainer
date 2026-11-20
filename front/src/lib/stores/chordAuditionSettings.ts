@@ -22,6 +22,8 @@ export type ChordAuditionSettings = {
 	clickVolume: number;
 	audiateBass: AudiateBass;
 	bassRegister: string;
+	/** Piano samples vs sustained synth pad for bass in audiate (and listen bass). */
+	bassTimbre: 'piano' | 'pad';
 	/** Lower bound for chord upper voices (close voicing / voice-leading). */
 	chordsRegister: string;
 	hideProgression: boolean;
@@ -40,6 +42,7 @@ export const defaultChordAuditionSettings: ChordAuditionSettings = {
 	clickVolume: 0.35,
 	audiateBass: 'roots',
 	bassRegister: 'C2',
+	bassTimbre: 'piano',
 	chordsRegister: 'C3',
 	hideProgression: false,
 	length: 4,
@@ -97,6 +100,10 @@ function sanitize(raw: Partial<ChordAuditionSettings>): ChordAuditionSettings {
 			typeof raw.bassRegister === 'string' && REGISTER.test(raw.bassRegister)
 				? raw.bassRegister
 				: defaults.bassRegister,
+		bassTimbre:
+			raw.bassTimbre === 'pad' || raw.bassTimbre === 'piano'
+				? raw.bassTimbre
+				: defaults.bassTimbre,
 		chordsRegister: (() => {
 			if (typeof raw.chordsRegister === 'string' && REGISTER.test(raw.chordsRegister)) {
 				return raw.chordsRegister;

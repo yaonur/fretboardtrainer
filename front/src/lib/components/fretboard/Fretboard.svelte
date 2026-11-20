@@ -1,9 +1,24 @@
 <script lang="ts">
 	import UiSelect from '$lib/components/UiSelect.svelte';
 	import * as Tone from 'tone';
+	import { createBassVoice, type BassTimbre, type BassVoice } from '$lib/audition/bassVoice';
+	import { getBestOctaveForReference } from '$lib/audition/pitch';
 	import { fretboardPresetsStore, type FretboardPreset } from '$lib/stores/fretboardStore.svelte';
+	import {
+		loadFretboardTonicSettings,
+		saveFretboardTonicSettings,
+		type FretboardTonicSettings
+	} from '$lib/stores/fretboardTonicSettings';
 	import { LocalStorage } from '$lib/stores/storage.svelte';
 	import { browser } from '$app/environment';
+	import { onDestroy } from 'svelte';
+
+	const savedTonic = loadFretboardTonicSettings();
+
+	const chromaticPitchNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+	const droneRegisterOptions = chromaticPitchNames.flatMap((name) =>
+		[0, 1, 2, 3, 4].map((octave) => `${name}${octave}`)
+	);
 
 	const notes = ['E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C', 'C#', 'D', 'D#'];
 	const circleOfFifths = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
@@ -42,16 +57,136 @@
 
 	// Audio setup
 	let sampler: Tone.Sampler;
+	let bassVoice: BassVoice | undefined;
+	let bassVoiceKind: BassTimbre | undefined;
+	let bassVoiceLoaded = $state(false);
+	let tonicDronePlaying = $state(false);
 	let isAudioInitialized = $state(false);
+
+	// --- Tonic reference (Degrees page) ---
+	let tonicEnabled = $state(savedTonic.tonicEnabled);
+	let tonicSustainEnabled = $state(savedTonic.tonicSustainEnabled);
+	let tonicTimbre = $state<BassTimbre>(savedTonic.tonicTimbre);
+	let tonicDegree = $state(savedTonic.tonicDegree);
+	let droneRegister = $state(savedTonic.droneRegister);
+	let droneVolume = $state(savedTonic.droneVolume);
+
+	function ensureBassVoice() {
+		if (bassVoice && bassVoiceKind === tonicTimbre) return;
+		try {
+			bassVoice?.releaseAll();
+		} catch {
+			/* */
+		}
+		bassVoice?.dispose();
+		bassVoiceLoaded = tonicTimbre === 'pad';
+		bassVoice = createBassVoice(tonicTimbre, () => {
+			bassVoiceLoaded = true;
+		});
+		bassVoiceKind = tonicTimbre;
+	}
+
+	function setTonicVolume() {
+		if (!bassVoice || !bassVoiceLoaded) return;
+		bassVoice.setVolumeDb(Tone.gainToDb(droneVolume));
+	}
+
+	function getTonicPitch(): string {
+		const noteName = currentScale[tonicDegree - 1];
+		if (!noteName) return 'C3';
+		const pitchName = convertToSharp(noteName);
+		const octave = getBestOctaveForReference(pitchName, droneRegister);
+		return `${pitchName}${octave}`;
+	}
+
+	function stopTonicDrone() {
+		if (bassVoice && tonicDronePlaying) {
+			bassVoice.releaseAll();
+			tonicDronePlaying = false;
+		}
+	}
+
+	function playTonicOnQuestion(when = Tone.now() + 0.05) {
+		if (!tonicEnabled || !bassVoice || !bassVoiceLoaded) return;
+		const pitch = getTonicPitch();
+		setTonicVolume();
+		if (tonicSustainEnabled) {
+			bassVoice.triggerSustain(pitch, when);
+			tonicDronePlaying = true;
+		} else {
+			bassVoice.triggerForDuration(pitch, Tone.Time('2n').toSeconds(), when);
+			tonicDronePlaying = false;
+		}
+	}
+
+	function updateSustainedTonic() {
+		if (!tonicEnabled || !tonicSustainEnabled || !bassVoice || !bassVoiceLoaded) {
+			stopTonicDrone();
+			return;
+		}
+		setTonicVolume();
+		bassVoice.triggerSustain(getTonicPitch(), Tone.now() + 0.05);
+		tonicDronePlaying = true;
+	}
+
+	function tonicSettingsSnapshot(): FretboardTonicSettings {
+		return {
+			tonicEnabled,
+			tonicSustainEnabled,
+			tonicTimbre,
+			tonicDegree,
+			droneRegister,
+			droneVolume
+		};
+	}
+
+	let tonicSaveTimeout: ReturnType<typeof setTimeout> | null = null;
+	function saveTonicSettings() {
+		if (!browser) return;
+		if (tonicSaveTimeout) clearTimeout(tonicSaveTimeout);
+		tonicSaveTimeout = setTimeout(() => {
+			saveFretboardTonicSettings(tonicSettingsSnapshot());
+			tonicSaveTimeout = null;
+		}, 100);
+	}
+
+	$effect(() => {
+		tonicEnabled;
+		tonicSustainEnabled;
+		tonicTimbre;
+		tonicDegree;
+		droneRegister;
+		droneVolume;
+		saveTonicSettings();
+	});
+
+	$effect(() => {
+		tonicTimbre;
+		if (isAudioInitialized) ensureBassVoice();
+	});
+
+	$effect(() => {
+		if (!isAudioInitialized) return;
+		tonicEnabled;
+		tonicSustainEnabled;
+		selectedKey;
+		tonicDegree;
+		droneRegister;
+		droneVolume;
+		tonicTimbre;
+		bassVoiceLoaded;
+		if (tonicEnabled && tonicSustainEnabled && bassVoiceLoaded) {
+			updateSustainedTonic();
+		} else if (!tonicEnabled || !tonicSustainEnabled) {
+			stopTonicDrone();
+		}
+	});
 
 	// Initialize audio on user interaction
 	async function initAudio() {
-		console.log('audio init');
 		if (!isAudioInitialized) {
-			console.log('initing---------');
 			await Tone.start();
 
-			// Create a sampler with guitar-like samples
 			sampler = new Tone.Sampler({
 				urls: {
 					C4: 'C4.mp3',
@@ -62,7 +197,10 @@
 				baseUrl: 'https://tonejs.github.io/audio/salamander/'
 			}).toDestination();
 
+			ensureBassVoice();
 			isAudioInitialized = true;
+		} else {
+			ensureBassVoice();
 		}
 	}
 
@@ -375,6 +513,10 @@
 	}
 
 	function generateNewQuestion(skipAutoPlay = false) {
+		if (tonicEnabled) {
+			void initAudio().then(() => playTonicOnQuestion());
+		}
+
 		// Store last question position and degree before generating new question
 		// Only store if toggle is enabled and we have a valid current question
 		if (showLastPositionDegree && correctAnswer !== null) {
@@ -1549,12 +1691,21 @@
 	}
 
 	// Clear timer on destroy
-	import { onDestroy } from 'svelte';
 	onDestroy(() => {
 		clearAutoNextTimer();
 		if (saveTimeout) {
 			clearTimeout(saveTimeout);
 			saveTimeout = null;
+		}
+		if (tonicSaveTimeout) {
+			clearTimeout(tonicSaveTimeout);
+			tonicSaveTimeout = null;
+		}
+		stopTonicDrone();
+		try {
+			bassVoice?.dispose();
+		} catch {
+			/* */
 		}
 	});
 
@@ -1987,6 +2138,76 @@
 		<div class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
 			Tuning: {tuning.join(' - ')} (from highest to lowest string)
 		</div>
+
+		<div
+			class="mx-auto mt-4 max-w-lg rounded-lg bg-amber-50 p-3 text-left dark:bg-amber-900/20"
+		>
+			<label class="flex cursor-pointer select-none items-center gap-2">
+				<input type="checkbox" bind:checked={tonicEnabled} class="accent-amber-500" />
+				<span class="text-sm font-medium">Tonic drone</span>
+			</label>
+			{#if tonicEnabled}
+				<div class="mt-2 flex flex-wrap justify-center gap-2">
+					{#each degreeButtons as degree, i}
+						<button
+							type="button"
+							onclick={() => (tonicDegree = i + 1)}
+							class={[
+								'rounded border-2 px-2 py-1 text-sm font-bold transition-colors',
+								tonicDegree === i + 1
+									? 'border-amber-600 bg-amber-500 text-black'
+									: 'border-gray-300 bg-gray-200 text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200'
+							]}
+						>
+							{degree}
+						</button>
+					{/each}
+				</div>
+				<div class="mt-3 flex flex-wrap items-center justify-center gap-3 text-sm">
+					<label class="flex items-center gap-2">
+						Sound
+						<select
+							bind:value={tonicTimbre}
+							class="rounded border border-gray-300 bg-white px-2 py-1 dark:border-gray-600 dark:bg-gray-800"
+						>
+							<option value="piano">Piano</option>
+							<option value="pad">Pad drone</option>
+						</select>
+					</label>
+					<label class="flex items-center gap-2">
+						Register
+						<select
+							bind:value={droneRegister}
+							class="max-w-[7rem] rounded border border-gray-300 bg-white px-2 py-1 dark:border-gray-600 dark:bg-gray-800"
+						>
+							{#each droneRegisterOptions as reg (reg)}
+								<option value={reg}>{reg}</option>
+							{/each}
+						</select>
+					</label>
+					<span class="text-xs text-gray-600 dark:text-gray-400">
+						{getTonicPitch()} in {selectedKey}
+					</span>
+				</div>
+				<label class="mt-2 flex cursor-pointer select-none items-center gap-2 text-sm">
+					<input type="checkbox" bind:checked={tonicSustainEnabled} class="accent-amber-500" />
+					Sustain between questions
+				</label>
+				<div class="mt-2 flex items-center justify-center gap-2 text-sm">
+					<span>Volume</span>
+					<input
+						type="range"
+						min="0"
+						max="1"
+						step="0.01"
+						bind:value={droneVolume}
+						class="w-40 accent-amber-500"
+					/>
+					<span>{Math.round(droneVolume * 100)}%</span>
+				</div>
+			{/if}
+		</div>
+
 		<button
 			onclick={async () => {
 				await initAudio();

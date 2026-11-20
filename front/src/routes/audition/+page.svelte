@@ -20,6 +20,7 @@
 		formatPhaseSequenceCompact,
 		parsePhaseSequenceText
 	} from '$lib/audition/phases';
+	import { createBassVoice, type BassVoice } from '$lib/audition/bassVoice';
 	import { createDegreeVoiceSampler, triggerDegreeVoice } from '$lib/audition/degreeVoice';
 	import { getBestOctaveForReference, melodyPitchFromTonic } from '$lib/audition/pitch';
 	import {
@@ -60,6 +61,7 @@
 	let bassSustain = $state(initial.bassSustain);
 	let droneRegister = $state(initial.droneRegister);
 	let droneVolume = $state(initial.droneVolume);
+	let bassTimbre = $state(initial.bassTimbre);
 	let melodyOctave = $state(initial.melodyOctave);
 	let hideMelody = $state(initial.hideMelody);
 	let poolIdsByBars = $state<Record<BarCount, string[]>>({
@@ -76,10 +78,11 @@
 
 	let sampler: Tone.Sampler | undefined;
 	let clickSampler: Tone.Sampler | undefined;
-	let droneSampler: Tone.Sampler | undefined;
+	let bassVoice: BassVoice | undefined;
+	let bassVoiceKind: 'piano' | 'pad' | undefined;
 	let voiceSampler: Tone.Sampler | undefined;
 	let samplerLoaded = $state(false);
-	let droneSamplerLoaded = $state(false);
+	let bassVoiceLoaded = $state(false);
 	let voiceSamplerLoaded = $state(false);
 	let creatingAudio: Promise<void> | null = null;
 	let playToken = 0;
@@ -180,6 +183,7 @@
 				bassSustain,
 				droneRegister,
 				droneVolume,
+				bassTimbre,
 				melodyOctave,
 				hideMelody,
 				barCount,
@@ -330,24 +334,31 @@
 			urls: { C4: '/sounds/Click.wav' }
 		}).toDestination();
 
-		droneSampler = new Tone.Sampler({
-			urls: { C4: 'C4.mp3', 'D#4': 'Ds4.mp3', 'F#4': 'Fs4.mp3' },
-			release: 0.45,
-			attack: 0.02,
-			baseUrl: 'https://tonejs.github.io/audio/salamander/',
-			onload: () => {
-				droneSamplerLoaded = true;
-			}
-		}).toDestination();
+		ensureBassVoice();
 
 		voiceSampler = createDegreeVoiceSampler(() => {
 			voiceSamplerLoaded = true;
 		});
 	}
 
+	function ensureBassVoice() {
+		if (bassVoice && bassVoiceKind === bassTimbre) return;
+		try {
+			bassVoice?.releaseAll();
+		} catch {
+			/* */
+		}
+		bassVoice?.dispose();
+		bassVoiceLoaded = bassTimbre === 'pad';
+		bassVoice = createBassVoice(bassTimbre, () => {
+			bassVoiceLoaded = true;
+		});
+		bassVoiceKind = bassTimbre;
+	}
+
 	async function initAudio() {
 		await Tone.start();
-		if (sampler && clickSampler && droneSampler && voiceSampler) return;
+		if (sampler && clickSampler && bassVoice && bassVoiceKind === bassTimbre && voiceSampler) return;
 		if (!creatingAudio) {
 			creatingAudio = Promise.resolve()
 				.then(() => createSamplers())
@@ -361,10 +372,7 @@
 
 	async function waitUntilLoaded() {
 		const started = Date.now();
-		while (
-			(!samplerLoaded || !droneSamplerLoaded || !voiceSamplerLoaded) &&
-			Date.now() - started < 10000
-		) {
+		while ((!samplerLoaded || !bassVoiceLoaded || !voiceSamplerLoaded) && Date.now() - started < 10000) {
 			await new Promise((resolve) => setTimeout(resolve, 40));
 		}
 	}
@@ -381,9 +389,9 @@
 			/* sampler may already be gone */
 		}
 		try {
-			droneSampler?.releaseAll();
+			bassVoice?.releaseAll();
 		} catch {
-			/* drone may already be gone */
+			/* bass voice may already be gone */
 		}
 		playing = false;
 		playingId = null;
@@ -406,19 +414,30 @@
 		durationSec: number,
 		mode: 'sustain' | 'perBar'
 	) {
-		if (!bassEnabled || !droneSampler) return;
+		if (!bassEnabled || !bassVoice) return;
 		const pitch = getBassPitch();
+		const pad = bassTimbre === 'pad';
 		if (mode === 'sustain') {
 			ctx.scheduleAt(startSec, (audioTime) => {
-				droneSampler?.triggerAttackRelease(pitch, durationSec * 0.98, audioTime);
+				if (pad) bassVoice?.triggerSustain(pitch, audioTime);
+				else bassVoice?.triggerForDuration(pitch, durationSec * 0.98, audioTime);
 			});
+			if (pad) {
+				ctx.scheduleAt(startSec + durationSec * 0.98, (audioTime) => bassVoice?.releaseAt(audioTime));
+			}
 			return;
 		}
+		const barDuration = 4 * ctx.secPerBeat * 0.92;
 		for (let bar = 0; bar < barCount; bar++) {
 			const barStart = startSec + bar * 4 * ctx.secPerBeat;
 			ctx.scheduleAt(barStart, (audioTime) => {
-				droneSampler?.triggerAttackRelease(pitch, 4 * ctx.secPerBeat * 0.92, audioTime);
+				if (pad) bassVoice?.triggerSustain(pitch, audioTime);
+				else bassVoice?.triggerForDuration(pitch, barDuration, audioTime);
 			});
+		}
+		if (pad) {
+			const endSec = startSec + barCount * 4 * ctx.secPerBeat;
+			ctx.scheduleAt(endSec, (audioTime) => bassVoice?.releaseAt(audioTime));
 		}
 	}
 
@@ -629,12 +648,13 @@
 		await initAudio();
 		await waitUntilLoaded();
 		if (disposed) return false;
-		if (!sampler || !droneSampler || !samplerLoaded || !droneSamplerLoaded) {
+		ensureBassVoice();
+		if (!sampler || !bassVoice || !samplerLoaded || !bassVoiceLoaded) {
 			playbackMessage = 'Piano sounds are still loading.';
 			return false;
 		}
 		if (clickSampler) clickSampler.volume.value = volumeToDb(clickVolume);
-		droneSampler.volume.value = volumeToDb(droneVolume);
+		bassVoice.setVolumeDb(volumeToDb(droneVolume));
 		return true;
 	}
 
@@ -822,7 +842,7 @@
 		stopPlayback();
 		sampler?.dispose();
 		clickSampler?.dispose();
-		droneSampler?.dispose();
+		bassVoice?.dispose();
 		voiceSampler?.dispose();
 	});
 </script>
@@ -970,6 +990,16 @@
 					<span class="text-xs text-gray-600 dark:text-gray-300">Now {getBassPitch()}</span>
 				</div>
 				<div class="mt-3 flex flex-wrap items-center gap-4">
+					<label class="flex items-center gap-2 text-sm">
+						Bass sound
+						<select
+							bind:value={bassTimbre}
+							class="rounded border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900"
+						>
+							<option value="piano">Piano</option>
+							<option value="pad">Pad drone</option>
+						</select>
+					</label>
 					<label class="flex items-center gap-2 text-sm">
 						Register
 						<select

@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import type { BassTimbre } from '$lib/audition/bassVoice';
 
 const STORAGE_KEY = 'listeningPracticeSettings';
 
@@ -26,6 +27,7 @@ export type ListeningPracticeSettings = {
 	tonicRotateFrequency: number;
 	droneRegister: string;
 	droneVolume: number;
+	tonicTimbre: BassTimbre;
 	degreeOctavesFromTonic: boolean;
 	selectedDegreeOctaveOffsets: number[];
 	randomToneEnabled: boolean;
@@ -59,6 +61,7 @@ export const defaultListeningPracticeSettings: ListeningPracticeSettings = {
 	tonicRotateFrequency: 3,
 	droneRegister: 'C2',
 	droneVolume: 0.35,
+	tonicTimbre: 'piano',
 	degreeOctavesFromTonic: false,
 	selectedDegreeOctaveOffsets: [0, 1],
 	randomToneEnabled: false,
@@ -141,6 +144,8 @@ function sanitize(raw: Partial<ListeningPracticeSettings>): ListeningPracticeSet
 			typeof raw.droneVolume === 'number' && raw.droneVolume >= 0 && raw.droneVolume <= 1
 				? raw.droneVolume
 				: d.droneVolume,
+		tonicTimbre:
+			raw.tonicTimbre === 'pad' || raw.tonicTimbre === 'piano' ? raw.tonicTimbre : d.tonicTimbre,
 		degreeOctavesFromTonic: raw.degreeOctavesFromTonic ?? d.degreeOctavesFromTonic,
 		selectedDegreeOctaveOffsets: clampOctaveOffsets(
 			raw.selectedDegreeOctaveOffsets,

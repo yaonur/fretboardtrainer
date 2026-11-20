@@ -18,6 +18,7 @@
 		diatonicDegreePreview,
 		type CircleRoot
 	} from '$lib/chords/chordPrompts';
+	import { createBassVoice, type BassVoice } from '$lib/audition/bassVoice';
 	import { createDegreeVoiceSampler, triggerDegreeVoice } from '$lib/audition/degreeVoice';
 	import {
 		formatPhaseSequence,
@@ -50,6 +51,7 @@
 	let clickVolume = $state(initial.clickVolume);
 	let audiateBass = $state<AudiateBass>(initial.audiateBass);
 	let bassRegister = $state(initial.bassRegister);
+	let bassTimbre = $state(initial.bassTimbre);
 	let chordsRegister = $state(initial.chordsRegister);
 	let hideProgression = $state(initial.hideProgression);
 	let length = $state(lengthOptions.includes(initial.length) ? initial.length : 4);
@@ -63,8 +65,11 @@
 
 	let sampler: Tone.Sampler | undefined;
 	let clickSampler: Tone.Sampler | undefined;
+	let bassVoice: BassVoice | undefined;
+	let bassVoiceKind: 'piano' | 'pad' | undefined;
 	let voiceSampler: Tone.Sampler | undefined;
 	let samplerLoaded = $state(false);
+	let bassVoiceLoaded = $state(false);
 	let voiceSamplerLoaded = $state(false);
 	let creatingAudio: Promise<void> | null = null;
 	let playToken = 0;
@@ -122,6 +127,7 @@
 				clickVolume,
 				audiateBass,
 				bassRegister,
+				bassTimbre,
 				chordsRegister,
 				hideProgression,
 				length,
@@ -215,6 +221,21 @@
 		return Tone.gainToDb(volume);
 	}
 
+	function ensureBassVoice() {
+		if (bassVoice && bassVoiceKind === bassTimbre) return;
+		try {
+			bassVoice?.releaseAll();
+		} catch {
+			/* */
+		}
+		bassVoice?.dispose();
+		bassVoiceLoaded = bassTimbre === 'pad';
+		bassVoice = createBassVoice(bassTimbre, () => {
+			bassVoiceLoaded = true;
+		});
+		bassVoiceKind = bassTimbre;
+	}
+
 	function createSamplers() {
 		sampler = new Tone.Sampler({
 			urls: { C4: 'C4.mp3', 'D#4': 'Ds4.mp3', 'F#4': 'Fs4.mp3' },
@@ -230,6 +251,8 @@
 			urls: { C4: '/sounds/Click.wav' }
 		}).toDestination();
 
+		ensureBassVoice();
+
 		voiceSampler = createDegreeVoiceSampler(() => {
 			voiceSamplerLoaded = true;
 		});
@@ -237,7 +260,7 @@
 
 	async function initAudio() {
 		await Tone.start();
-		if (sampler && clickSampler && voiceSampler) return;
+		if (sampler && clickSampler && bassVoice && bassVoiceKind === bassTimbre && voiceSampler) return;
 		if (!creatingAudio) {
 			creatingAudio = Promise.resolve()
 				.then(() => createSamplers())
@@ -251,7 +274,10 @@
 
 	async function waitUntilLoaded() {
 		const started = Date.now();
-		while ((!samplerLoaded || !voiceSamplerLoaded) && Date.now() - started < 10000) {
+		while (
+			(!samplerLoaded || !bassVoiceLoaded || !voiceSamplerLoaded) &&
+			Date.now() - started < 10000
+		) {
 			await new Promise((resolve) => setTimeout(resolve, 40));
 		}
 	}
@@ -266,6 +292,11 @@
 			sampler?.releaseAll();
 		} catch {
 			/* sampler may already be gone */
+		}
+		try {
+			bassVoice?.releaseAll();
+		} catch {
+			/* */
 		}
 		playing = false;
 		playingId = null;
@@ -317,26 +348,40 @@
 
 		const tonic = voiceProgression(scale, [{ degree: 1, beats: 1 }], bassRegister, chordsRegister)[0]
 			?.bass;
+		const padBass = bassTimbre === 'pad';
 		let beat = 0;
+		let padsBass = false;
 		for (let index = 0; index < voiced.length; index++) {
 			const chord = voiced[index]!;
 			const when = startSec + beat * ctx.secPerBeat;
 			const duration = Math.max(0.05, chord.beats * ctx.secPerBeat * 0.92);
-			const notes: string[] = [];
-			const addPitch = (pitch: string) => {
-				if (!notes.includes(pitch)) notes.push(pitch);
+			const bassPitches: string[] = [];
+			const upperPitches: string[] = [];
+			const addUnique = (list: string[], pitch: string) => {
+				if (!list.includes(pitch)) list.push(pitch);
 			};
 			if (phase === 'listen') {
-				addPitch(chord.bass);
-				for (const note of chord.upper) addPitch(note);
+				addUnique(bassPitches, chord.bass);
+				for (const note of chord.upper) addUnique(upperPitches, note);
 			} else if (audiateBass === 'roots') {
-				addPitch(chord.bass);
+				addUnique(bassPitches, chord.bass);
 			} else if (audiateBass === 'tonic' && tonic) {
-				addPitch(tonic);
+				addUnique(bassPitches, tonic);
 			}
-			if (notes.length > 0) {
+			const pianoBass = padBass ? [] : bassPitches;
+			const samplerNotes = [...pianoBass, ...upperPitches];
+			if (samplerNotes.length > 0) {
 				ctx.scheduleAt(when, (audioTime) => {
-					for (const pitch of notes) sampler?.triggerAttackRelease(pitch, duration, audioTime);
+					for (const pitch of samplerNotes) {
+						sampler?.triggerAttackRelease(pitch, duration, audioTime);
+					}
+				});
+			}
+			if (padBass && bassPitches.length > 0) {
+				padsBass = true;
+				const pitch = bassPitches[0]!;
+				ctx.scheduleAt(when, (audioTime) => {
+					bassVoice?.triggerSustain(pitch, audioTime);
 				});
 			}
 			const announce =
@@ -358,6 +403,11 @@
 				}, audioTime);
 			});
 			beat += chord.beats;
+		}
+
+		if (padsBass) {
+			const phaseEnd = startSec + beat * ctx.secPerBeat;
+			ctx.scheduleAt(phaseEnd, (audioTime) => bassVoice?.releaseAt(audioTime));
 		}
 
 		scheduleClicks(ctx, startSec, parsed.beats);
@@ -436,11 +486,13 @@
 		await initAudio();
 		await waitUntilLoaded();
 		if (disposed) return false;
-		if (!sampler || !samplerLoaded) {
+		ensureBassVoice();
+		if (!sampler || !bassVoice || !samplerLoaded || !bassVoiceLoaded) {
 			playbackMessage = 'Piano sounds are still loading.';
 			return false;
 		}
 		if (clickSampler) clickSampler.volume.value = volumeToDb(clickVolume);
+		bassVoice.setVolumeDb(-4);
 		return true;
 	}
 
@@ -553,6 +605,7 @@
 		stopPlayback();
 		sampler?.dispose();
 		clickSampler?.dispose();
+		bassVoice?.dispose();
 		voiceSampler?.dispose();
 	});
 </script>
@@ -696,6 +749,16 @@
 				{/each}
 			</div>
 			<div class="mt-3 flex flex-wrap items-center gap-4">
+				<label class="flex items-center gap-2 text-sm">
+					Bass sound
+					<select
+						bind:value={bassTimbre}
+						class="rounded border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900"
+					>
+						<option value="piano">Piano</option>
+						<option value="pad">Pad drone</option>
+					</select>
+				</label>
 				<label class="flex items-center gap-2 text-sm">
 					Bass register
 					<select

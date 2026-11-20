@@ -15,6 +15,8 @@ export type AuditionSettings = {
 	bassSustain: boolean;
 	droneRegister: string;
 	droneVolume: number;
+	/** Piano samples vs sustained synth pad for tonic bass. */
+	bassTimbre: 'piano' | 'pad';
 	melodyOctave: number;
 	hideMelody: boolean;
 	barCount: BarCount;
@@ -37,6 +39,7 @@ export const defaultAuditionSettings: AuditionSettings = {
 	bassSustain: false,
 	droneRegister: 'C2',
 	droneVolume: 0.45,
+	bassTimbre: 'piano',
 	melodyOctave: 0,
 	hideMelody: false,
 	barCount: 1,
@@ -91,6 +94,8 @@ function sanitize(raw: Partial<AuditionSettings>): AuditionSettings {
 			typeof raw.droneVolume === 'number' && raw.droneVolume >= 0 && raw.droneVolume <= 1
 				? raw.droneVolume
 				: defaults.droneVolume,
+		bassTimbre:
+			raw.bassTimbre === 'pad' || raw.bassTimbre === 'piano' ? raw.bassTimbre : defaults.bassTimbre,
 		melodyOctave:
 			typeof raw.melodyOctave === 'number' && raw.melodyOctave >= -1 && raw.melodyOctave <= 2
 				? raw.melodyOctave

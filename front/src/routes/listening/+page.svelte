@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as Tone from 'tone';
 	import { onDestroy } from 'svelte';
+	import { createBassVoice, type BassTimbre, type BassVoice } from '$lib/audition/bassVoice';
 	import {
 		loadListeningPracticeSettings,
 		saveListeningPracticeSettings,
@@ -35,7 +36,8 @@
 	let sampler: Tone.Sampler;
 	let clickSampler: Tone.Sampler;
 	let voiceSampler: Tone.Sampler;
-	let droneSampler: Tone.Sampler;
+	let bassVoice: BassVoice | undefined;
+	let bassVoiceKind: BassTimbre | undefined;
 	let dronePlaying = $state(false);
 	let lastDegree = $state<number | null>(null); // Track last asked degree to avoid repetition
 	let questionTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -82,7 +84,8 @@
 	let questionsOnActiveTonic = $state(0);
 	let droneRegister = $state(savedSettings.droneRegister);
 	let droneVolume = $state(savedSettings.droneVolume);
-	let droneSamplerLoaded = $state(false);
+	let tonicTimbre = $state<BassTimbre>(savedSettings.tonicTimbre);
+	let bassVoiceLoaded = $state(false);
 	let degreeOctavesFromTonic = $state(savedSettings.degreeOctavesFromTonic);
 	let selectedDegreeOctaveOffsets = $state<number[]>(savedSettings.selectedDegreeOctaveOffsets);
 	let activeDegreeOctaveOffset = $state(0);
@@ -131,6 +134,7 @@
 			tonicRotateFrequency,
 			droneRegister,
 			droneVolume,
+			tonicTimbre,
 			degreeOctavesFromTonic,
 			selectedDegreeOctaveOffsets,
 			randomToneEnabled,
@@ -175,6 +179,7 @@
 		tonicRotateFrequency;
 		droneRegister;
 		droneVolume;
+		tonicTimbre;
 		degreeOctavesFromTonic;
 		selectedDegreeOctaveOffsets;
 		randomToneEnabled;
@@ -195,6 +200,26 @@
 		VI: 'A4',
 		VII: 'B4'
 	};
+
+	function ensureBassVoice() {
+		if (bassVoice && bassVoiceKind === tonicTimbre) return;
+		try {
+			bassVoice?.releaseAll();
+		} catch {
+			/* */
+		}
+		bassVoice?.dispose();
+		bassVoiceLoaded = tonicTimbre === 'pad';
+		bassVoice = createBassVoice(tonicTimbre, () => {
+			bassVoiceLoaded = true;
+		});
+		bassVoiceKind = tonicTimbre;
+	}
+
+	function setTonicVolume() {
+		if (!bassVoice || !bassVoiceLoaded) return;
+		bassVoice.setVolumeDb(Tone.gainToDb(droneVolume));
+	}
 
 	// Audio setup
 	async function initAudio() {
@@ -249,25 +274,18 @@
 				}
 			}).toDestination();
 
-			droneSampler = new Tone.Sampler({
-				urls: {
-					C4: 'C4.mp3',
-					'D#4': 'Ds4.mp3',
-					'F#4': 'Fs4.mp3'
-				},
-				release: 3,
-				attack: 0.05,
-				baseUrl: 'https://tonejs.github.io/audio/salamander/',
-				onload: () => {
-					droneSamplerLoaded = true;
-				}
-			}).toDestination();
+			ensureBassVoice();
 
 			isAudioInitialized = true;
 		}
 	}
 	$effect(() => {
 		if (!isAudioInitialized) initAudio();
+	});
+
+	$effect(() => {
+		tonicTimbre;
+		if (isAudioInitialized) ensureBassVoice();
 	});
 
 	// Clear timeout when component is destroyed
@@ -430,15 +448,16 @@
 	}
 
 	function playTonicOnQuestion(when = Tone.now() + 0.05) {
-		if (!tonicEnabled || selectedTonicDegrees.length === 0 || !droneSamplerLoaded) return;
+		if (!tonicEnabled || selectedTonicDegrees.length === 0 || !bassVoice || !bassVoiceLoaded) return;
 		const pitch = getTonicPitch();
-		droneSampler.volume.value = Tone.gainToDb(droneVolume);
+		setTonicVolume();
 		if (tonicSustainEnabled) {
-			droneSampler.releaseAll();
-			droneSampler.triggerAttack(pitch, when);
+			bassVoice.releaseAll();
+			bassVoice.triggerSustain(pitch, when);
 			dronePlaying = true;
 		} else {
-			droneSampler.triggerAttackRelease(pitch, '2n', when);
+			bassVoice.triggerForDuration(pitch, Tone.Time('2n').toSeconds(), when);
+			dronePlaying = false;
 		}
 	}
 
@@ -468,23 +487,20 @@
 	}
 
 	function stopDrone() {
-		if (droneSampler && dronePlaying) {
-			droneSampler.releaseAll();
+		if (bassVoice && dronePlaying) {
+			bassVoice.releaseAll();
 			dronePlaying = false;
 		}
 	}
 
 	function updateDronePitch() {
-		if (!tonicEnabled || !tonicSustainEnabled || !droneSampler || !droneSamplerLoaded) {
+		if (!tonicEnabled || !tonicSustainEnabled || !bassVoice || !bassVoiceLoaded) {
 			stopDrone();
 			return;
 		}
 		const pitch = getTonicPitch();
-		droneSampler.volume.value = Tone.gainToDb(droneVolume);
-		if (dronePlaying) {
-			droneSampler.releaseAll();
-		}
-		droneSampler.triggerAttack(pitch, Tone.now() + 0.05);
+		setTonicVolume();
+		bassVoice.triggerSustain(pitch, Tone.now() + 0.05);
 		dronePlaying = true;
 	}
 
@@ -614,11 +630,13 @@
 			} catch {}
 			voiceSamplerLoaded = false;
 		}
-		if (droneSampler) {
+		if (bassVoice) {
 			try {
-				droneSampler.dispose();
+				bassVoice.dispose();
 			} catch {}
-			droneSamplerLoaded = false;
+			bassVoice = undefined;
+			bassVoiceKind = undefined;
+			bassVoiceLoaded = false;
 			dronePlaying = false;
 		}
 		isAudioInitialized = false;
@@ -782,8 +800,9 @@
 		droneVolume;
 		selectedKey;
 		activeTonicDegree;
-		droneSamplerLoaded;
-		if (tonicEnabled && tonicSustainEnabled && droneSamplerLoaded) {
+		tonicTimbre;
+		bassVoiceLoaded;
+		if (tonicEnabled && tonicSustainEnabled && bassVoiceLoaded) {
 			updateDronePitch();
 		} else {
 			stopDrone();
@@ -1118,6 +1137,16 @@
 					<input type="checkbox" bind:checked={tonicSustainEnabled} class="accent-amber-500" />
 					<span class="text-sm">Sustain tonic between questions</span>
 				</label>
+				<div class="flex flex-wrap items-center justify-center gap-4">
+					<span class="text-sm font-medium">Tonic sound:</span>
+					<select
+						bind:value={tonicTimbre}
+						class="rounded border border-gray-300 bg-white px-3 py-1 text-sm dark:bg-gray-700 dark:text-white"
+					>
+						<option value="piano">Piano</option>
+						<option value="pad">Pad drone</option>
+					</select>
+				</div>
 				<div class="flex flex-wrap items-center justify-center gap-4">
 					<span class="text-sm font-medium">Register from:</span>
 					<select
