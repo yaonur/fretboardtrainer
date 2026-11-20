@@ -39,6 +39,7 @@
 	let bassVoice: BassVoice | undefined;
 	let bassVoiceKind: BassTimbre | undefined;
 	let dronePlaying = $state(false);
+	let tonicSessionActive = false;
 	let lastDegree = $state<number | null>(null); // Track last asked degree to avoid repetition
 	let questionTimeout: ReturnType<typeof setTimeout> | null = null;
 	let samplerLoaded = $state(false);
@@ -209,6 +210,7 @@
 			/* */
 		}
 		bassVoice?.dispose();
+		tonicSessionActive = false;
 		bassVoiceLoaded = tonicTimbre === 'pad';
 		bassVoice = createBassVoice(tonicTimbre, () => {
 			bassVoiceLoaded = true;
@@ -447,8 +449,19 @@
 		}
 	}
 
+	function beginSessionTonic(when = Tone.now() + 0.05) {
+		if (!tonicEnabled || selectedTonicDegrees.length === 0 || !bassVoice || !bassVoiceLoaded) return;
+		if (tonicTimbre !== 'pad') return;
+		if (tonicSessionActive) return;
+		setTonicVolume();
+		bassVoice.triggerSustain(getTonicPitch(), when);
+		dronePlaying = true;
+		tonicSessionActive = true;
+	}
+
 	function playTonicOnQuestion(when = Tone.now() + 0.05) {
 		if (!tonicEnabled || selectedTonicDegrees.length === 0 || !bassVoice || !bassVoiceLoaded) return;
+		if (tonicTimbre === 'pad') return;
 		const pitch = getTonicPitch();
 		setTonicVolume();
 		if (tonicSustainEnabled) {
@@ -487,20 +500,29 @@
 	}
 
 	function stopDrone() {
-		if (bassVoice && dronePlaying) {
+		if (bassVoice && (dronePlaying || tonicSessionActive)) {
 			bassVoice.releaseAll();
 			dronePlaying = false;
+			tonicSessionActive = false;
 		}
 	}
 
 	function updateDronePitch() {
-		if (!tonicEnabled || !tonicSustainEnabled || !bassVoice || !bassVoiceLoaded) {
+		if (!tonicEnabled || !bassVoice || !bassVoiceLoaded || !gameStarted) {
 			stopDrone();
 			return;
 		}
-		const pitch = getTonicPitch();
+		const padSession = tonicTimbre === 'pad';
+		if (!padSession && !tonicSustainEnabled) {
+			stopDrone();
+			return;
+		}
+		if (padSession && !tonicSessionActive) {
+			beginSessionTonic();
+			return;
+		}
 		setTonicVolume();
-		bassVoice.triggerSustain(pitch, Tone.now() + 0.05);
+		bassVoice.triggerSustain(getTonicPitch(), Tone.now() + 0.05);
 		dronePlaying = true;
 	}
 
@@ -767,6 +789,7 @@
 			activeTonicDegree = getSortedTonicDegrees()[0];
 		}
 		gameStarted = true;
+		beginSessionTonic();
 		generateNewQuestion();
 	}
 
@@ -802,7 +825,11 @@
 		activeTonicDegree;
 		tonicTimbre;
 		bassVoiceLoaded;
-		if (tonicEnabled && tonicSustainEnabled && bassVoiceLoaded) {
+		if (!tonicEnabled || !bassVoiceLoaded) {
+			stopDrone();
+			return;
+		}
+		if (tonicTimbre === 'pad' || tonicSustainEnabled) {
 			updateDronePitch();
 		} else {
 			stopDrone();

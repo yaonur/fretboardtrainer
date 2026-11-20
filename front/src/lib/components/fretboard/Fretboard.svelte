@@ -61,6 +61,7 @@
 	let bassVoiceKind: BassTimbre | undefined;
 	let bassVoiceLoaded = $state(false);
 	let tonicDronePlaying = $state(false);
+	let tonicSessionActive = false;
 	let isAudioInitialized = $state(false);
 
 	// --- Tonic reference (Degrees page) ---
@@ -79,6 +80,7 @@
 			/* */
 		}
 		bassVoice?.dispose();
+		tonicSessionActive = false;
 		bassVoiceLoaded = tonicTimbre === 'pad';
 		bassVoice = createBassVoice(tonicTimbre, () => {
 			bassVoiceLoaded = true;
@@ -100,17 +102,30 @@
 	}
 
 	function stopTonicDrone() {
-		if (bassVoice && tonicDronePlaying) {
+		if (bassVoice && (tonicDronePlaying || tonicSessionActive)) {
 			bassVoice.releaseAll();
 			tonicDronePlaying = false;
+			tonicSessionActive = false;
 		}
+	}
+
+	function beginSessionTonic(when = Tone.now() + 0.05) {
+		if (!tonicEnabled || !bassVoice || !bassVoiceLoaded) return;
+		if (tonicTimbre !== 'pad') return;
+		if (tonicSessionActive) return;
+		setTonicVolume();
+		bassVoice.triggerSustain(getTonicPitch(), when);
+		tonicDronePlaying = true;
+		tonicSessionActive = true;
 	}
 
 	function playTonicOnQuestion(when = Tone.now() + 0.05) {
 		if (!tonicEnabled || !bassVoice || !bassVoiceLoaded) return;
+		if (tonicTimbre === 'pad') return;
 		const pitch = getTonicPitch();
 		setTonicVolume();
 		if (tonicSustainEnabled) {
+			bassVoice.releaseAll();
 			bassVoice.triggerSustain(pitch, when);
 			tonicDronePlaying = true;
 		} else {
@@ -120,8 +135,17 @@
 	}
 
 	function updateSustainedTonic() {
-		if (!tonicEnabled || !tonicSustainEnabled || !bassVoice || !bassVoiceLoaded) {
+		if (!tonicEnabled || !bassVoice || !bassVoiceLoaded) {
 			stopTonicDrone();
+			return;
+		}
+		const padSession = tonicTimbre === 'pad';
+		if (!padSession && !tonicSustainEnabled) {
+			stopTonicDrone();
+			return;
+		}
+		if (padSession && !tonicSessionActive) {
+			beginSessionTonic();
 			return;
 		}
 		setTonicVolume();
@@ -175,11 +199,16 @@
 		droneVolume;
 		tonicTimbre;
 		bassVoiceLoaded;
-		if (tonicEnabled && tonicSustainEnabled && bassVoiceLoaded) {
-			updateSustainedTonic();
-		} else if (!tonicEnabled || !tonicSustainEnabled) {
+		if (!tonicEnabled || !bassVoiceLoaded) {
 			stopTonicDrone();
+			return;
 		}
+		if (tonicTimbre === 'pad') {
+			if (gameStarted) updateSustainedTonic();
+			return;
+		}
+		if (tonicSustainEnabled) updateSustainedTonic();
+		else stopTonicDrone();
 	});
 
 	// Initialize audio on user interaction
@@ -514,7 +543,10 @@
 
 	function generateNewQuestion(skipAutoPlay = false) {
 		if (tonicEnabled) {
-			void initAudio().then(() => playTonicOnQuestion());
+			void initAudio().then(() => {
+				if (tonicTimbre === 'pad') beginSessionTonic();
+				else playTonicOnQuestion();
+			});
 		}
 
 		// Store last question position and degree before generating new question

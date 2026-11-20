@@ -325,6 +325,16 @@
 		return pickFrom[Math.floor(Math.random() * pickFrom.length)] ?? null;
 	}
 
+	function scheduleSessionPad(ctx: ScheduleContext) {
+		if (!bassVoice || bassTimbre !== 'pad' || audiateBass !== 'tonic') return;
+		const parsed = voiceProgression(scale, [{ degree: 1, beats: 1 }], bassRegister, chordsRegister)[0];
+		const pitch = parsed?.bass;
+		if (!pitch) return;
+		ctx.scheduleAt(0, (audioTime) => {
+			bassVoice?.triggerSustain(pitch, audioTime);
+		});
+	}
+
 	function scheduleClicks(ctx: ScheduleContext, startSec: number, totalBeats: number) {
 		if (!clickEnabled || !clickSampler) return;
 		for (let beat = 0; beat < totalBeats - 1e-6; beat += 1) {
@@ -377,12 +387,15 @@
 					}
 				});
 			}
-			if (padBass && bassPitches.length > 0) {
+			const sessionTonicPad = padBass && phase === 'audiate' && audiateBass === 'tonic';
+			if (padBass && bassPitches.length > 0 && !sessionTonicPad) {
 				padsBass = true;
 				const pitch = bassPitches[0]!;
 				ctx.scheduleAt(when, (audioTime) => {
 					bassVoice?.triggerSustain(pitch, audioTime);
 				});
+			} else if (sessionTonicPad) {
+				padsBass = true;
 			}
 			const announce =
 				phase === 'listen' ? announceDegreesListen : announceDegreesAudiate;
@@ -405,7 +418,7 @@
 			beat += chord.beats;
 		}
 
-		if (padsBass) {
+		if (padsBass && bassTimbre !== 'pad') {
 			const phaseEnd = startSec + beat * ctx.secPerBeat;
 			ctx.scheduleAt(phaseEnd, (audioTime) => bassVoice?.releaseAt(audioTime));
 		}
@@ -536,6 +549,7 @@
 			return;
 		}
 		schedulePracticeTopUp(ctx, token, scheduleState);
+		scheduleSessionPad(ctx);
 
 		playing = true;
 		ctx.transport.start(Tone.now() + 0.05);

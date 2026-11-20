@@ -16,13 +16,16 @@ export type BassVoice = {
 };
 
 function createPadSynth(): Tone.PolySynth {
-	const synth = new Tone.PolySynth(Tone.Synth, {
-		volume: -8,
-		oscillator: { type: 'triangle' },
-		envelope: { attack: 0.05, decay: 0.55, sustain: 0.98, release: 2.8 }
+	const synth = new Tone.PolySynth(Tone.AMSynth, {
+		volume: 12,
+		harmonicity: 2.51,
+		oscillator: { type: 'fatsawtooth' },
+		envelope: { attack: 0.35, decay: 0.2, sustain: 0.92, release: 2.8 },
+		modulation: { type: 'square' },
+		modulationEnvelope: { attack: 0.3, decay: 0.05, sustain: 0.75, release: 1.2 }
 	});
 	synth.maxPolyphony = 6;
-	const filter = new Tone.Filter({ frequency: 520, type: 'lowpass', rolloff: -24 });
+	const filter = new Tone.Filter({ frequency: 620, type: 'lowpass', rolloff: -24 });
 	synth.connect(filter);
 	filter.toDestination();
 	return synth;
@@ -61,9 +64,14 @@ export function createBassVoice(timbre: BassTimbre, onReady?: () => void): BassV
 			},
 			triggerSustain: (pitch, when) => {
 				if (sustainPitch === pitch) return;
-				if (sustainPitch) synth.triggerRelease(when);
+				const previous = sustainPitch;
 				sustainPitch = pitch;
-				synth.triggerAttack(pitch, when);
+				if (previous) {
+					synth.releaseAll(when);
+					synth.triggerAttack(pitch, when + 0.04);
+				} else {
+					synth.triggerAttack(pitch, when);
+				}
 			},
 			releaseAt: (when) => {
 				sustainPitch = null;

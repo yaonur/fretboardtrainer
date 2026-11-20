@@ -408,6 +408,14 @@
 		secPerBeat: number;
 	};
 
+	function scheduleSessionPad(ctx: ScheduleContext) {
+		if (!bassEnabled || !bassVoice || bassTimbre !== 'pad') return;
+		const pitch = getBassPitch();
+		ctx.scheduleAt(0, (audioTime) => {
+			bassVoice?.triggerSustain(pitch, audioTime);
+		});
+	}
+
 	function scheduleBassAt(
 		ctx: ScheduleContext,
 		startSec: number,
@@ -415,29 +423,20 @@
 		mode: 'sustain' | 'perBar'
 	) {
 		if (!bassEnabled || !bassVoice) return;
+		if (bassTimbre === 'pad') return;
 		const pitch = getBassPitch();
-		const pad = bassTimbre === 'pad';
 		if (mode === 'sustain') {
 			ctx.scheduleAt(startSec, (audioTime) => {
-				if (pad) bassVoice?.triggerSustain(pitch, audioTime);
-				else bassVoice?.triggerForDuration(pitch, durationSec * 0.98, audioTime);
+				bassVoice?.triggerForDuration(pitch, durationSec * 0.98, audioTime);
 			});
-			if (pad) {
-				ctx.scheduleAt(startSec + durationSec * 0.98, (audioTime) => bassVoice?.releaseAt(audioTime));
-			}
 			return;
 		}
 		const barDuration = 4 * ctx.secPerBeat * 0.92;
 		for (let bar = 0; bar < barCount; bar++) {
 			const barStart = startSec + bar * 4 * ctx.secPerBeat;
 			ctx.scheduleAt(barStart, (audioTime) => {
-				if (pad) bassVoice?.triggerSustain(pitch, audioTime);
-				else bassVoice?.triggerForDuration(pitch, barDuration, audioTime);
+				bassVoice?.triggerForDuration(pitch, barDuration, audioTime);
 			});
-		}
-		if (pad) {
-			const endSec = startSec + barCount * 4 * ctx.secPerBeat;
-			ctx.scheduleAt(endSec, (audioTime) => bassVoice?.releaseAt(audioTime));
 		}
 	}
 
@@ -692,6 +691,7 @@
 			playbackMessage = 'Could not schedule this melody.';
 			return;
 		}
+		scheduleSessionPad(ctx);
 
 		const endSec = phaseDurationSeconds();
 		ctx.scheduleAt(endSec, (audioTime) => {
@@ -736,6 +736,7 @@
 			return;
 		}
 		schedulePracticeTopUp(ctx, token, scheduleState);
+		scheduleSessionPad(ctx);
 
 		playing = true;
 		ctx.transport.start(Tone.now() + 0.05);
