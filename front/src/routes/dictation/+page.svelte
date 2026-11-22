@@ -340,7 +340,7 @@
 	}
 
 	function getMinimumDegreeOctave(noteName: string): number {
-		const tonicPitch = getTonicPitch();
+		const tonicPitch = getTonicPitch(1);
 		const { noteName: tonicNoteName, octave: tonicOctave } = parsePitch(tonicPitch);
 		let octave = getBestOctaveForReference(noteName, `${tonicNoteName}${tonicOctave}`);
 		const tonicMidi = noteToMidi(tonicNoteName, tonicOctave);
@@ -872,7 +872,7 @@
 		</div>
 		{#if tonicEnabled && degreeOctavesFromTonic}
 			<p class="text-xs text-gray-600 dark:text-gray-400">
-				Degree pitches use the current tonic ({getTonicPitch()}) as the floor instead of lowest note.
+				Degree pitches use the I degree ({getTonicPitch(1)}) as the octave floor (tonic drone may rotate).
 			</p>
 		{/if}
 		</div>
